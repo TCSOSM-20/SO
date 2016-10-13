@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -214,12 +214,18 @@ class VirtualNetworkFunction(ManoDescriptor):
                 node = vdu.guest_epa.numa_node_policy.node.add()
                 node.id = 0
                 node.memory_mb = 512
-                node.vcpu = [0, 1]
+                vcpu = node.vcpu.add()
+                vcpu.id = 0
+                vcpu = node.vcpu.add()
+                vcpu.id = 1
 
                 node = vdu.guest_epa.numa_node_policy.node.add()
                 node.id = 1
                 node.memory_mb = 512
-                node.vcpu = [2, 3]
+                vcpu = node.vcpu.add()
+                vcpu.id = 2
+                vcpu = node.vcpu.add()
+                vcpu.id = 3
 
                 # specify the vswitch EPA
                 vdu.vswitch_epa.ovs_acceleration = 'DISABLED'
@@ -254,7 +260,8 @@ class VirtualNetworkFunction(ManoDescriptor):
                     internal_cp.name = cp_name + "/icp{}".format(i)
                     internal_cp.id = cp_name + "/icp{}".format(i)
                     internal_cp.type_yang = 'VPORT'
-                    internal_vlds[i].internal_connection_point_ref.append(internal_cp.id)
+                    ivld_cp = internal_vlds[i].internal_connection_point_ref.add()
+                    ivld_cp.id_ref = internal_cp.id
 
                     internal_interface = vdu.internal_interface.add()
                     internal_interface.name = 'fab%d' % i
@@ -637,7 +644,7 @@ exit 0
         ip_profile.ip_profile_params.ip_version = "ipv4"
         ip_profile.ip_profile_params.subnet_address = "31.31.31.0/24"
         ip_profile.ip_profile_params.gateway_address = "31.31.31.210"
-        
+
         vld_id = 1
         for cpgroup in cpgroup_list:
             vld = nsd.vld.add()

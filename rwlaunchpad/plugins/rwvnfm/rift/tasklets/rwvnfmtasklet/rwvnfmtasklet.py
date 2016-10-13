@@ -1,4 +1,4 @@
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -564,7 +564,7 @@ class VirtualDeploymentUnitRecord(object):
 
             if (vlr.has_field('ip_profile_params')) and (vlr.ip_profile_params.has_field('security_group')):
                 cp_info['security_group'] = vlr.ip_profile_params.security_group
-                
+
             cp_list.append(cp_info)
 
         for intf, cp, vlr in self._int_intf:
@@ -1311,7 +1311,7 @@ class VirtualNetworkFunctionRecord(object):
         for ivld_msg in self.vnfd.msg.internal_vld:
             self._log.debug("Creating internal vld:"
                             " %s, int_cp_ref = %s",
-                            ivld_msg, ivld_msg.internal_connection_point_ref
+                            ivld_msg, ivld_msg.internal_connection_point
                             )
             vlr = InternalVirtualLinkRecord(dts=self._dts,
                                             log=self._log,
@@ -1322,14 +1322,14 @@ class VirtualNetworkFunctionRecord(object):
                                             )
             self._vlrs.append(vlr)
 
-            for int_cp in ivld_msg.internal_connection_point_ref:
-                if int_cp in self._vlr_by_cp:
+            for int_cp in ivld_msg.internal_connection_point:
+                if int_cp.id_ref in self._vlr_by_cp:
                     msg = ("Connection point %s already "
-                           " bound %s" % (int_cp, self._vlr_by_cp[int_cp]))
+                           " bound %s" % (int_cp.id_ref, self._vlr_by_cp[int_cp.id_ref]))
                     raise InternalVirtualLinkRecordError(msg)
                 self._log.debug("Setting vlr %s to internal cp = %s",
-                                vlr, int_cp)
-                self._vlr_by_cp[int_cp] = vlr
+                                vlr, int_cp.id_ref)
+                self._vlr_by_cp[int_cp.id_ref] = vlr
 
     @asyncio.coroutine
     def instantiate_vls(self, xact, restart_mode=False):
@@ -1964,7 +1964,7 @@ class VnfrConsoleOperdataDtsHandler(object):
                     if not vdur._state == VDURecordState.READY:
                         self._log.debug("VDUR state is not READY. current state is {}".format(vdur._state))
                         xact_info.respond_xpath(rsp_code=rwdts.XactRspCode.ACK)
-                        return 
+                        return
                     with self._dts.transaction() as new_xact:
                         resp = yield from vdur.read_resource(new_xact)
                         vdur_console = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur()
@@ -1979,7 +1979,7 @@ class VnfrConsoleOperdataDtsHandler(object):
                     vdur_console = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur()
                     vdur_console.id = self._vdur_id
                     vdur_console.console_url = 'none'
-                      
+
                 xact_info.respond_xpath(rsp_code=rwdts.XactRspCode.ACK,
                                             xpath=self.vnfr_vdu_console_xpath,
                                             msg=vdur_console)
@@ -1987,8 +1987,8 @@ class VnfrConsoleOperdataDtsHandler(object):
                 #raise VnfRecordError("Not supported operation %s" % action)
                 self._log.error("Not supported operation %s" % action)
                 xact_info.respond_xpath(rsp_code=rwdts.XactRspCode.ACK)
-                return 
-                 
+                return
+
 
         self._log.debug("Registering for VNFR VDU using xpath: %s",
                         self.vnfr_vdu_console_xpath)
@@ -2601,10 +2601,6 @@ class VnfManager(object):
     def update_vnfd(self, vnfd):
         """ update the Virtual Network Function descriptor """
         self._log.debug("Update virtual network function descriptor - %s", vnfd)
-
-        # Hack to remove duplicates from leaf-lists - to be fixed by RIFT-6511
-        for ivld in vnfd.internal_vld:
-            ivld.internal_connection_point_ref = list(set(ivld.internal_connection_point_ref))
 
         if vnfd.id not in self._vnfds:
             self._log.debug("No VNFD found - creating VNFD id = %s", vnfd.id)

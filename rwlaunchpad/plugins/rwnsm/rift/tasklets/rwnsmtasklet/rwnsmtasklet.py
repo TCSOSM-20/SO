@@ -1,4 +1,4 @@
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -515,7 +515,7 @@ class VirtualLinkRecord(object):
         self._vlr_id = str(uuid.uuid4())
         self._state = VlRecordState.INIT
         self._prev_state = None
-        
+
     @property
     def xpath(self):
         """ path for this object """
@@ -1815,11 +1815,11 @@ class NetworkServiceRecord(object):
     @asyncio.coroutine
     def _create_vls(self, vld, cloud_account,om_datacenter):
         """Create a VLR in the cloud account specified using the given VLD
-        
+
         Args:
             vld : VLD yang obj
             cloud_account : Cloud account name
-        
+
         Returns:
             VirtualLinkRecord
         """
@@ -2981,22 +2981,22 @@ class NsrRpcDtsHandler(object):
             rpc_op = NsrYang.YangOutput_Nsr_StartNetworkService.from_dict({
                     "nsr_id":str(uuid.uuid4())
                 })
-            
+
             if not ('name' in rpc_ip and  'nsd_ref' in rpc_ip and ('cloud_account' in rpc_ip or 'om_datacenter' in rpc_ip)):
                 self._log.error("Mandatory parameters name or nsd_ref or cloud account not found in start-network-service {}".format(rpc_ip))
-                
+
 
             self._log.debug("start-network-service RPC input: {}".format(rpc_ip))
 
             try:
                 # Add used value to the pool
                 self._log.debug("RPC output: {}".format(rpc_op))
-  
+
                 nsd_copy = self.nsm.get_nsd(rpc_ip.nsd_ref)
 
                 #if not self._manager:
                 #    self._manager = yield from self._connect()
-        
+
                 self._log.debug("Configuring ns-instance-config with name  %s nsd-ref: %s",
                         rpc_ip.name, rpc_ip.nsd_ref)
 
@@ -3201,10 +3201,10 @@ class NsrDtsHandler(object):
         def get_nsr_key_pairs(dts_member_reg, xact):
             key_pairs = {}
             for instance_cfg, keyspec in dts_member_reg.get_xact_elements(xact, include_keyspec=True):
-                self._log.debug("Key pair received is {} KS: {}".format(instance_cfg, keyspec)) 
+                self._log.debug("Key pair received is {} KS: {}".format(instance_cfg, keyspec))
                 xpath = keyspec.to_xpath(RwNsrYang.get_schema())
                 key_pairs[instance_cfg.name] = instance_cfg
-            return key_pairs 
+            return key_pairs
 
         def on_apply(dts, acg, xact, action, scratch):
             """Apply the  configuration"""
@@ -3789,7 +3789,7 @@ class NsManager(object):
         #           msg.nsr_id_ref,
         #           msg.scaling_group_name_ref,
         #           msg.instance_id)
-    
+
     def nsr_update_cfg(self, nsr_id, msg):
         nsr = self._nsrs[nsr_id]
         nsr.nsr_cfg_msg= msg
@@ -3965,7 +3965,7 @@ class NsManager(object):
             self.create_nsd(nsd)
         else:
             self._log.debug("Updating NSD id = %s, nsd = %s", nsd.id, nsd)
-            self._nsds[nsd.id].update(nsd)  
+            self._nsds[nsd.id].update(nsd)
 
     def delete_nsd(self, nsd_id):
         """ Delete the Network service descriptor with the passed id """
@@ -4017,9 +4017,6 @@ class NsManager(object):
         """ Update the virtual network function descriptor """
         self._log.debug("Update virtual network function descriptor- %s", vnfd)
 
-        # Hack to remove duplicates from leaf-lists - to be fixed by RIFT-6511
-        for ivld in vnfd.internal_vld:
-            ivld.internal_connection_point_ref = list(set(ivld.internal_connection_point_ref))
 
         if vnfd.id not in self._vnfds:
             self._log.debug("No VNFD found - creating VNFD id = %s", vnfd.id)

@@ -1,5 +1,5 @@
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +34,7 @@ from rift.rwcal.openstack.openstack_drv import KeystoneDriver, NovaDriver
 logger = logging.getLogger('rwcal-openstack')
 
 #
-# Important information about openstack installation. This needs to be manually verified 
+# Important information about openstack installation. This needs to be manually verified
 #
 openstack_info = {
     'username'           : 'pluto',
@@ -81,7 +81,7 @@ def get_cal_plugin():
         logger.error("ERROR:Cal plugin instantiation failed. Aborting tests")
     else:
         logger.info("Openstack Cal plugin successfully instantiated")
-    return cal 
+    return cal
 
 
 class OpenStackTest(unittest.TestCase):
@@ -94,7 +94,7 @@ class OpenStackTest(unittest.TestCase):
     HostTrust = "trusted"
     PCIPassThroughAlias = "PCI_10G_ALIAS"
     SEG_ID = openstack_info['segmentation_id']
-    
+
     def setUp(self):
         """
         Assumption:
@@ -108,7 +108,7 @@ class OpenStackTest(unittest.TestCase):
         logger.info("Openstack-CAL-Test: setUp")
         self.cal   = get_cal_plugin()
         logger.info("Openstack-CAL-Test: setUpEND")
-        
+
         # First check for VM Flavor and Image and get the corresponding IDs
         rc, rs = self.cal.get_flavor_list(self._acct)
         self.assertEqual(rc, RwStatus.SUCCESS)
@@ -129,10 +129,10 @@ class OpenStackTest(unittest.TestCase):
         networks = [ network for network in rs.networkinfo_list if (network.network_name == 'rift.cal.unittest.network' or network.network_name == 'rift.cal.virtual_link') ]
         for network in networks:
             self.cal.delete_virtual_link(self._acct, network.network_id)
-            
+
     def tearDown(self):
         logger.info("Openstack-CAL-Test: tearDown")
-        
+
 
     def _md5(fname, blksize=1048576):
         hash_md5 = hashlib.md5()
@@ -141,7 +141,7 @@ class OpenStackTest(unittest.TestCase):
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
 
-    @unittest.skip("Skipping test_list_flavors")        
+    @unittest.skip("Skipping test_list_flavors")
     def test_list_flavor(self):
         """
         List existing flavors from openstack installation
@@ -154,8 +154,8 @@ class OpenStackTest(unittest.TestCase):
             rc, flv = self.cal.get_flavor(self._acct, flavor.id)
             self.assertEqual(rc, RwStatus.SUCCESS)
             self.assertEqual(flavor.id, flv.id)
-        
-    @unittest.skip("Skipping test_list_images")                    
+
+    @unittest.skip("Skipping test_list_images")
     def test_list_images(self):
         """
         List existing images from openstack installation
@@ -168,8 +168,8 @@ class OpenStackTest(unittest.TestCase):
         #    rc, img = self.cal.get_image(self._acct, image.id)
         #    self.assertEqual(rc, RwStatus.SUCCESS)
         #    self.assertEqual(image.id, img.id)
-        
-    @unittest.skip("Skipping test_list_vms")                
+
+    @unittest.skip("Skipping test_list_vms")
     def test_list_vms(self):
         """
         List existing VMs from openstack installation
@@ -181,8 +181,8 @@ class OpenStackTest(unittest.TestCase):
         for vm in rsp.vminfo_list:
             rc, server = self.cal.get_vm(self._acct, vm.vm_id)
             self.assertEqual(vm.vm_id, server.vm_id)
-            
-    @unittest.skip("Skipping test_list_networks")                            
+
+    @unittest.skip("Skipping test_list_networks")
     def test_list_networks(self):
         """
         List existing Network from openstack installation
@@ -194,8 +194,8 @@ class OpenStackTest(unittest.TestCase):
         for network in rsp.networkinfo_list:
             rc, net = self.cal.get_network(self._acct, network.network_id)
             self.assertEqual(network.network_id, net.network_id)
-        
-    @unittest.skip("Skipping test_list_ports")                                    
+
+    @unittest.skip("Skipping test_list_ports")
     def test_list_ports(self):
         """
         List existing Ports from openstack installation
@@ -237,8 +237,8 @@ class OpenStackTest(unittest.TestCase):
             else:
                 time.sleep(2) # Sleep for a second
         return rs
-    
-    @unittest.skip("Skipping test_create_delete_image")                            
+
+    @unittest.skip("Skipping test_create_delete_image")
     def test_create_delete_image(self):
         """
         Create/Query/Delete a new image in openstack installation
@@ -266,7 +266,7 @@ class OpenStackTest(unittest.TestCase):
         flavor                                     = RwcalYang.FlavorInfoItem()
         flavor.name                                = 'rift.cal.unittest.flavor'
         flavor.vm_flavor.memory_mb                 = 16384 # 16GB
-        flavor.vm_flavor.vcpu_count                = 4 
+        flavor.vm_flavor.vcpu_count                = 4
         flavor.vm_flavor.storage_gb                = 40 # 40GB
         flavor.guest_epa.mempage_size              = OpenStackTest.MemoryPageSize
         flavor.guest_epa.cpu_pinning_policy        = OpenStackTest.CpuPolicy
@@ -276,16 +276,22 @@ class OpenStackTest(unittest.TestCase):
             node = flavor.guest_epa.numa_node_policy.node.add()
             node.id = i
             if i == 0:
-                node.vcpu = [0,1]
+                vcpu = node.vcpu.add()
+                vcpu.id = 0
+                vcpu = node.vcpu.add()
+                vcpu.id = 1
             elif i == 1:
-                node.vcpu = [2,3]
+                vcpu = node.vcpu.add()
+                vcpu.id = 2
+                vcpu = node.vcpu.add()
+                vcpu.id = 3
             node.memory_mb = 8196
         dev = flavor.guest_epa.pcie_device.add()
         dev.device_id = OpenStackTest.PCIPassThroughAlias
         dev.count = 1
         return flavor
-        
-    @unittest.skip("Skipping test_create_delete_flavor")                            
+
+    @unittest.skip("Skipping test_create_delete_flavor")
     def test_create_delete_flavor(self):
         """
         Create/Query/Delete a new flavor in openstack installation
@@ -299,11 +305,11 @@ class OpenStackTest(unittest.TestCase):
         if flavor_list:
             rc = self.cal.delete_flavor(self._acct, flavor_list[0].id)
             self.assertEqual(rc, RwStatus.SUCCESS)
-        
+
         flavor = self._get_flavor_info_request()
         rc, flavor_id = self.cal.create_flavor(self._acct, flavor)
         self.assertEqual(rc, RwStatus.SUCCESS)
-        
+
         logger.info("Openstack-CAL-Test: Created new flavor with flavor_id : %s" %(flavor_id))
         rc, rs = self.cal.get_flavor(self._acct, flavor_id)
         self.assertEqual(rc, RwStatus.SUCCESS)
@@ -342,7 +348,7 @@ class OpenStackTest(unittest.TestCase):
 
     def _check_vm_state(self, vm_id, expected_state):
         """
-        Wait until VM reaches particular state (expected_state). 
+        Wait until VM reaches particular state (expected_state).
         """
         # Wait while VM goes to required state
 
@@ -369,7 +375,7 @@ class OpenStackTest(unittest.TestCase):
         if port_list:
             for port_id in port_list:
                 port = vm.port_list.add()
-                port.port_id = port_id 
+                port.port_id = port_id
 
         rc, vm_id = self.cal.create_vm(self._acct, vm)
         self.assertEqual(rc, RwStatus.SUCCESS)
@@ -409,7 +415,7 @@ class OpenStackTest(unittest.TestCase):
             vm_list = [vm for vm in rs.vminfo_list if vm.vm_id == vm_id]
             if not len(vm_list):
                 break
-        
+
         rc, rs = self.cal.get_vm_list(self._acct)
         self.assertEqual(rc, RwStatus.SUCCESS)
         vm_list = [vm for vm in rs.vminfo_list if vm.vm_id == vm_id]
@@ -427,8 +433,8 @@ class OpenStackTest(unittest.TestCase):
         self.assertEqual(rc, RwStatus.SUCCESS)
         ### Ensure that VM state is SHUTOFF
         self._check_vm_state(vm_id, 'SHUTOFF')
-        
-        
+
+
     def _start_vm(self, vm_id):
         """
         Starts VM and performs validity checks
@@ -442,7 +448,7 @@ class OpenStackTest(unittest.TestCase):
         ### Ensure that VM state is ACTIVE
         self._check_vm_state(vm_id, 'ACTIVE')
 
-        
+
     def _reboot_vm(self, vm_id):
         """
         Reboot VM and perform validity checks
@@ -498,7 +504,7 @@ class OpenStackTest(unittest.TestCase):
 
         logger.info("Openstack-CAL-Test: Starting VM(EPA) create/delete test")
         flavor = self._get_flavor_info_request()
-   
+
         rc, flavor_id = self.cal.do_create_flavor(self._acct, flavor)
         self.assertEqual(rc, RwStatus.SUCCESS)
         flavor.id = flavor_id
@@ -558,7 +564,7 @@ class OpenStackTest(unittest.TestCase):
         flavors = nova.flavor_list()
         self.assertTrue(len(flavors) > 1)
 
-    @unittest.skip("Skipping test_vm_operations")                            
+    @unittest.skip("Skipping test_vm_operations")
     def test_vm_operations(self):
         """
         Primary goal: Create/Query/Delete VM in openstack installation.
@@ -583,7 +589,7 @@ class OpenStackTest(unittest.TestCase):
         ### Delete the VM
         self._delete_vm(vm_id)
 
-        
+
     def _get_network_info_request(self):
         """
         Returns request object of type RwcalYang.NetworkInfoItem
@@ -629,16 +635,16 @@ class OpenStackTest(unittest.TestCase):
         logger.info("Openstack-CAL-Test: Deleting a network with id : %s. " %(net_id))
         rc = self.cal.delete_network(self._acct, net_id)
         self.assertEqual(rc, RwStatus.SUCCESS)
-        
+
         # Verify that network is no longer available via get_network_list API
         rc, rs = self.cal.get_network_list(self._acct)
         self.assertEqual(rc, RwStatus.SUCCESS)
         network_info = [ network for network in rs.networkinfo_list if network.network_id == net_id ]
         self.assertEqual(len(network_info), 0)
         logger.info("Openstack-CAL-Test: Successfully deleted Network with id : %s" %(net_id))
-        
-        
-    @unittest.skip("Skipping test_network_operations")                            
+
+
+    @unittest.skip("Skipping test_network_operations")
     def test_network_operations(self):
         """
         Create/Delete Networks
@@ -693,7 +699,7 @@ class OpenStackTest(unittest.TestCase):
 
         ### Delete Port
         self.cal.delete_port(self._acct, port_id)
-        
+
         rc, rs = self.cal.get_port_list(self._acct)
         self.assertEqual(rc, RwStatus.SUCCESS)
         port_list = [ port for port in rs.portinfo_list if port.port_id == port_id ]
@@ -714,7 +720,7 @@ class OpenStackTest(unittest.TestCase):
         self.assertEqual(rc, RwStatus.SUCCESS)
         self.assertEqual(rs.port_state, expected_state)
         logger.info("Openstack-CAL-Test: Port with port_id : %s reached expected state  : %s" %(port_id, rs.port_state))
-            
+
     @unittest.skip("Skipping test_port_operations_with_vm")
     def test_port_operations_with_vm(self):
         """
@@ -736,7 +742,7 @@ class OpenStackTest(unittest.TestCase):
 
         ### Delete VM
         self._delete_vm(vm_id)
-        
+
         ### Delete Port
         self._delete_port(port_id)
 
@@ -764,7 +770,7 @@ class OpenStackTest(unittest.TestCase):
 
         ### Delete VM
         self._delete_vm(vm_id)
-        
+
         ### Delete Port
         self._delete_port(port_id)
 
@@ -813,7 +819,7 @@ class OpenStackTest(unittest.TestCase):
             vlink.provider_network.segmentation_id  = OpenStackTest.SEG_ID
             OpenStackTest.SEG_ID += 1
         return vlink
-        
+
     def _get_vdu_request_info(self, virtual_link_id):
         """
         Returns object of type RwcalYang.VDUInitParams
@@ -840,9 +846,9 @@ class OpenStackTest(unittest.TestCase):
         c1 = vdu.connection_points_add.add()
         c1.name = "c_modify1"
         c1.virtual_link_id = virtual_link_id
-       
-        return vdu 
-        
+
+        return vdu
+
     #@unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
     def test_create_delete_virtual_link_and_vdu(self):
         """
@@ -855,7 +861,7 @@ class OpenStackTest(unittest.TestCase):
         self.assertEqual(rc, RwStatus.SUCCESS)
         logger.info("Openstack-CAL-Test: Created virtual_link with Id: %s" %rsp)
         vlink_id = rsp
-        
+
         #Check if virtual_link create is successful
         rc, rsp = self.cal.get_virtual_link(self._acct, rsp)
         self.assertEqual(rc, RwStatus.SUCCESS)
@@ -887,7 +893,7 @@ class OpenStackTest(unittest.TestCase):
         self.assertEqual(rs.state, 'active')
         logger.info("Openstack-CAL-Test: VDU with id : %s reached expected state  : %s" %(vdu_id, rs.state))
         logger.info("Openstack-CAL-Test: VDUInfo: %s" %(rs))
-        
+
         vlink_req = self._get_virtual_link_request_info()
 
         ### Create another virtual_link

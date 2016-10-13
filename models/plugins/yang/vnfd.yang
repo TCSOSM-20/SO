@@ -268,12 +268,16 @@ module vnfd
           type uint64;
         }
 
-        leaf-list internal-connection-point-ref {
-          type leafref {
-            path "../../vdu/internal-connection-point/id";
+        list internal-connection-point {
+          key "id-ref";
+          description "List of internal connection points in this VLD";
+          leaf id-ref {
+            description "reference to the internal connection point id";
+            type leafref {
+              path "../../../vdu/internal-connection-point/id";
+            }
           }
         }
-
         uses manotypes:provider-network;
       }
 

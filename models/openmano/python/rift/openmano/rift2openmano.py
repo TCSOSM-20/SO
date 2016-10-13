@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -385,8 +385,8 @@ def rift2openmano_vnfd(rift_vnfd):
             }
 
         # Add the specific VDU connection points
-        for int_cp_ref in vld.internal_connection_point_ref:
-            vdu, int_if = find_vdu_and_int_if_by_cp_ref(int_cp_ref)
+        for int_cp in vld.internal_connection_point:
+            vdu, int_if = find_vdu_and_int_if_by_cp_ref(int_cp.id_ref)
             connection["elements"].append({
                 "VNFC": vdu.name,
                 "local_iface_name": int_if.name,
@@ -444,7 +444,7 @@ def rift2openmano_vnfd(rift_vnfd):
             if vdu.host_epa.has_field("om_cpu_feature"):
                 vnfc["processor"]["features"] = []
                 for feature in vdu.host_epa.om_cpu_feature:
-                    vnfc["processor"]["features"].append(feature)
+                    vnfc["processor"]["features"].append(feature.feature)
 
 
         if vdu.vm_flavor.has_field("storage_gb"):

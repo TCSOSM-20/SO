@@ -581,7 +581,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             if guest_epa.numa_node_policy.has_field('node'):
                 for node in guest_epa.numa_node_policy.node:
                     if node.has_field('vcpu') and node.vcpu:
-                        epa_specs['hw:numa_cpus.'+str(node.id)] = ','.join([str(j) for j in node.vcpu])
+                        epa_specs['hw:numa_cpus.'+str(node.id)] = ','.join([str(j.id) for j in node.vcpu])
                     if node.memory_mb:
                         epa_specs['hw:numa_mem.'+str(node.id)] = str(node.memory_mb)
 
@@ -635,7 +635,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             cpu_features = []
             espec_cpu_features = []
             for feature in host_epa.cpu_feature:
-                cpu_features.append(feature)
+                cpu_features.append(feature.feature)
             espec_cpu_features = espec_utils.host.mano_to_extra_spec_cpu_features(cpu_features)
             if espec_cpu_features is not None:
                 epa_specs['capabilities:cpu_info:features'] = espec_cpu_features
@@ -771,7 +771,9 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                     numa_node = getattr(flavor,'guest_epa').numa_node_policy.node.add()
                     numa_node.id = int(node_id)
 
-                numa_node.vcpu = [ int(x) for x in flavor_info['extra_specs'][attr].split(',') ]
+                for x in flavor_info['extra_specs'][attr].split(','):
+                   numa_node_vcpu = numa_node.vcpu.add()
+                   numa_node_vcpu.id = int(x)
 
             elif attr.startswith('hw:numa_mem.'):
                 node_id = attr.split('.')[1]

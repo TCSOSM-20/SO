@@ -717,10 +717,13 @@ module mano-types
         type uint64;
       }
       
-      leaf-list cpu-feature {
-        description
-            "List of CPU features.";
-        type cpu-feature-type;
+      list cpu-feature {
+        key "feature";
+        description "List of CPU features.";
+        leaf feature {
+          description "CPU feature.";
+          type cpu-feature-type;
+        }
       }
 
       
@@ -729,9 +732,13 @@ module mano-types
         type string;
       }
 
-      leaf-list om-cpu-feature {
-        description "Openmano CPU features";
-        type string;
+      list om-cpu-feature {
+        key "feature";
+        description "List of openmano CPU features";
+        leaf feature {
+          description "CPU feature";
+          type string;
+        }
       }
     }
   }
@@ -873,11 +880,16 @@ module mano-types
                 type uint64;
               }
 
-              leaf-list vcpu {
+              list vcpu {
+                key "id";
                 description
                     "List of vcpus to allocate on
                      this numa node.";
-                type uint64;
+                leaf id {
+                  type uint64;
+                  description "List of vcpus ids to allocate on
+                               this numa node";
+                }
               }
 
               leaf memory-mb {

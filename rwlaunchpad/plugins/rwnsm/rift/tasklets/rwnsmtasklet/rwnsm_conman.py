@@ -103,9 +103,13 @@ class ROConfigManager(object):
 
             # Update the NSR's config status
             new_status = ROConfigManager.map_config_status(cm_nsr['state'])
-            self._log.debug("Updating config status of NSR {} to {}({})".
-                                format(nsrid, new_status, cm_nsr['state']))
-            yield from self.nsm.nsrs[nsrid].set_config_status(new_status, cm_nsr.get('state_details'))
+            self._log.info("Updating config status of NSR {} to {}({})".
+                           format(nsrid, new_status, cm_nsr['state']))
+
+            # If terminate nsr request comes when NS instantiation is in 'Configuring state'; self.nsm.nsrs dict
+            # is already empty when self.nsm.nsrs[nsrid].set_config_status gets executed. So adding a check here.
+            if nsrid in self.nsm.nsrs:
+                yield from self.nsm.nsrs[nsrid].set_config_status(new_status, cm_nsr.get('state_details'))
 
         except Exception as e:
             self._log.error("Failed to process cm-state for nsr {}: {}".

@@ -113,6 +113,10 @@ class NsrMonitoringParam():
         # value => (value_type, value)
         self.vnfr_monparams = {}
 
+        # create_nsr_mon_params() is already validating for 'is_legacy' by checking if
+        # nsd is having 'monitoring_param'. So removing 'self.aggregation_type is None' check for is_legacy.
+        self.is_legacy = is_legacy
+
         if not is_legacy:
             self._msg = self._convert_nsd_msg(monp_config)
         else:
@@ -144,9 +148,9 @@ class NsrMonitoringParam():
         """Aggregation type"""
         return self.nsr_mon_param_msg.aggregation_type
 
-    @property
-    def is_legacy(self):
-        return (self.aggregation_type is None)
+    # @property
+    # def is_legacy(self):
+    #     return (self.aggregation_type is None)
 
     @classmethod
     def extract_value(cls, monp):

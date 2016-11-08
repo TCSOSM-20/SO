@@ -125,6 +125,22 @@ module mano-types
       type boolean;
       default false;
     }
+    leaf parameter-type {
+      description "Type of this parameter, whether this in IN or OUT";
+      type enumeration {
+	enum OUT;
+	enum IN;
+      }
+      default "IN";
+    }
+    leaf parameter-path {
+      description "A Leafref to the parameter path with the attribute selection.
+                   At present only attribute ip-address() is supported.
+                   For example, to get the ip address of VNF connection point
+                   the xpath would look something along the following lines,
+                   /vnfd-catalog/vnfd[id='x']/connection-point[name='cp']/ip-address()";
+      type string;
+    }
   }
   
 

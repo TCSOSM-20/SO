@@ -317,6 +317,46 @@ module nsd
         }
       }
 
+      list vnfap-map {
+        key "id";
+        description "A mapping of VNF application point 
+                     capability/dependency within this network service";
+        leaf id {
+          description "Identfier for VNF access point map";
+          type string;
+        }
+        container capability {
+          leaf member-vnf-index-ref {
+            description "Reference to member-vnf within constituent-vnfds";
+            type leafref {
+              path "../../../../constituent-vnfd/member-vnf-index";
+            }
+          }
+          leaf capability-ref {
+            description "Reference to the capability with the capability of the VNF
+                         with the specified member-vnf-index";
+            type leafref {
+              path "/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:vnfap/vnfd:capability/vnfd:name";
+            }
+          }
+        }
+        container dependency {
+          leaf member-vnf-index-ref {
+            description "Reference to member-vnf within constituent-vnfds";
+            type leafref {
+              path "../../../../constituent-vnfd/member-vnf-index";
+            }
+          }
+          leaf dependency-ref {
+            description "Reference to the dependency within the dependency of the VNF
+                         with the specified member-vnf-index";
+            type leafref {
+              path "/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:vnfap/vnfd:dependency/vnfd:name";
+            }
+          }
+        }
+      }
+
       // replicate for pnfd container here
       uses manotypes:provider-network;
 

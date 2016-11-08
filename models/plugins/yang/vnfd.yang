@@ -115,6 +115,103 @@ module vnfd
     }
   }
 
+  grouping vnf-access-point {
+    list vnfap {
+      description "List of VNF access points";
+      key "name";
+      leaf name {
+        description "Name of the vnf access point";
+        type string {
+          length 128;
+        }
+      }
+      leaf description {
+        description "A description of this VNF access point";
+        type string;
+      }
+      list capability {
+        description "The List  of capabilities of this VNF access point";
+        key "name";
+        leaf name {
+          description "Name of the capability";
+          type string {
+            length 128;
+          }
+        }
+        leaf description {
+          description "A description of the capability";
+          type string;
+        }
+        choice capability-location {
+          case location-path {
+            leaf xpath {
+               description "Location of this capaibility as an xpath.
+                           This field points to an element within vnfd
+                           with the xpath notation and additionally 
+                           provides the flexibility to choose attributes
+                           within the instantiated version of this object.
+                           For example, 
+                              /vnfd-catalog/vnfd[id='xyz']/connection-point[name='cp1']/ip_address()
+                              refers to the ip address of the connection point with name 'cp1' 
+                              in VNFD with id 'xyz'.";
+              type string;
+            }
+          }
+          case location-primitive-ref {
+            leaf config-primitive-name-ref {
+               description "A leafref to configuration primitive.
+                            This field contains a link to the config primitive
+                            the output paramaters of which will satisfy this requirement.";
+               type leafref {
+                 path "/vnfd:vnfd-catalog/vnfd/vnf-configuration/service-primitive/name";
+               }
+            }
+          }
+          case user-input {
+            list user-input {
+              key "name";
+              description "User input for this capability";
+              leaf name {
+                description "Name of this input";
+                type string;
+              }
+              leaf value {
+                description "Value of this input";
+                type string;
+              }
+            }
+          }
+        }
+      }
+      list dependency {
+        description "The List of depenencies of this VNF access point";
+        key "name";
+        leaf name {
+          description "Name of this VNF access point";
+          type string {
+            length 128;
+          }
+        }
+        leaf mandatory {
+          description "Is this dependcy mandatory for this dependency";
+          type boolean;
+        }
+        leaf description {
+          description "A description of the dependency";
+          type string;
+        }
+        leaf config-primitive-name-ref {
+         description "A leafref to configuration primitive.
+                      This field contains a link to the config primitive
+                      the input paramaters of which will satisfy this requirement.";
+          type leafref {
+            path "/vnfd:vnfd-catalog/vnfd/vnf-configuration/service-primitive/name";
+          }
+        }
+      }
+    }
+  }
+
   grouping vnfd-descriptor {
       leaf id {
         description "Identifier for the VNFD.";
@@ -509,7 +606,9 @@ module vnfd
       key "id";
 
       uses vnfd-descriptor;
-     }
+
+      uses vnf-access-point;
+    }
   }
 }
 

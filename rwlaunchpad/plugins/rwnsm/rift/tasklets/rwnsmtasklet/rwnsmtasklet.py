@@ -511,6 +511,7 @@ class VirtualLinkRecord(object):
         self._vlr_id = str(uuid.uuid4())
         self._state = VlRecordState.INIT
         self._prev_state = None
+        self._create_time = int(time.time())
 
     @property
     def xpath(self):
@@ -604,6 +605,7 @@ class VirtualLinkRecord(object):
                     "nsr_id_ref": self._nsr_id,
                     "vld_ref": self.vld_msg.id,
                     "name": self.name,
+                    "create_time": self._create_time,
                     "cloud_account": self.cloud_account_name,
                     "om_datacenter": self.om_datacenter_name,
                     }

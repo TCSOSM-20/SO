@@ -253,6 +253,10 @@ module rw-conman
             type inet:ip-address;
           }
         }
+        // Resolve the VNF config-primitives and publish it
+        // here. VNFR will use this and update config-primitives
+        // from here.
+        uses manotypes:vnf-configuration;
       } // list VNFR
     } // list NSR
   } // cm-state

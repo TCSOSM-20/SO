@@ -417,6 +417,58 @@ module nsd
       }
     }
 
+    list vnfap-map {
+      description
+        "Mapping of capability and dependency in this
+         network service.";
+      key "id";
+
+      leaf id {
+        description "Identifier for VNF access point mapping";
+        type string;
+      }
+
+      container capability {
+        leaf member-vnf-index {
+          description "Reference to member VNF within this network service";
+          type leafref {
+            path "../../../constituent-vnfd/member-vnf-index";
+          }
+        }
+
+        leaf capability-ref {
+          description
+            "Reference to the capability in the specified
+             member VNF. This should be a leafref as follows:
+             path \"/vnfd:vnf-catalog/vnfd[id=
+                    ../../constituent-vnfd[member-vnf-index=
+                    ../member-vnf-index]/vnfd-id-ref]/
+                    vnfap/capability/name\"";
+            type string;
+        }
+      }
+
+      container dependency {
+        leaf member-vnf-index {
+          description "Reference to member VNF within this network service";
+          type leafref {
+            path "../../../constituent-vnfd/member-vnf-index";
+          }
+        }
+
+        leaf dependency-ref {
+          description
+            "Reference to the depenency in the specified
+             member VNF. This should be a leafref as follows:
+             path \"/vnfd:vnf-catalog/vnfd[id=
+                    ../../constituent-vnfd[member-vnf-index=
+                    ../member-vnf-index]/vnfd-id-ref]/
+                    vnfap/dependency/name\"";
+            type string;
+        }
+      }
+    }
+
     list scaling-group-descriptor {
       description
           "scaling group descriptor within this network service.

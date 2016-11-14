@@ -674,11 +674,8 @@ module vnfd
       key "id";
 
       uses vnfd-descriptor;
-<<<<<<< 06c19bf9f52cb8fa2c61d4135e0ab237b4f4d7d5
-=======
 
       uses vnf-access-point;
->>>>>>> Model changes for VNF access point support
     }
   }
 }

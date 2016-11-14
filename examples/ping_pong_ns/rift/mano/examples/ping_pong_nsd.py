@@ -729,6 +729,16 @@ class VirtualNetworkFunction(ManoDescriptor):
                     else:
                         self.add_ping_config()
 
+            # Add VNF access point
+            if use_vca_conf:
+                self.add_vnf_access_point(mano_ut=mano_ut)
+                if 'pong_' in self.name:
+                    self.add_pong_config(mano_ut=mano_ut,
+                                         use_ns_init_conf=use_ns_init_conf)
+                else:
+                    self.add_ping_config(mano_ut=mano_ut,
+                                         use_ns_init_conf=use_ns_init_conf)
+
             # sepcify the guest EPA
             if use_epa:
                 vdu.guest_epa.trusted_execution = False
@@ -824,14 +834,14 @@ class VirtualNetworkFunction(ManoDescriptor):
                     member_vdu.member_vdu_ref = vdu.id
 
 
-    def write_to_file(self, outdir, output_format):
+    def write_to_file(self, outdir, output_format, use_vca_conf=False):
         dirpath = "%s/%s" % (outdir, self.name)
         if not os.path.exists(dirpath):
             os.makedirs(dirpath)
         super(VirtualNetworkFunction, self).write_to_file(['vnfd', 'rw-vnfd'],
                                                           dirpath,
                                                           output_format)
-        self.add_scripts(outdir)
+        self.add_scripts(outdir, use_vca_conf=use_vca_conf)
 
     def add_cloud_init(self, outdir):
         script_dir = os.path.join(outdir, self.name, 'cloud_init')
@@ -1690,8 +1700,10 @@ def generate_ping_pong_descriptors(fmt="json",
     )
 
     if write_to_file:
-        ping.write_to_file(out_dir, ping_fmt if ping_fmt is not None else fmt)
-        pong.write_to_file(out_dir, pong_fmt if ping_fmt is not None else fmt)
+        ping.write_to_file(out_dir, ping_fmt if ping_fmt is not None else fmt,
+                           use_vca_conf=use_vca_conf)
+        pong.write_to_file(out_dir, pong_fmt if ping_fmt is not None else fmt,
+                           use_vca_conf=use_vca_conf)
         nsd_catalog.write_config(out_dir, vnfd_list)
         nsd_catalog.write_to_file(out_dir, ping_fmt if nsd_fmt is not None else fmt)
 

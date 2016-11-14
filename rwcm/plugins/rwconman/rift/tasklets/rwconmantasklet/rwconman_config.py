@@ -1192,11 +1192,15 @@ class ConfigManagerConfig(object):
 
                 yield from self.process_initial_config(nsr_obj, conf, script)
 
-    @asyncio.coroutine
-    def process_vnf_initial_config(self, nsr_obj, vnfr):
-        '''Apply the initial-config-primitives specified in VNFD'''
+                    parameters = []
+                    try:
+                        parameters = conf['parameter']
+                    except Exception as e:
+                        self._log.debug("Parameter conf: {}, e: {}".
+                                        format(conf, e))
+                        pass
 
-        vnfr_name = vnfr.name
+                    inp_file = get_input_file(parameters)
 
         vnfd = vnfr.vnfd
         vnf_cfg = vnfd.vnf_configuration

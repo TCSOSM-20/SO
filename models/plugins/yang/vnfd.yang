@@ -115,97 +115,137 @@ module vnfd
     }
   }
 
-  grouping vnf-access-point {
-    list vnfap {
-      description "List of VNF access points";
-      key "name";
-      leaf name {
-        description "Name of the vnf access point";
-        type string {
-          length 128;
-        }
-      }
-      leaf description {
-        description "A description of this VNF access point";
-        type string;
-      }
-      list capability {
-        description "The List  of capabilities of this VNF access point";
+  grouping config-parameter {
+    container config-parameter {
+      rwpb:msg-new ConfigParams;
+      description
+        "List of VNF config parameter requests and sources";
+      list config-parameter-source {
+        description "The list of parameters exposed by this VNF";
         key "name";
+
         leaf name {
-          description "Name of the capability";
+          description "Name of the source";
           type string {
-            length 128;
+            length "1..128";
           }
         }
+
         leaf description {
-          description "A description of the capability";
+          description " Description of the source";
           type string;
         }
-        choice capability-location {
-          case location-path {
-            leaf xpath {
-               description "Location of this capaibility as an xpath.
-                           This field points to an element within vnfd
-                           with the xpath notation and additionally 
-                           provides the flexibility to choose attributes
-                           within the instantiated version of this object.
-                           For example, 
-                              /vnfd-catalog/vnfd[id='xyz']/connection-point[name='cp1']/ip_address()
-                              refers to the ip address of the connection point with name 'cp1' 
-                              in VNFD with id 'xyz'.";
+
+        choice source {
+          case descriptor {
+            leaf descriptor {
+              description
+                "Location of this source as an xpath.
+                 For example:
+                   ../../../mgmt-interface/port";
               type string;
             }
           }
-          case location-primitive-ref {
-            leaf config-primitive-name-ref {
-               description "A leafref to configuration primitive.
-                            This field contains a link to the config primitive
-                            the output paramaters of which will satisfy this requirement.";
-               type leafref {
-                 path "/vnfd:vnfd-catalog/vnfd/vnf-configuration/service-primitive/name";
-               }
+
+          case attirbute {
+            leaf attribute {
+              description
+                "Location of this source as runtime attribute.
+                 The value is <xpath>, <attribute_name>
+                 For example:
+                   ../../../mgmt-interface, ip-address
+                   which retruns the ip-address assigned to the
+                   mgmt-interface after VNF instantiation.";
+              type string;
             }
           }
-          case user-input {
-            list user-input {
-              key "name";
-              description "User input for this capability";
-              leaf name {
-                description "Name of this input";
-                type string;
+
+          case primitive-ref {
+            leaf config-primitive-name-ref {
+              description
+                "A leafref to configuration primitive.
+                 This refers to a config parameter whose
+                 output parameter is referred in out-parameter.";
+              type leafref {
+                path "../../../vnf-configuration/config-primitive/name";
               }
-              leaf value {
-                description "Value of this input";
-                type string;
+            }
+
+            leaf parameter-ref {
+              description
+                "Name of the output parameter in the config primitiive";
+              type leafref {
+                path
+                  "../../../vnf-configuration/config-primitive[name=current()/../config-primitive-name-ref]/parameter/name";
               }
+            }
+          }
+
+          case value {
+            leaf value {
+              description
+                "Pre-defined value to be used for this source";
+              type string;
+            }
+          }
+        }
+
+        list parameter {
+          key "config-primitive-name-ref";
+
+          leaf config-primitive-name-ref {
+            description
+              "Name of the configuration primitive where this
+             request will used";
+            type leafref {
+              path "../../../../vnf-configuration/config-primitive/name";
+            }
+          }
+
+          leaf config-primitive-parameter-ref {
+            description
+              "Parameter name of the config primitive";
+            type leafref {
+              path "../../../../vnf-configuration/config-primitive[name=current()/../config-primitive-name-ref]/parameter/name";
             }
           }
         }
       }
-      list dependency {
-        description "The List of depenencies of this VNF access point";
+
+      list config-parameter-request {
+        description "The list of requests for this VNF";
         key "name";
+
         leaf name {
-          description "Name of this VNF access point";
+          description "Name of this parameter request";
           type string {
-            length 128;
+            length "1..128";
           }
         }
-        leaf mandatory {
-          description "Is this dependcy mandatory for this dependency";
-          type boolean;
-        }
+
         leaf description {
-          description "A description of the dependency";
+          description "Description of this request";
           type string;
         }
-        leaf config-primitive-name-ref {
-         description "A leafref to configuration primitive.
-                      This field contains a link to the config primitive
-                      the input paramaters of which will satisfy this requirement.";
-          type leafref {
-            path "/vnfd:vnfd-catalog/vnfd/vnf-configuration/service-primitive/name";
+
+        list parameter {
+          key "config-primitive-name-ref";
+
+          leaf config-primitive-name-ref {
+            description
+              "Name of the configuration primitive where this
+             request will used";
+            type leafref {
+              path "../../../../vnf-configuration/config-primitive/name";
+            }
+          }
+
+          leaf config-primitive-parameter-ref {
+            description
+              "Parameter name of the config primitive";
+            type leafref {
+              path "../../../../vnf-configuration/config-primitive[name=current()/../config-primitive-name-ref]/parameter/name";
+            }
           }
         }
       }
@@ -251,6 +291,8 @@ module vnfd
       }
 
       uses manotypes:vnf-configuration;
+
+      uses config-parameter;
 
       container mgmt-interface {
         description
@@ -606,8 +648,6 @@ module vnfd
       key "id";
 
       uses vnfd-descriptor;
-
-      uses vnf-access-point;
     }
   }
 }

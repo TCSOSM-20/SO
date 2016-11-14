@@ -105,7 +105,7 @@ class RiftCMRPCHandler(object):
         if vnf:
             self._log.debug("nsr/vnf {}/{}, vnf_configuration: %s",
                             vnf.vnf_configuration)
-            for primitive in vnf.vnf_configuration.service_primitive:
+            for primitive in vnf.vnf_configuration.config_primitive:
                 if primitive.name == primitive_name:
                     return primitive
 

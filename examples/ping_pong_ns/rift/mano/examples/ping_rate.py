@@ -27,58 +27,36 @@ import time
 import yaml
 
 
-def start_traffic(yaml_cfg, logger):
-    '''Use curl and set admin status to enable on pong and ping vnfs'''
+def ping_rate(yaml_cfg, logger):
+    '''Use curl to configure ping and set the ping rate'''
 
-    def enable_service(mgmt_ip, port, vnf_type):
-        curl_cmd = 'curl -D /dev/stdout -H "Accept: application/vnd.yang.data' \
-                   '+xml" -H "Content-Type: application/vnd.yang.data+json" ' \
-                   '-X POST -d "{{\\"enable\\":true}}" http://{mgmt_ip}:' \
-                   '{mgmt_port}/api/v1/{vnf_type}/adminstatus/state'. \
-                   format(
-                       mgmt_ip=mgmt_ip,
-                       mgmt_port=port,
-                       vnf_type=vnf_type)
+    # Get the required and optional parameters
+    params = yaml_cfg['parameters']
+    mgmt_ip = params['mgmt_ip']
+    mgmt_port = 18888
+    if 'mgmt_port' in params:
+        mgmt_port = params['mgmt_port']
+    rate = 1
+    if 'rate' in params:
+        rate = params['rate']
 
-        logger.debug("Executing cmd: %s", curl_cmd)
-        proc = subprocess.run(curl_cmd, shell=True,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
+    cmd = 'curl -D /dev/stdout -H "Accept: application/vnd.yang.data' \
+          '+xml" -H "Content-Type: application/vnd.yang.data+json" ' \
+          '-X POST -d "{{\\"rate\\":{rate}}}" ' \
+          'http://{mgmt_ip}:{mgmt_port}/api/v1/ping/rate'. \
+          format(
+              mgmt_ip=mgmt_ip,
+              mgmt_port=mgmt_port,
+              rate=rate)
 
-        logger.debug("Process: {}".format(proc))
+    logger.debug("Executing cmd: %s", cmd)
+    proc = subprocess.run(cmd, shell=True,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
 
-        return proc.returncode
+    logger.debug("Process: {}".format(proc))
 
-    # Enable pong service first
-    for index, vnfr in yaml_cfg['vnfr'].items():
-        logger.debug("VNFR {}: {}".format(index, vnfr))
-
-        # Check if it is pong vnf
-        if 'pong_vnfd' in vnfr['name']:
-            vnf_type = 'pong'
-            port = 18889
-            rc = enable_service(vnfr['mgmt_ip_address'], port, vnf_type)
-            if rc != 0:
-                logger.error("Enable service for pong failed: {}".
-                             format(rc))
-                return rc
-            break
-
-    # Add a delay to provide pong port to come up
-    time.sleep(1)
-
-    # Enable ping service next
-    for index, vnfr in yaml_cfg['vnfr'].items():
-        logger.debug("VNFR {}: {}".format(index, vnfr))
-
-        # Check if it is pong vnf
-        if 'ping_vnfd' in vnfr['name']:
-            vnf_type = 'ping'
-            port = 18888
-            rc = enable_service(vnfr['mgmt_ip_address'], port, vnf_type)
-            break
-
-    return rc
+    return proc.returncode
 
 
 def main(argv=sys.argv[1:]):
@@ -91,10 +69,10 @@ def main(argv=sys.argv[1:]):
         run_dir = os.path.join(os.environ['RIFT_INSTALL'], "var/run/rift")
         if not os.path.exists(run_dir):
             os.makedirs(run_dir)
-        log_file = "{}/ping_pong_start_traffic-{}.log".format(run_dir, time.strftime("%Y%m%d%H%M%S"))
+        log_file = "{}/ping_rate-{}.log".format(run_dir, time.strftime("%Y%m%d%H%M%S"))
 
         # logging.basicConfig(filename=log_file, level=logging.DEBUG)
-        logger = logging.getLogger('ping-pong-start-traffic')
+        logger = logging.getLogger('ping-rate')
         logger.setLevel(logging.DEBUG)
 
         fh = logging.FileHandler(log_file)
@@ -123,7 +101,7 @@ def main(argv=sys.argv[1:]):
         yaml_cfg = yaml.load(yaml_str)
         logger.debug("Input YAML: {}".format(yaml_cfg))
 
-        rc = start_traffic(yaml_cfg, logger)
+        rc = ping_rate(yaml_cfg, logger)
         logger.info("Return code: {}".format(rc))
         sys.exit(rc)
 

@@ -1336,6 +1336,9 @@ class VirtualNetworkFunctionRecord(object):
         vnfr_dict.update(vnfd_copy_dict)
 
         vnfr_msg = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
+        vnfr_msg.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict())
+
+        vnfr_msg.create_time = self._create_time
         vnfr_msg.uptime = int(time.time()) - self._create_time
         vnfr_msg.mgmt_interface = mgmt_intf
 
@@ -1374,6 +1377,17 @@ class VirtualNetworkFunctionRecord(object):
             vnfr_msg.placement_groups_info.append(group_info)
 
         return vnfr_msg
+
+    @asyncio.coroutine
+    def update_config(self, msg, xact):
+        self._log.debug("VNFM vnf config: {}".
+                        format(msg.vnf_configuration.as_dict()))
+        self._config_status = msg.config_status
+        self._vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(
+            msg.as_dict())
+        self._log.debug("VNFR msg config: {}".
+                        format(self.msg.vnf_configuration.as_dict()))
+        yield from self.publish(xact)
 
     @property
     def dashboard_url(self):
@@ -2229,9 +2243,8 @@ class VnfrDtsHandler(object):
 
                 self._log.debug("VNFR {} update config status {} (current {})".
                                 format(vnfr.name, msg.config_status, vnfr.config_status))
-                # Update the config status and publish
-                vnfr._config_status = msg.config_status
-                yield from vnfr.publish(None)
+                # Update the config and publish
+                yield from vnfr.update_config(msg, xact_info)
 
             else:
                 raise NotImplementedError(
@@ -2251,7 +2264,6 @@ class VnfrDtsHandler(object):
                                         handler=hdl,
                                         flags=(rwdts.Flag.PUBLISHER |
                                                rwdts.Flag.NO_PREP_READ |
-                                               rwdts.Flag.CACHE |
                                                rwdts.Flag.DATASTORE),)
 
     @asyncio.coroutine
@@ -2267,13 +2279,13 @@ class VnfrDtsHandler(object):
                         xact, path, msg)
 
     @asyncio.coroutine
-    def update(self, xact, path, msg):
+    def update(self, xact, path, msg, flags=rwdts.XactFlag.REPLACE):
         """
         Update a VNFR record in DTS with path and message
         """
         self._log.debug("Updating VNFR xact = %s, %s:%s",
                         xact, path, msg)
-        self.regh.update_element(path, msg)
+        self.regh.update_element(path, msg, flags)
         self._log.debug("Updated VNFR xact = %s, %s:%s",
                         xact, path, msg)
 

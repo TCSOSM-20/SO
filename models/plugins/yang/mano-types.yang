@@ -108,6 +108,7 @@ module mano-types
         "The value should be greyed out by the UI.
         Only applies to parameters with default values.";
       type boolean;
+      default false;
     }
 
     leaf hidden {
@@ -115,6 +116,13 @@ module mano-types
         "The value should be hidden by the UI.
         Only applies to parameters with default values.";
       type boolean;
+      default false;
+    }
+
+    leaf out {
+      description "If this is an output of the primitive execution";
+      type boolean;
+      default false;
     }
     leaf parameter-type {
       description "Type of this parameter, whether this in IN or OUT";
@@ -281,24 +289,31 @@ module mano-types
         }
       }
 
-      list service-primitive {
-        rwpb:msg-new ServicePrimitive;
+      list config-primitive {
+        rwpb:msg-new ConfigPrimitive;
         description
-          "List of service primitives supported by the
+          "List of config primitives supported by the
           configuration agent for this VNF.";
         key "name";
 
         leaf name {
           description
-            "Name of the service primitive.";
+            "Name of the config primitive.";
           type string;
         }
 
         list parameter {
           description
-            "List of parameters to the service primitive.";
+            "List of parameters to the config primitive.";
           key "name";
           uses primitive-parameter;
+        }
+
+        leaf user-defined-script {
+          description
+            "A user defined script. If user defined script is defined,
+             the script will be executed using bash";
+          type string;
         }
       }
 
@@ -313,20 +328,28 @@ module mano-types
           type uint64;
         }
 
-        leaf name {
-          description 
-              "Name of the configuration primitive.";
-          type string;
-        }
+        choice primtive-type {
+          case primtive-definition {
+            leaf name {
+              description
+                "Name of the configuration primitive.";
+              type string;
+            }
 
-        list parameter {
-          key "name";
-          leaf name {
-            type string;
+            uses primitive-parameter-value;
           }
 
-          leaf value {
-            type string;
+          case primitive-ref {
+            leaf config-primitive-ref {
+              description
+                "Reference to a config primitive name.
+                 NOTE: The config primitive referred should have
+                       all the input paramaters predefined either
+                       with default values or dependency references.";
+              type leafref {
+                path "../../config-primitive/name";
+              }
+            }
           }
         }
       }

@@ -1336,9 +1336,6 @@ class VirtualNetworkFunctionRecord(object):
         vnfr_dict.update(vnfd_copy_dict)
 
         vnfr_msg = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
-        vnfr_msg.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict())
-
-        vnfr_msg.create_time = self._create_time
         vnfr_msg.uptime = int(time.time()) - self._create_time
         vnfr_msg.mgmt_interface = mgmt_intf
 

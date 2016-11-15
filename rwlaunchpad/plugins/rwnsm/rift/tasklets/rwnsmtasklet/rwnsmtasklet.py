@@ -1470,7 +1470,6 @@ class NetworkServiceRecord(object):
             self._log.debug("Received cancellation request for vlr_uptime_update task")
             yield from self._vlr_handler.delete(None, VirtualLinkRecord.vlr_xpath(vlr))
 
-
     @asyncio.coroutine
     def create(self, config_xact):
         """ Create this network service"""

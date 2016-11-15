@@ -456,6 +456,7 @@ class VnffgRecord(object):
 
 class VirtualLinkRecord(object):
     """ Virtual Link Records class"""
+    XPATH = "D,/vlr:vlr-catalog/vlr:vlr"
     @staticmethod
     @asyncio.coroutine
     def create_record(dts, log, loop, nsr_name, vld_msg, cloud_account_name, om_datacenter, ip_profile, nsr_id, restart_mode=False):
@@ -643,7 +644,6 @@ class VirtualLinkRecord(object):
     @asyncio.coroutine
     def instantiate(self):
         """ Instantiate this VL """
-
         self._log.debug("Instaniating VLR key %s, vld %s",
                         self.xpath, self._vld_msg)
         vlr = None
@@ -1229,7 +1229,8 @@ class NetworkServiceRecord(object):
     """ Network service record """
     XPATH = "D,/nsr:ns-instance-opdata/nsr:nsr"
 
-    def __init__(self, dts, log, loop, nsm, nsm_plugin, nsr_cfg_msg, sdn_account_name, key_pairs, restart_mode=False):
+    def __init__(self, dts, log, loop, nsm, nsm_plugin, nsr_cfg_msg, sdn_account_name, key_pairs, restart_mode=False,
+                 vlr_handler=None):
         self._dts = dts
         self._log = log
         self._loop = loop
@@ -1237,6 +1238,7 @@ class NetworkServiceRecord(object):
         self._nsr_cfg_msg = nsr_cfg_msg
         self._nsm_plugin = nsm_plugin
         self._sdn_account_name = sdn_account_name
+        self._vlr_handler = vlr_handler
 
         self._nsd = None
         self._nsr_msg = None
@@ -1450,6 +1452,18 @@ class NetworkServiceRecord(object):
         for vlr in self._vlrs:
             yield from self.nsm_plugin.instantiate_vl(self, vlr)
             vlr.state = VlRecordState.ACTIVE
+            self._loop.create_task(self.vlr_uptime_update(vlr))
+
+
+    def vlr_uptime_update(self, vlr):
+        vlr_ = RwVlrYang.YangData_Vlr_VlrCatalog_Vlr.from_dict({'id': vlr.id})
+        while True:
+            if vlr.state not in [VlRecordState.INIT, VlRecordState.INSTANTIATION_PENDING, VlRecordState.ACTIVE]:
+                return
+            vlr_.uptime = int(time.time()) - vlr._create_time
+            yield from self._vlr_handler.update(None, VirtualLinkRecord.vlr_xpath(vlr), vlr_)
+            yield from asyncio.sleep(2, loop=self._loop)
+
 
     @asyncio.coroutine
     def create(self, config_xact):
@@ -2470,6 +2484,7 @@ class NetworkServiceRecord(object):
         nsr.config_status = self.map_config_status()
         nsr.config_status_details = self._config_status_details
         nsr.create_time = self._create_time
+        nsr.uptime = int(time.time()) - self._create_time
 
         for cfg_prim in self.nsd_msg.service_primitive:
             cfg_prim = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ServicePrimitive.from_dict(
@@ -3833,7 +3848,8 @@ class NsManager(object):
                                    nsr_msg,
                                    sdn_account_name,
                                    key_pairs,
-                                   restart_mode=restart_mode
+                                   restart_mode=restart_mode,
+                                   vlr_handler=self._ro_plugin_selector._records_publisher._vlr_pub_hdlr
                                    )
         self._nsrs[nsr_msg.id] = nsr
         nsm_plugin.create_nsr(nsr_msg, nsr_msg.nsd, key_pairs)

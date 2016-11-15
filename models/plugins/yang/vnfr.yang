@@ -199,6 +199,14 @@ module vnfr
         type uint32;
       }
 
+      leaf uptime {
+        description
+          "Active period of this Virtual Network Function.
+          Uptime is expressed in seconds";
+
+        type uint32;
+      }
+
       leaf vnfd-ref {
         description "Reference to VNFD";
         type leafref {

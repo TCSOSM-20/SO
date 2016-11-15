@@ -132,6 +132,14 @@ module vlr
         type uint32;
       }
 
+      leaf uptime {
+        description
+          "Active period of this Virtual Link.
+          Uptime is expressed in seconds";
+
+        type uint32;
+      }
+
       leaf network-id {
         description 
             "Identifier for the allocated network resource.";

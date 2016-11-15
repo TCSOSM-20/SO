@@ -1239,6 +1239,7 @@ class VirtualNetworkFunctionRecord(object):
         vnfr_dict.update(vnfd_copy_dict)
 
         vnfr_msg = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
+        vnfr_msg.uptime = int(time.time()) - self._create_time
         vnfr_msg.mgmt_interface = mgmt_intf
 
         # Add all the VLRs  to  VNFR
@@ -1773,6 +1774,10 @@ class VirtualNetworkFunctionRecord(object):
 
         self._log.debug("VNFR-ID %s: Instantiation Done", self._vnfr_id)
 
+        # create task updating uptime for this vnfr
+        self._log.debug("VNFR-ID %s: Starting task to update uptime", self._vnfr_id)
+        self._loop.create_task(self.vnfr_uptime_update(xact))
+
     @asyncio.coroutine
     def terminate(self, xact):
         """ Terminate this virtual network function """
@@ -1809,6 +1814,19 @@ class VirtualNetworkFunctionRecord(object):
 
         self._log.debug("Terminated  VNF id %s", self.vnfr_id)
         self.set_state(VirtualNetworkFunctionRecordState.TERMINATED)
+
+    @asyncio.coroutine
+    def vnfr_uptime_update(self, xact):
+        while True:
+            # Return when vnfr state is FAILED or TERMINATED etc
+            if self._state not in [VirtualNetworkFunctionRecordState.INIT,
+                                   VirtualNetworkFunctionRecordState.VL_INIT_PHASE,
+                                   VirtualNetworkFunctionRecordState.VM_INIT_PHASE,
+                                   VirtualNetworkFunctionRecordState.READY]:
+                return
+            yield from self.publish(xact)
+            yield from asyncio.sleep(2, loop=self._loop)
+
 
 
 class VnfdDtsHandler(object):

@@ -613,6 +613,14 @@ module nsr
         type uint32;
       }
 
+      leaf uptime {
+        description
+          "Active period of this Network Service.
+          Uptime is expressed in seconds";
+
+        type uint32;
+      }
+
       list connection-point {
         description
             "List for external connection points.

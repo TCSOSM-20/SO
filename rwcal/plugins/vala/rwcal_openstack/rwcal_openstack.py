@@ -29,10 +29,13 @@ import rift.cal.rwcal_status as rwcal_status
 import rwlogger
 import neutronclient.common.exceptions as NeutronException
 import keystoneclient.exceptions as KeystoneExceptions
+<<<<<<< 06b6ab4edf863c75fc6e2947ad52d1c76de1a308
 import tornado
 import gi
 
 gi.require_version('RwSdn', '1.0')
+=======
+>>>>>>> RIFT-14308 Meaningful logs  while initalizing Openstack driver
 
 from gi.repository import (
     GObject,

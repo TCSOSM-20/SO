@@ -123,6 +123,8 @@ class KeystoneDriver(object):
         try:
             ksconn = self._get_keystone_connection()
             service_endpoint  = ksconn.service_catalog.url_for(**endpoint_kwargs)
+        except (KeystoneExceptions.Unauthorized, KeystoneExceptions.AuthorizationFailure) as e:
+            raise
         except Exception as e:
             logger.error("OpenstackDriver: Service Catalog discovery operation failed for service_type: %s, endpoint_type: %s. Exception: %s" %(service_type, endpoint_type, str(e)))
             raise
@@ -1652,6 +1654,8 @@ class OpenstackDriver(object):
             try:
                 ntconn   = self.neutron_drv._get_neutron_connection()
                 networks = ntconn.list_networks()
+            except (KeystoneExceptions.Unauthorized, KeystoneExceptions.AuthorizationFailure) as e:
+                raise
             except Exception as e:
                 logger.error("OpenstackDriver: List Network operation failed. Exception: %s" %(str(e)))
                 raise

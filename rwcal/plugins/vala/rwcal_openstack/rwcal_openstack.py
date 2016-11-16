@@ -26,6 +26,7 @@ import rw_status
 import rift.cal.rwcal_status as rwcal_status
 import rwlogger
 import neutronclient.common.exceptions as NeutronException
+import keystoneclient.exceptions as KeystoneExceptions
 
 from gi.repository import (
     GObject,
@@ -88,6 +89,9 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                                          tenant_name   = account.openstack.tenant,
                                          mgmt_network  = account.openstack.mgmt_network,
                                          cert_validate = account.openstack.cert_validate )
+            except (KeystoneExceptions.Unauthorized, KeystoneExceptions.AuthorizationFailure,
+                        NeutronException.NotFound) as e:
+                raise
             except Exception as e:
                 self.log.error("RwcalOpenstackPlugin: OpenstackDriver init failed. Exception: %s" %(str(e)))
                 raise
@@ -118,10 +122,26 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             Validation Code and Details String
         """
         status = RwcalYang.CloudConnectionStatus()
-
         try:
             with self._use_driver(account) as drv:
                 drv.validate_account_creds()
+
+        except KeystoneExceptions.Unauthorized as e:
+            self.log.error("Invalid credentials given for VIM account %s" %account.name)
+            status.status = "failure"
+            status.details = "Invalid Credentials: %s" % str(e)
+
+        except KeystoneExceptions.AuthorizationFailure as e:
+            self.log.error("Bad authentication URL given for VIM account %s. Given auth url: %s" % (
+            account.name, account.openstack.auth_url))
+            status.status = "failure"
+            status.details = "Invalid auth url: %s" % str(e)
+
+        except NeutronException.NotFound as e:
+            self.log.error("Given management network %s could not be found for VIM account %s" % (
+                        account.openstack.mgmt_network, account.name))
+            status.status = "failure"
+            status.details = "mgmt network does not exist: %s" % str(e)
 
         except openstack_drv.ValidationError as e:
             self.log.error("RwcalOpenstackPlugin: OpenstackDriver credential validation failed. Exception: %s", str(e))

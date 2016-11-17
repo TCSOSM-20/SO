@@ -253,6 +253,52 @@ module rw-conman
             type inet:ip-address;
           }
         }
+        // Publish the resolved capabilites and dependecies here
+        container vnf-access-point {
+          description
+            "The resolved capabilites and dependencies for a VNF";
+          list capability {
+            description "List of resolved capabilities";
+            key "name";
+
+            leaf name {
+              type string {
+                length 128;
+              }
+              description
+                "Name of the capability as defined in VNFD";
+            }
+            leaf value {
+              type string;
+              description
+                "Resovled value for the capability";
+            }
+          }
+
+          list dependency {
+            description
+              "List of resolved dependencies for the the VNF";
+            key "name";
+
+            leaf name {
+              type string {
+                length 128;
+              }
+              description
+                "Name of the capability as defined in VNFD";
+            }
+            leaf value {
+              type string;
+              description
+                "Resovled value for the dependency";
+            }
+            leaf mandatory {
+              description "IS this dependency mandatory for this VNF";
+              type boolean;
+            }
+          }
+        }
+
         // Resolve the VNF config-primitives and publish it
         // here. VNFR will use this and update config-primitives
         // from here.

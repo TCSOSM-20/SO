@@ -316,7 +316,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             service = vnfr['vnf_juju_name']
             vnf_config = vnfr['config']
             self._log.debug("VNF config %s", vnf_config)
-            configs = vnf_config.service_primitive
+            configs = vnf_config.config_primitive
             for config in configs:
                 if config.name == primitive.name:
                     self._log.debug("jujuCA: Found the config primitive %s",

@@ -279,6 +279,13 @@ module mano-types
           key "name";
           uses primitive-parameter;
         }
+
+        leaf user-defined-script {
+          description
+            "A user defined script. If user defined script is defined,
+             the script will be executed using bash";
+          type string;
+        }
       }
 
       list initial-config-primitive {
@@ -304,7 +311,7 @@ module mano-types
           }
 
           case primitive-ref {
-            leaf config-primtive-ref {
+            leaf config-primitive-ref {
               description
                 "Reference to a config primitive name.
                  NOTE: The config primitive referred should have

@@ -117,10 +117,11 @@ module vnfd
 
   grouping vnf-access-point {
     container vnfap {
+      rwpb:msg-new VnfAp;
       description
         "List of VNF access points, i.e., the capabilites
          and dependencies.";
-      list capbility {
+      list capability {
         description "The list of capabilites of this VNF";
         key "name";
 

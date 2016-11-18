@@ -164,7 +164,7 @@ fi
 
 if [[ $PLATFORM == ub16 ]]; then
     # install the RIFT platform code:
-    sudo apt-get install -y rw.toolchain-rwbase=${PLATFORM_VERSION} \
+    sudo apt-get install -y --allow-downgrades rw.toolchain-rwbase=${PLATFORM_VERSION} \
 	 rw.toolchain-rwtoolchain=${PLATFORM_VERSION} \
 	 rw.core.mgmt-mgmt=${PLATFORM_VERSION} \
 	 rw.core.util-util=${PLATFORM_VERSION} \

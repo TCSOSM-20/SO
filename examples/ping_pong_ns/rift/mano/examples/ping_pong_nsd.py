@@ -185,7 +185,7 @@ class VirtualNetworkFunction(ManoDescriptor):
 
             dep = vnfap.create_dependency()
             dep.from_dict({
-                "name": "service_ip",
+                "name": "pong_ip",
                 "description": "IP on which Pong service is listening",
                 "mandatory": "true",
             })
@@ -193,7 +193,7 @@ class VirtualNetworkFunction(ManoDescriptor):
             vnfap.dependency.append(dep)
             dep = vnfap.create_dependency()
             dep.from_dict({
-                "name": "service_port",
+                "name": "pong_port",
                 "description": "Port on which Pong service is listening",
                 "mandatory": False,
             })
@@ -207,6 +207,9 @@ class VirtualNetworkFunction(ManoDescriptor):
 
         vnf_config.config_attributes.config_delay = 60
 
+        # Select "script" configuration
+        vnf_config.script.script_type = 'bash'
+
         # Add config primitive
         vnf_config.create_config_primitive()
         prim = VnfdYang.ConfigPrimitive.from_dict({
@@ -216,8 +219,8 @@ class VirtualNetworkFunction(ManoDescriptor):
                 {"name": "mgmt_port", "data_type": "INTEGER"},
                 {"name": "username", "data_type": "STRING"},
                 {"name": "password", "data_type": "STRING"},
-                {"name": "service_ip", "data_type": "STRING"},
-                {"name": "service_port", "data_type": "INTEGER",
+                {"name": "pong_ip", "data_type": "STRING"},
+                {"name": "pong_port", "data_type": "INTEGER",
                  "default_value": "5555"},
             ],
             "user_defined_script": "ping-setup.py",
@@ -283,6 +286,9 @@ class VirtualNetworkFunction(ManoDescriptor):
         vnfd = self.descriptor.vnfd[0]
         # Add vnf configuration
         vnf_config = vnfd.vnf_configuration
+
+        # Select "script" configuration
+        vnf_config.script.script_type = 'bash'
 
         # Add config primitive
         vnf_config.create_config_primitive()
@@ -828,8 +834,22 @@ exit 0
                 self.nsd.monitoring_param.append(nsd_monp)
                 param_id += 1
 
+    def add_vnfap_map(self):
+        nsd = self.nsd
 
+        vnfap_map = nsd.vnfap_map.add()
+        vnfap_map.id = '1'
+        vnfap_map.capability.member_vnf_index = 2
+        vnfap_map.capability.capability_ref = 'service_ip'
+        vnfap_map.dependency.member_vnf_index = 1
+        vnfap_map.dependency.dependency_ref = 'pong_ip'
 
+        vnfap_map = nsd.vnfap_map.add()
+        vnfap_map.id = '2'
+        vnfap_map.capability.member_vnf_index = 2
+        vnfap_map.capability.capability_ref = 'service_port'
+        vnfap_map.dependency.member_vnf_index = 1
+        vnfap_map.dependency.dependency_ref = 'port_port'
 
     def compose(self, vnfd_list, cpgroup_list, mano_ut,
                 use_ns_init_conf=True,
@@ -937,6 +957,8 @@ exit 0
                 member.member_vnf_index_ref = vnfd_index_map[member_vnfd]
 
         # self.create_mon_params(vnfd_list)
+        if use_vca_conf:
+            self.add_vnfap_map()
 
     def write_config(self, outdir, vnfds):
 

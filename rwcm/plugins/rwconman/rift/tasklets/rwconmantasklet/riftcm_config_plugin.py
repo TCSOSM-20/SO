@@ -58,6 +58,10 @@ class RiftCMnsr(object):
         return self._cfg
 
     @property
+    def nsd(self):
+        return self._cfg.nsd
+
+    @property
     def job_id(self):
         ''' Get a new job id for config primitive'''
         self._job_id += 1
@@ -71,11 +75,11 @@ class RiftCMnsr(object):
     def member_vnf_index(self):
         return self._vnfr['member_vnf_index_ref']
 
-    def add_vnfr(self, vnfr, vnfr_msg):
+    def add_vnfr(self, vnfr, vnfr_msg, vnfd):
         if vnfr['id'] in self._vnfr_ids.keys():
             agent_vnfr = self._vnfr_ids[vnfr['id']]
         else:
-            agent_vnfr = RiftCMvnfr(self.name, vnfr, vnfr_msg)
+            agent_vnfr = RiftCMvnfr(self.name, vnfr, vnfr_msg, vnfd)
             self._vnfrs.append(agent_vnfr)
             self._vnfrs_msg.append(vnfr_msg)
             self._vnfr_ids[agent_vnfr.id] = agent_vnfr
@@ -89,9 +93,10 @@ class RiftCMvnfr(object):
     '''
     Agent base class for VNFR processing
     '''
-    def __init__(self, nsr_name, vnfr_dict, vnfr_msg):
+    def __init__(self, nsr_name, vnfr_dict, vnfr_msg, vnfd):
         self._vnfr = vnfr_dict
         self._vnfr_msg = vnfr_msg
+        self._vnfd_msg = vnfd
         self._nsr_name = nsr_name
         self._configurable = False
 
@@ -106,6 +111,10 @@ class RiftCMvnfr(object):
     @property
     def vnfr_msg(self):
         return self._vnfr_msg
+
+    @property
+    def vnfd(self):
+        return self._vnfd_msg
 
     @property
     def name(self):

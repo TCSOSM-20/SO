@@ -128,7 +128,7 @@ module vnfd
         leaf name {
           description "Name of the capability";
           type string {
-            length 128;
+            length "1..128";
           }
         }
 
@@ -199,7 +199,7 @@ module vnfd
         leaf name {
           description "Name of this dependency";
           type string {
-            length 128;
+            length "1..128";
           }
         }
 

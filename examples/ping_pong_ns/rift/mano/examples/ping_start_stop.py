@@ -27,56 +27,44 @@ import time
 import yaml
 
 
-def start_traffic(yaml_cfg, logger):
-    '''Use curl and set admin status to enable on pong and ping vnfs'''
+def ping_start_stop(yaml_cfg, logger):
+    '''Use curl to configure ping and set the ping rate'''
 
-    def enable_service(mgmt_ip, port, vnf_type):
-        curl_cmd = 'curl -D /dev/stdout -H "Accept: application/vnd.yang.data' \
-                   '+xml" -H "Content-Type: application/vnd.yang.data+json" ' \
-                   '-X POST -d "{{\\"enable\\":true}}" http://{mgmt_ip}:' \
-                   '{mgmt_port}/api/v1/{vnf_type}/adminstatus/state'. \
-                   format(
-                       mgmt_ip=mgmt_ip,
-                       mgmt_port=port,
-                       vnf_type=vnf_type)
+    # Get the required and optional parameters
+    params = yaml_cfg['parameters']
+    mgmt_ip = params['mgmt_ip']
+    mgmt_port = 18888
+    if 'mgmt_port' in params:
+        mgmt_port = params['mgmt_port']
+    start = 'true'
+    if 'start' in params:
+        if not params['start']:
+            start = 'false'
 
-        logger.debug("Executing cmd: %s", curl_cmd)
-        proc = subprocess.run(curl_cmd, shell=True,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
+    cmd = 'curl -D /dev/stdout -H "Accept: application/vnd.yang.data' \
+          '+xml" -H "Content-Type: application/vnd.yang.data+json" ' \
+          '-X POST -d "{{\\"enable\\":{start}}}" ' \
+          'http://{mgmt_ip}:{mgmt_port}/api/v1/ping/adminstatus/state'. \
+          format(
+              mgmt_ip=mgmt_ip,
+              mgmt_port=mgmt_port,
+              start=start)
 
-        logger.debug("Process: {}".format(proc))
+    logger.debug("Executing cmd: %s", cmd)
+    proc = subprocess.run(cmd, shell=True,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
 
-        return proc.returncode
+    logger.debug("Process: {}".format(proc))
 
-    # Enable pong service first
-    for index, vnfr in yaml_cfg['vnfr'].items():
-        logger.debug("VNFR {}: {}".format(index, vnfr))
+    rc = proc.returncode
 
-        # Check if it is pong vnf
-        if 'pong_vnfd' in vnfr['name']:
-            vnf_type = 'pong'
-            port = 18889
-            rc = enable_service(vnfr['mgmt_ip_address'], port, vnf_type)
-            if rc != 0:
-                logger.error("Enable service for pong failed: {}".
-                             format(rc))
-                return rc
-            break
-
-    # Add a delay to provide pong port to come up
-    time.sleep(1)
-
-    # Enable ping service next
-    for index, vnfr in yaml_cfg['vnfr'].items():
-        logger.debug("VNFR {}: {}".format(index, vnfr))
-
-        # Check if it is pong vnf
-        if 'ping_vnfd' in vnfr['name']:
-            vnf_type = 'ping'
-            port = 18888
-            rc = enable_service(vnfr['mgmt_ip_address'], port, vnf_type)
-            break
+    if rc == 0:
+        # Check if we got 200 OK
+        resp = proc.stdout.decode()
+        if 'HTTP/1.1 200 OK' not in resp:
+            self._log.error("Got error response: {}".format(resp))
+            rc = 1
 
     return rc
 
@@ -91,10 +79,10 @@ def main(argv=sys.argv[1:]):
         run_dir = os.path.join(os.environ['RIFT_INSTALL'], "var/run/rift")
         if not os.path.exists(run_dir):
             os.makedirs(run_dir)
-        log_file = "{}/ping_pong_start_traffic-{}.log".format(run_dir, time.strftime("%Y%m%d%H%M%S"))
+        log_file = "{}/ping_start_stop-{}.log".format(run_dir, time.strftime("%Y%m%d%H%M%S"))
 
         # logging.basicConfig(filename=log_file, level=logging.DEBUG)
-        logger = logging.getLogger('ping-pong-start-traffic')
+        logger = logging.getLogger('ping-start-stop')
         logger.setLevel(logging.DEBUG)
 
         fh = logging.FileHandler(log_file)
@@ -123,7 +111,7 @@ def main(argv=sys.argv[1:]):
         yaml_cfg = yaml.load(yaml_str)
         logger.debug("Input YAML: {}".format(yaml_cfg))
 
-        rc = start_traffic(yaml_cfg, logger)
+        rc = ping_start_stop(yaml_cfg, logger)
         logger.info("Return code: {}".format(rc))
         sys.exit(rc)
 

@@ -205,7 +205,7 @@ class VirtualNetworkFunction(ManoDescriptor):
         # Add vnf configuration
         vnf_config = vnfd.vnf_configuration
 
-        vnf_config.config_attributes.config_delay = 60
+        # vnf_config.config_attributes.config_delay = 10
 
         # Select "script" configuration
         vnf_config.script.script_type = 'bash'
@@ -223,7 +223,7 @@ class VirtualNetworkFunction(ManoDescriptor):
                 {"name": "pong_port", "data_type": "INTEGER",
                  "default_value": "5555"},
             ],
-            "user_defined_script": "ping-setup.py",
+            "user_defined_script": "ping_setup.py",
         })
         vnf_config.config_primitive.append(prim)
 
@@ -237,7 +237,7 @@ class VirtualNetworkFunction(ManoDescriptor):
                 {"name": "rate", "data_type": "INTEGER",
                  "default_value": "5"},
             ],
-            "user_defined_script": "ping-set-rate.py",
+            "user_defined_script": "ping_rate.py",
         })
         vnf_config.config_primitive.append(prim)
 
@@ -251,7 +251,7 @@ class VirtualNetworkFunction(ManoDescriptor):
                 {"name": "start", "data_type": "BOOLEAN",
                  "default_value": "true"}
             ],
-            "user_defined_script": "ping-start-stop.py",
+            "user_defined_script": "ping_start_stop.py",
         })
         vnf_config.config_primitive.append(prim)
 
@@ -302,7 +302,7 @@ class VirtualNetworkFunction(ManoDescriptor):
                 {"name": "service_ip", "data_type": "STRING"},
                 {"name": "service_port", "data_type": "INTEGER"},
             ],
-            "user_defined_script": "ping-setup.py",
+            "user_defined_script": "pong_setup.py",
         })
         vnf_config.config_primitive.append(prim)
 
@@ -316,7 +316,7 @@ class VirtualNetworkFunction(ManoDescriptor):
                 {"name": "start", "data_type": "BOOLEAN",
                  "default_value": "true"}
             ],
-            "user_defined_script": "ping-start-stop.py",
+            "user_defined_script": "pong_start_stop.py",
         })
         vnf_config.config_primitive.append(prim)
 
@@ -519,16 +519,16 @@ class VirtualNetworkFunction(ManoDescriptor):
                     member_vdu.member_vdu_ref = vdu.id
 
 
-    def write_to_file(self, outdir, output_format):
+    def write_to_file(self, outdir, output_format, use_vca_conf=False):
         dirpath = "%s/%s" % (outdir, self.name)
         if not os.path.exists(dirpath):
             os.makedirs(dirpath)
         super(VirtualNetworkFunction, self).write_to_file(['vnfd', 'rw-vnfd'],
                                                           dirpath,
                                                           output_format)
-        self.add_scripts(outdir)
+        self.add_scripts(outdir, use_vca_conf=use_vca_conf)
 
-    def add_scripts(self, outdir):
+    def add_cloud_init(self, outdir):
         script_dir = os.path.join(outdir, self.name, 'cloud_init')
         try:
             os.makedirs(script_dir)
@@ -536,7 +536,7 @@ class VirtualNetworkFunction(ManoDescriptor):
             if not os.path.isdir(script_dir):
                 raise
 
-        if 'ping' in self.name:
+        if 'ping_' in self.name:
             script_file = os.path.join(script_dir, 'ping_cloud_init.cfg')
             cfg = PING_USERDATA_FILE
         else:
@@ -546,6 +546,35 @@ class VirtualNetworkFunction(ManoDescriptor):
         with open(script_file, "w") as f:
             f.write("{}".format(cfg))
 
+    def add_scripts(self, outdir, use_vca_conf=False):
+        self.add_cloud_init(outdir)
+        if use_vca_conf:
+            self.add_vca_scripts(outdir)
+
+    def add_vca_scripts(self, outdir):
+        dest_path = os.path.join(outdir, self.name, 'scripts')
+        try:
+            os.makedirs(dest_path)
+        except OSError:
+            if not os.path.isdir(dest_path):
+                raise
+
+        if 'pong_' in self.name:
+            scripts = ['pong_setup.py', 'pong_start_stop.py']
+        else:
+            scripts = ['ping_setup.py', 'ping_rate.py', 'ping_start_stop.py']
+
+        for script_name in scripts:
+            src_path = os.path.dirname(os.path.abspath(
+                os.path.realpath(__file__)))
+            script_src = os.path.join(src_path, script_name)
+            if not os.path.exists(script_src):
+                src_path = os.path.join(os.environ['RIFT_ROOT'],
+                                        'modules/core/mano/examples/'
+                                        'ping_pong_ns/rift/mano/examples')
+                script_src = os.path.join(src_path, script_name)
+
+            shutil.copy2(script_src, dest_path)
 
 class NetworkService(ManoDescriptor):
     def __init__(self, name):
@@ -781,7 +810,7 @@ exit 0
         if mano_ut:
             nsd.service_primitive.add().from_dict(
                 {
-                    "name": "ping config",
+                    "name": "ping scale",
                     "user_defined_script": "{}".format(os.path.join(
                         os.environ['RIFT_ROOT'],
                         'modules/core/mano',
@@ -791,8 +820,8 @@ exit 0
         else:
             nsd.service_primitive.add().from_dict(
                 {
-                    "name": "ping config",
-                    "user_defined_script": "ping_config.py"
+                    "name": "ping scale",
+                    "user_defined_script": "ping_scale.py"
                 })
 
     def ns_initial_config(self, nsd):
@@ -849,7 +878,7 @@ exit 0
         vnfap_map.capability.member_vnf_index = 2
         vnfap_map.capability.capability_ref = 'service_port'
         vnfap_map.dependency.member_vnf_index = 1
-        vnfap_map.dependency.dependency_ref = 'port_port'
+        vnfap_map.dependency.dependency_ref = 'pong_port'
 
     def compose(self, vnfd_list, cpgroup_list, mano_ut,
                 use_ns_init_conf=True,
@@ -1078,7 +1107,7 @@ class ScaleGroup(object):
 
     def add_config(self):
         self.config_action['post_scale_out']= {'ns-config-primitive-name-ref':
-                                               'ping config'}
+                                               'ping scale'}
 
 class PlacementGroup(object):
     def __init__(self, name):
@@ -1292,8 +1321,10 @@ def generate_ping_pong_descriptors(fmt="json",
     )
 
     if write_to_file:
-        ping.write_to_file(out_dir, ping_fmt if ping_fmt is not None else fmt)
-        pong.write_to_file(out_dir, pong_fmt if ping_fmt is not None else fmt)
+        ping.write_to_file(out_dir, ping_fmt if ping_fmt is not None else fmt,
+                           use_vca_conf=use_vca_conf)
+        pong.write_to_file(out_dir, pong_fmt if ping_fmt is not None else fmt,
+                           use_vca_conf=use_vca_conf)
         nsd_catalog.write_config(out_dir, vnfd_list)
         nsd_catalog.write_to_file(out_dir, ping_fmt if nsd_fmt is not None else fmt)
 

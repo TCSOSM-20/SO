@@ -42,6 +42,7 @@ gi.require_version('RwNsrYang', '1.0')
 gi.require_version('RwTypes', '1.0')
 gi.require_version('RwVlrYang', '1.0')
 gi.require_version('RwVnfrYang', '1.0')
+gi.require_version('VnfdYang', '1.0')
 from gi.repository import (
     RwYang,
     RwNsrYang,
@@ -54,6 +55,7 @@ from gi.repository import (
     RwsdnYang,
     RwDts as rwdts,
     RwTypes,
+    VnfdYang,
     ProtobufC,
 )
 
@@ -829,7 +831,10 @@ class VirtualNetworkFunctionRecord(object):
     @property
     def const_vnfr_msg(self):
         """ VNFR message """
-        return RwNsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ConstituentVnfrRef(vnfr_id=self.id,cloud_account=self.cloud_account_name,om_datacenter=self._om_datacenter_name)
+        return RwNsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ConstituentVnfrRef(
+            vnfr_id=self.id,
+            cloud_account=self.cloud_account_name,
+            om_datacenter=self._om_datacenter_name)
 
     @property
     def vnfd(self):
@@ -979,7 +984,7 @@ class VirtualNetworkFunctionRecord(object):
                         format(self.name, self.vnfr_msg))
         yield from self._dts.query_update(
                 self.xpath,
-                rwdts.XactFlag.TRACE,
+                rwdts.XactFlag.REPLACE,
                 self.vnfr_msg
                 )
 
@@ -1039,6 +1044,47 @@ class VirtualNetworkFunctionRecord(object):
             return True
 
         return False
+
+    @asyncio.coroutine
+    def update_config_primitives(self, vnf_config):
+        # Update only after we are configured
+        if self._config_status == NsrYang.ConfigStates.INIT:
+            return
+
+        if not vnf_config.as_dict():
+            return
+
+        self._log.debug("Update VNFR {} config: {}".
+                        format(self.name, vnf_config.as_dict()))
+
+        # Update config primitive
+        updated = False
+        for prim in self._vnfd.vnf_configuration.config_primitive:
+            for p in vnf_config.config_primitive:
+                if prim.name == p.name:
+                    for param in prim.parameter:
+                        for pa in p.parameter:
+                            if pa.name == param.name:
+                                if not param.default_value or \
+                                   (pa.default_value != param.default_value):
+                                    param.default_value = pa.default_value
+                                    updated = True
+                                    break
+                    break
+
+        if updated:
+            self._log.debug("Updated VNFD {} config: {}".
+                            format(self._vnfd.name,
+                                   self._vnfd.vnf_configuration))
+            self._vnfr_msg = self.create_vnfr_msg()
+
+            try:
+                yield from self.update_vnfm()
+            except Exception as e:
+                self._log.error("Exception updating VNFM with new config "
+                                "primitive for VNFR {}: {}".
+                                format(self.name, e))
+                self._log.exception(e)
 
     @asyncio.coroutine
     def instantiate(self, nsr):

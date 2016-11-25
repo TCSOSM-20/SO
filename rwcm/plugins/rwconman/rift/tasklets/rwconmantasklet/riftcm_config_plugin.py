@@ -16,9 +16,40 @@
 
 import asyncio
 import abc
+import os
+import tempfile
+import yaml
+
+import gi
+gi.require_version('RwDts', '1.0')
+from gi.repository import (
+    RwDts as rwdts,
+)
 
 # Default config agent plugin type
 DEFAULT_CAP_TYPE = "riftca"
+
+
+class XPaths(object):
+    @staticmethod
+    def nsr_opdata(k=None):
+        return ("D,/nsr:ns-instance-opdata/nsr:nsr" +
+                ("[nsr:ns-instance-config-ref='{}']".format(k) if k is not None else ""))
+
+    @staticmethod
+    def nsd_msg(k=None):
+        return ("C,/nsd:nsd-catalog/nsd:nsd" +
+                "[nsd:id = '{}']".format(k) if k is not None else "")
+
+    @staticmethod
+    def vnfr_opdata(k=None):
+        return ("D,/vnfr:vnfr-catalog/vnfr:vnfr" +
+                ("[vnfr:id='{}']".format(k) if k is not None else ""))
+
+    @staticmethod
+    def nsr_config(k=None):
+        return ("C,/nsr:ns-instance-config/nsr:nsr[nsr:id='{}']".format(k) if k is not None else "")
+
 
 class RiftCMnsr(object):
     '''
@@ -88,6 +119,12 @@ class RiftCMnsr(object):
     @property
     def vnfr_ids(self):
         return self._vnfr_ids
+
+    def get_member_vnfr(self, member_index):
+        for vnfr in self._vnfrs:
+            if vnfr.member_vnf_index == member_index:
+                return vnfr
+
 
 class RiftCMvnfr(object):
     '''
@@ -283,6 +320,118 @@ class RiftCMConfigPluginBase(object):
     def get_service_status(self, vnfr_id):
         """Get the status of the service"""
         return None
+
+    # Helper functions
+
+    def convert_value(self, value, type_='STRING'):
+        if type_ == 'STRING':
+            return str(value)
+
+        if type_ == 'INTEGER':
+            return int(value)
+
+        if type_ == 'BOOLEAN':
+            return (value == 1) or (value.lower() == 'true')
+
+        return value
+
+    @asyncio.coroutine
+    def _read_dts(self, xpath, do_trace=False):
+        self._log.debug("_read_dts path = %s", xpath)
+        flags = rwdts.XactFlag.MERGE
+        res_iter = yield from self._dts.query_read(
+                xpath, flags=flags
+                )
+
+        results = []
+        try:
+            for i in res_iter:
+                result = yield from i
+                if result is not None:
+                    results.append(result.result)
+        except:
+            pass
+
+        return results
+
+
+    @asyncio.coroutine
+    def get_xpath(self, xpath):
+        self._log.debug("Attempting to get xpath: {}".format(xpath))
+        resp = yield from self._read_dts(xpath, False)
+        if len(resp) > 0:
+            self._log.debug("Got DTS resp: {}".format(resp[0]))
+            return resp[0]
+        return None
+
+    @asyncio.coroutine
+    def get_nsr(self, id):
+        self._log.debug("Attempting to get NSR: %s", id)
+        nsrl = yield from self._read_dts(XPaths.nsr_opdata(id), False)
+        nsr = None
+        if len(nsrl) > 0:
+            nsr =  nsrl[0].as_dict()
+        return nsr
+
+    @asyncio.coroutine
+    def get_nsr_config(self, id):
+        self._log.debug("Attempting to get config NSR: %s", id)
+        nsrl = yield from self._read_dts(XPaths.nsr_config(id), False)
+        nsr = None
+        if len(nsrl) > 0:
+            nsr =  nsrl[0]
+        return nsr
+
+    @asyncio.coroutine
+    def get_vnfr(self, id):
+        self._log.debug("Attempting to get VNFR: %s", id)
+        vnfrl = yield from self._read_dts(XPaths.vnfr_opdata(id), do_trace=False)
+        vnfr_msg = None
+        if len(vnfrl) > 0:
+            vnfr_msg = vnfrl[0]
+        return vnfr_msg
+
+    @asyncio.coroutine
+    def exec_script(self, script, data):
+        """Execute a shell script with the data as yaml input file"""
+        self._log.debug("Execute script {} with data {}".
+                        format(script, data))
+        tmp_file = None
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(yaml.dump(data, default_flow_style=True)
+                    .encode("UTF-8"))
+
+        cmd = "{} {}".format(script, tmp_file.name)
+        self._log.debug("Running the CMD: {}".format(cmd))
+
+        try:
+            proc = yield from asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE)
+            rc = yield from proc.wait()
+            script_out, script_err = yield from proc.communicate()
+
+        except Exception as e:
+            msg = "Script {} caused exception: {}". \
+                  format(script, e)
+            self._log.exception(msg)
+            rc = 1
+            script_err = msg
+            script_out = ''
+
+        finally:
+            # Remove the tempfile created
+            try:
+                os.remove(tmp_file.name)
+            except OSError as e:
+                self._log.info("Error removing tempfile {}: {}".
+                                format(tmp_file.name, e))
+
+        self._log.debug("Script {}: rc={}\nStdOut:{}\nStdErr:{}".
+                        format(script, rc, script_out, script_err))
+
+        return rc, script_err
 
     @asyncio.coroutine
     def invoke(self, method, *args):

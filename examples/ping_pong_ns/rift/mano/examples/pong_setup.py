@@ -27,56 +27,65 @@ import time
 import yaml
 
 
-def start_traffic(yaml_cfg, logger):
-    '''Use curl and set admin status to enable on pong and ping vnfs'''
+def pong_setup(yaml_cfg, logger):
+    '''Use curl to configure ping and set the ping rate'''
 
-    def enable_service(mgmt_ip, port, vnf_type):
-        curl_cmd = 'curl -D /dev/stdout -H "Accept: application/vnd.yang.data' \
-                   '+xml" -H "Content-Type: application/vnd.yang.data+json" ' \
-                   '-X POST -d "{{\\"enable\\":true}}" http://{mgmt_ip}:' \
-                   '{mgmt_port}/api/v1/{vnf_type}/adminstatus/state'. \
-                   format(
-                       mgmt_ip=mgmt_ip,
-                       mgmt_port=port,
-                       vnf_type=vnf_type)
+    # Get the required and optional parameters
+    params = yaml_cfg['parameters']
+    mgmt_ip = params['mgmt_ip']
+    mgmt_port = 18889
+    if 'mgmt_port' in params:
+        mgmt_port = params['mgmt_port']
+    service_ip = params['service_ip']
+    service_port = 5555
+    if 'service_port' in params:
+        service_port = params['service_port']
+    rate = 1
+    if 'rate' in params:
+        rate = params['rate']
 
-        logger.debug("Executing cmd: %s", curl_cmd)
-        proc = subprocess.run(curl_cmd, shell=True,
+    config_cmd = 'curl -D /dev/stdout -H "Accept: application/vnd.yang.data' \
+                 '+xml" -H "Content-Type: application/vnd.yang.data+json" ' \
+                 '-X POST -d "{{\\"ip\\":\\"{service_ip}\\", \\"port\\":{service_port}}}" ' \
+                 'http://{mgmt_ip}:{mgmt_port}/api/v1/pong/server'. \
+                 format(
+                     mgmt_ip=mgmt_ip,
+                     mgmt_port=mgmt_port,
+                     service_ip=service_ip,
+                     service_port=service_port)
+
+    logger.debug("Executing cmd: %s", config_cmd)
+    count = 0
+    delay = 5
+    max_tries = 12
+    rc = 0
+
+    while True:
+        count += 1
+        proc = subprocess.run(config_cmd, shell=True,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
 
         logger.debug("Process: {}".format(proc))
 
-        return proc.returncode
-
-    # Enable pong service first
-    for index, vnfr in yaml_cfg['vnfr'].items():
-        logger.debug("VNFR {}: {}".format(index, vnfr))
-
-        # Check if it is pong vnf
-        if 'pong_vnfd' in vnfr['name']:
-            vnf_type = 'pong'
-            port = 18889
-            rc = enable_service(vnfr['mgmt_ip_address'], port, vnf_type)
-            if rc != 0:
-                logger.error("Enable service for pong failed: {}".
-                             format(rc))
-                return rc
+        if proc.returncode == 0:
+            # Check if response is 200 OK
+            resp = proc.stdout.decode()
+            if 'HTTP/1.1 200 OK' in resp:
+                rc = 0
+                break
+            self._log.error("Got error response: {}".format(resp))
+            rc = 1
             break
 
-    # Add a delay to provide pong port to come up
-    time.sleep(1)
-
-    # Enable ping service next
-    for index, vnfr in yaml_cfg['vnfr'].items():
-        logger.debug("VNFR {}: {}".format(index, vnfr))
-
-        # Check if it is pong vnf
-        if 'ping_vnfd' in vnfr['name']:
-            vnf_type = 'ping'
-            port = 18888
-            rc = enable_service(vnfr['mgmt_ip_address'], port, vnf_type)
-            break
+        elif proc.returncode == 7:
+            # Connection timeout
+            if count >= max_tries:
+                self._log.error("Connect failed for {}. Failing".format(count))
+                rc = 7
+                break
+            # Try after delay
+            time.sleep(delay)
 
     return rc
 
@@ -91,10 +100,10 @@ def main(argv=sys.argv[1:]):
         run_dir = os.path.join(os.environ['RIFT_INSTALL'], "var/run/rift")
         if not os.path.exists(run_dir):
             os.makedirs(run_dir)
-        log_file = "{}/ping_pong_start_traffic-{}.log".format(run_dir, time.strftime("%Y%m%d%H%M%S"))
+        log_file = "{}/pong_setup-{}.log".format(run_dir, time.strftime("%Y%m%d%H%M%S"))
 
         # logging.basicConfig(filename=log_file, level=logging.DEBUG)
-        logger = logging.getLogger('ping-pong-start-traffic')
+        logger = logging.getLogger('pong-setup')
         logger.setLevel(logging.DEBUG)
 
         fh = logging.FileHandler(log_file)
@@ -123,7 +132,7 @@ def main(argv=sys.argv[1:]):
         yaml_cfg = yaml.load(yaml_str)
         logger.debug("Input YAML: {}".format(yaml_cfg))
 
-        rc = start_traffic(yaml_cfg, logger)
+        rc = pong_setup(yaml_cfg, logger)
         logger.info("Return code: {}".format(rc))
         sys.exit(rc)
 

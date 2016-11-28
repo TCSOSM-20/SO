@@ -1285,6 +1285,7 @@ class ConfigManagerNSR(object):
                     self._log.error("NS:(%s) failed to write nsr xlate tags "
                                     "file as (%s)", nsr_obj.nsr_name, str(e))
 
+                if 'cfg_template' in vnf_cfg:
                     script_cmd = 'python3 {} -i {} -o {} -x "{}"'. \
                                  format(vnf_cfg['xlate_script'],
                                         vnf_cfg['cfg_template'],

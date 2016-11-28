@@ -423,7 +423,8 @@ class RiftCMConfigPluginBase(object):
         finally:
             # Remove the tempfile created
             try:
-                os.remove(tmp_file.name)
+                if rc == 0:
+                    os.remove(tmp_file.name)
             except OSError as e:
                 self._log.info("Error removing tempfile {}: {}".
                                 format(tmp_file.name, e))

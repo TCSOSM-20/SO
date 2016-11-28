@@ -211,10 +211,19 @@ class RiftCAConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                     if val is None:
                         val = param.default_value
 
+                    if val is None:
+                        # Check if mandatory parameter
+                        if param.mandatory:
+                            msg = "VNFR {}: Primitive {} called " \
+                                  "without mandatory parameter {}". \
+                                  format(vnfr.name, config.name,
+                                         param.name)
+                            self._log.error(msg)
+                            return 1, msg
+
                     if val:
                         val = self.convert_value(val, param.data_type)
-
-                    params.update({param.name: val})
+                        params.update({param.name: val})
 
                 data['parameters'] = params
                 break
@@ -250,6 +259,9 @@ class RiftCAConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         rc, err = yield from self._vnf_config_primitive(nsr_id,
                                                         vnfr_id,
                                                         primitive)
+        sel._log.debug("VNFR {} primitive {} exec status: {}".
+                       format(vnfr.name, primitive.name, rc))
+
         if rc == 0:
             output.execution_status = "completed"
         else:

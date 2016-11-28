@@ -418,11 +418,14 @@ class VirtualNetworkFunction(ManoDescriptor):
                     vdu.cloud_init += "  - [ systemctl, restart, --no-block, elastic-network-interfaces.service ]\n"
 
             # Add VNF access point
-            self.add_vnf_access_point(mano_ut=mano_ut)
-            if 'pong_' in self.name:
-                self.add_pong_config(mano_ut=mano_ut, use_ns_init_conf=use_ns_init_conf)
-            else:
-                self.add_ping_config(mano_ut=mano_ut, use_ns_init_conf=use_ns_init_conf)
+            if use_vca_conf:
+                self.add_vnf_access_point(mano_ut=mano_ut)
+                if 'pong_' in self.name:
+                    self.add_pong_config(mano_ut=mano_ut,
+                                         use_ns_init_conf=use_ns_init_conf)
+                else:
+                    self.add_ping_config(mano_ut=mano_ut,
+                                         use_ns_init_conf=use_ns_init_conf)
 
             # sepcify the guest EPA
             if use_epa:

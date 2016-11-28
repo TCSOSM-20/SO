@@ -625,7 +625,6 @@ module vnfd
           }
         }
       }
-      uses vnf-access-point;
     }
   }
 }

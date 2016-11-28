@@ -259,8 +259,8 @@ class RiftCAConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         rc, err = yield from self._vnf_config_primitive(nsr_id,
                                                         vnfr_id,
                                                         primitive)
-        sel._log.debug("VNFR {} primitive {} exec status: {}".
-                       format(vnfr.name, primitive.name, rc))
+        self._log.debug("VNFR {} primitive {} exec status: {}".
+                        format(vnfr.name, primitive.name, rc))
 
         if rc == 0:
             output.execution_status = "completed"

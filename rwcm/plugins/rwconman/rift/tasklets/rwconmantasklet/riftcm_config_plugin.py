@@ -472,6 +472,8 @@ class RiftCMConfigPluginBase(object):
                 self._log.error("Unknown method %s invoked on config agent plugin",
                                 method)
         except Exception as e:
-            self._log.error("Caught exception while invoking method: %s, Exception: %s", method, str(e))
-            raise
+            self._log.exception("Caught exception while invoking method: %s, "
+                                "Exception: %s", method, str(e))
+            raise e
+
         return rc

@@ -133,9 +133,9 @@ class RiftCMConfigAgent(object):
                 rc = yield from agent.invoke(method, nsr, vnfr, *args)
                 break
             except Exception as e:
-                self._log.error("Error invoking {} on {} : {}".
-                                format(method, agent.name, e))
-                raise
+                self._log.exception("Error invoking {} on {} : {}".
+                                    format(method, agent.name, e))
+                raise e
 
         self._log.info("vnfr({}), method={}, return rc={}"
                        .format(vnfr.name, method, rc))

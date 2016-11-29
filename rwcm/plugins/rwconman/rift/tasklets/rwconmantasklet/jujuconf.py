@@ -305,9 +305,9 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                         format(primitive, nsr_id, vnfr_id))
 
         try:
-            vnfr = self._rift_vnfs[vnfr_id].vnfr
+            vnfr = self._juju_vnfs[vnfr_id].vnfr
         except KeyError:
-            msg = "Did not find VNFR %s in RiftCA plugin", vnfr_id
+            msg = "Did not find VNFR %s in Juju plugin", vnfr_id
             self._log.error(msg)
             output.execution_error_details = msg
             return
@@ -336,7 +336,8 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                         val = None
                         for p in primitive.parameter:
                             if p.name == parameter.name:
-                                val = self.xlate(parameter.value, vnfr['tags'])
+                                if p.value:
+                                    val = self.xlate(p.value, vnfr['tags'])
                                 break
 
                         if val is None:
@@ -344,17 +345,17 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
 
                         if val is None:
                             # Check if mandatory parameter
-                            if param.mandatory:
+                            if parameter.mandatory:
                                 msg = "VNFR {}: Primitive {} called " \
                                       "without mandatory parameter {}". \
                                       format(vnfr_msg.name, config.name,
-                                             param.name)
+                                             parameter.name)
                                 self._log.error(msg)
                                 return 'failed', '', msg
 
                         if val:
-                            val = self.convert_value(val, param.data_type)
-                            params.update({param.name: val})
+                            val = self.convert_value(val, parameter.data_type)
+                            params.update({parameter.name: val})
 
                     rc = ''
                     exec_id = ''
@@ -551,7 +552,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         """
 
         try:
-            vnfr = self._rift_vnfs[agent_vnfr.id].vnfr
+            vnfr = self._juju_vnfs[agent_vnfr.id].vnfr
         except KeyError:
             self._log.error("Did not find VNFR %s in Juju plugin",
                             agent_vnfr.name)
@@ -565,7 +566,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             raise RuntimeError(msg)
 
         vnf_config = vnfr_msg.vnf_configuration
-        self._log.debug("VNFR %s config: %s", vnfr.name,
+        self._log.debug("VNFR %s config: %s", vnfr_msg.name,
                         vnf_config.as_dict())
 
         # Sort the primitive based on the sequence number
@@ -573,7 +574,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                             key=lambda k: k.seq)
         if not primitives:
             self._log.debug("VNFR {}: No initial-config-primitive specified".
-                            format(vnfr.name))
+                            format(vnfr_msg.name))
             return True
 
         service = vnfr['vnf_juju_name']
@@ -584,10 +585,10 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         action_ids = []
         try:
             if vnfr_msg.mgmt_interface.ip_address:
-                vnfr['tags'].update({'rw_mgmt_ip': vnr_msg.mgmt_interface.ip_address})
+                vnfr['tags'].update({'rw_mgmt_ip': vnfr_msg.mgmt_interface.ip_address})
                 self._log.debug("jujuCA:(%s) tags: %s", vnfr['vnf_juju_name'], vnfr['tags'])
 
-            for primitive in vnf_config.initial_config_primitive:
+            for primitive in primitives:
                 self._log.debug("(%s) Initial config primitive %s",
                                 vnfr['vnf_juju_name'], primitive)
                 if primitive.config_primitive_ref:
@@ -608,69 +609,62 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                     if rc == "failed":
                         msg = "Error executing initial config primitive" \
                               " {} in VNFR {}: rc={}, stderr={}". \
-                              format(prim.name, vnfr.name, rc, err)
+                              format(prim.name, vnfr_msg.name, rc, err)
                         self._log.error(msg)
                         return False
+
                     elif rc == "pending":
                         action_ids.append(eid)
 
                 elif primitive.name:
-                    try:
-                        config = {}
-                        if primitive.name == 'config':
-                            for param in primitive.parameter:
-                                if vnfr['tags']:
-                                    val = self.xlate(param.value,
-                                                     vnfr['tags'])
-                                    config.update({param.name: val})
-                    except KeyError as e:
-                        self._log.exception("(%s) Initial config error(%s): "
-                                            "config=%s",
-                                            vnfr['vnf_juju_name'], str(e),
-                                            config)
-                        config = None
-                        return False
+                    config = {}
+                    if primitive.name == 'config':
+                        for param in primitive.parameter:
+                            if vnfr['tags']:
+                                val = self.xlate(param.value,
+                                                 vnfr['tags'])
+                                config.update({param.name: val})
 
-                    if config:
-                        self.juju_log('info', vnfr['vnf_juju_name'],
-                                      "Applying Initial config:%s",
-                                      config)
+                        if config:
+                            self.juju_log('info', vnfr['vnf_juju_name'],
+                                          "Applying Initial config:%s",
+                                          config)
 
-                        rc = yield from self.api.apply_config(config,
-                                                              service=service)
-                        if rc is False:
-                            self.log.error("Service {} is in error state".
-                                           format(service))
-                            return False
+                            rc = yield from self.api.apply_config(
+                                config,
+                                service=service)
+                            if rc is False:
+                                self.log.error("Service {} is in error state".
+                                               format(service))
+                                return False
 
                     # Apply any actions specified as part of initial config
-                    for primitive in vnf_config.initial_config_primitive:
-                        if primitive.name != 'config':
-                            self._log.debug("(%s) Initial config action "
-                                            "primitive %s",
-                                            vnfr['vnf_juju_name'], primitive)
-                            action = primitive.name
-                            params = {}
-                            for param in primitive.parameter:
-                                val = self.xlate(param.value, vnfr['tags'])
-                                params.update({param.name: val})
+                    else:
+                        self._log.debug("(%s) Initial config action "
+                                        "primitive %s",
+                                        vnfr['vnf_juju_name'], primitive)
+                        action = primitive.name
+                        params = {}
+                        for param in primitive.parameter:
+                            val = self.xlate(param.value, vnfr['tags'])
+                            params.update({param.name: val})
 
                             self._log.info("(%s) Action %s with params %s",
                                            vnfr['vnf_juju_name'], action,
                                            params)
 
-                            resp = yield from self.api.execute_action(
-                                action,
-                                params,
-                                service=service)
-                            if 'error' in resp:
-                                self._log.error("Applying initial config on {}"
-                                                " failed for {} with {}: {}".
-                                                format(vnfr['vnf_juju_name'],
-                                                       action, params, resp))
-                                return False
+                        resp = yield from self.api.execute_action(
+                            action,
+                            params,
+                            service=service)
+                        if 'error' in resp:
+                            self._log.error("Applying initial config on {}"
+                                            " failed for {} with {}: {}".
+                                            format(vnfr['vnf_juju_name'],
+                                                   action, params, resp))
+                            return False
 
-                            action_ids.append(resp['action']['tag'])
+                        action_ids.append(resp['action']['tag'])
 
         except Exception as e:
             self._log.exception("jujuCA:(%s) Exception juju "
@@ -686,11 +680,13 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             for act in action_ids:
                 resp = yield from self.api.get_action_status(act)
                 if 'error' in resp:
-                    self._log.error("Initial config failed: {}".format(resp))
+                    self._log.error("Initial config failed for action {}: {}".
+                                    format(act, resp))
                     return False
 
                 if resp['status'] == 'failed':
-                    self._log.error("Initial config action failed: {}".format(resp))
+                    self._log.error("Initial config action failed for "
+                                    "action {}: {}".format(act, resp))
                     return False
 
                 if resp['status'] == 'pending':

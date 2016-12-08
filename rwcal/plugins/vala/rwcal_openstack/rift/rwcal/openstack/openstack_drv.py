@@ -1393,18 +1393,27 @@ class NeutronDriver(object):
               name (string)      : Name of the port
               network_id(string) : UUID of the network_id identifying the network to which port belongs
               subnet_id(string)  : UUID of the subnet_id from which IP-address will be assigned to port
+              ip_address(string) : Static IP address to assign to the port
               vnic_type(string)  : Possible values are "normal", "direct", "macvtap"
            }
         Returns:
            port_id (string)   : UUID of the port
+
+        NOTE: Either subnet_id or ip_address need to be specified.
         """
         params = {
             "port": {
                 "admin_state_up"    : kwargs['admin_state_up'],
                 "name"              : kwargs['name'],
                 "network_id"        : kwargs['network_id'],
-                "fixed_ips"         : [ {"subnet_id": kwargs['subnet_id']}],
                 "binding:vnic_type" : kwargs['port_type']}}
+
+        if 'ip_address' in kwargs:
+            params["port"]["fixed_ips"] = [{"ip_address": kwargs['ip_address']}]
+        else:
+            params["port"]["fixed_ips"] = [{"subnet_id": kwargs['subnet_id']}]
+
+        logger.debug("Port create params: {}".format(params))
 
         ntconn = self._get_neutron_connection()
         try:
@@ -1861,7 +1870,7 @@ class OpenstackDriver(object):
             return pool_list[0]
         else:
             return None
-        
+
     def neutron_port_list(self, **kwargs):
         return self.neutron_drv.port_list(**kwargs)
 
@@ -1869,11 +1878,18 @@ class OpenstackDriver(object):
         return self.neutron_drv.port_get(port_id)
 
     def neutron_port_create(self, **kwargs):
-        subnets = [subnet for subnet in self.neutron_drv.subnet_list() if subnet['network_id'] == kwargs['network_id']]
-        assert len(subnets) == 1
-        kwargs['subnet_id'] = subnets[0]['id']
+
+        if 'ip_address' not in kwargs:
+            subnets = [subnet for subnet in self.neutron_drv.subnet_list()
+                       if subnet['network_id'] == kwargs['network_id']]
+            assert len(subnets) == 1
+            kwargs['subnet_id'] = subnets[0]['id']
+
         if not 'admin_state_up' in kwargs:
             kwargs['admin_state_up'] = True
+
+        logger.debug("Port create params: {}".
+                     format(kwargs))
         port_id =  self.neutron_drv.port_create(**kwargs)
 
         if 'vm_id' in kwargs:

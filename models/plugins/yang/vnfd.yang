@@ -67,6 +67,11 @@ module vnfd
       description "Type of the connection point.";
       type manotypes:connection-point-type;
     }
+
+    leaf static-ip-address {
+      description "Static IP address for the connection point";
+      type inet:ip-address;
+    }
   }
 
   grouping virtual-interface {
@@ -271,6 +276,7 @@ module vnfd
             }
           }
         }
+
         uses manotypes:provider-network;
       }
 

@@ -1460,6 +1460,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
            account  - a cloud account
            c_point  - connection_points
         """
+
         kwargs = {}
         kwargs['name'] = c_point.name
         kwargs['network_id'] = c_point.virtual_link_id
@@ -1472,11 +1473,16 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         else:
             raise NotImplementedError("Port Type: %s not supported" %(c_point.type_yang))
 
+        if c_point.static_ip_address:
+            kwargs["ip_address"] = c_point.static_ip_address
+
         with self._use_driver(account) as drv:
             if c_point.has_field('security_group'):
                 group = drv.neutron_security_group_by_name(c_point.security_group)
                 if group is not None:
                     kwargs['security_groups'] = [group['id']]
+            self.log.debug("Create connection point port : {}".
+                           format(kwargs))
             return drv.neutron_port_create(**kwargs)
 
     def _allocate_floating_ip(self, drv, pool_name):

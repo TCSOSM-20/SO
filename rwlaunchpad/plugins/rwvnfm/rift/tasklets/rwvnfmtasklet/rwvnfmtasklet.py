@@ -422,7 +422,7 @@ class VirtualDeploymentUnitRecord(object):
             icp_list.append({"name": cp.name,
                              "id": cp.id,
                              "type_yang": "VPORT",
-                             "ip_address": self.cp_ip_addr(cp.id)})
+                             "ip_address": self.cp_ip_addr(cp.name)})
 
             ii_list.append({"name": intf.name,
                             "vdur_internal_connection_point_ref": cp.id,
@@ -434,10 +434,10 @@ class VirtualDeploymentUnitRecord(object):
 
         ei_list = []
         for intf, cp, vlr in self._ext_intf:
-            ei_list.append({"name": cp,
-                            "vnfd_connection_point_ref": cp,
+            ei_list.append({"name": cp.name,
+                            "vnfd_connection_point_ref": cp.name,
                             "virtual_interface": {}})
-            self._vnfr.update_cp(cp, self.cp_ip_addr(cp), self.cp_id(cp))
+            self._vnfr.update_cp(cp.name, self.cp_ip_addr(cp.name), self.cp_id(cp.name))
 
         vdur_dict["external_interface"] = ei_list
 
@@ -573,9 +573,15 @@ class VirtualDeploymentUnitRecord(object):
 
         cp_list = []
         for intf, cp, vlr in self._ext_intf:
-            cp_info = {"name": cp,
+            cp_info = {"name": cp.name,
                        "virtual_link_id": vlr.network_id,
                        "type_yang": intf.virtual_interface.type_yang}
+
+            try:
+                if cp.static_ip_address:
+                    cp_info["static_ip_address"] = cp.static_ip_address
+            except AttributeError as e:
+                pass
 
             if (intf.virtual_interface.has_field('vpci') and
                     intf.virtual_interface.vpci is not None):
@@ -584,19 +590,28 @@ class VirtualDeploymentUnitRecord(object):
             if (vlr.has_field('ip_profile_params')) and (vlr.ip_profile_params.has_field('security_group')):
                 cp_info['security_group'] = vlr.ip_profile_params.security_group
 
+            self._log.debug("External CP info {}".format(cp_info))
             cp_list.append(cp_info)
 
-        for intf, cp, vlr in self._int_intf:
+        for intf, cp_id, vlr in self._int_intf:
+            cp = self.find_internal_cp_by_cp_id(cp_id)
+
+            cp_dict = {"name": cp_id,
+                       "virtual_link_id": vlr.network_id,
+                       "type_yang": intf.virtual_interface.type_yang}
+
             if (intf.virtual_interface.has_field('vpci') and
                     intf.virtual_interface.vpci is not None):
-                cp_list.append({"name": cp,
-                                "virtual_link_id": vlr.network_id,
-                                "type_yang": intf.virtual_interface.type_yang,
-                                "vpci": intf.virtual_interface.vpci})
-            else:
-                cp_list.append({"name": cp,
-                                "virtual_link_id": vlr.network_id,
-                                "type_yang": intf.virtual_interface.type_yang})
+                cp_dict["vpci"] = intf.virtual_interface.vpci
+
+            try:
+                if cp.static_ip_address:
+                    cp_dict["static_ip_address"] = cp.static_ip_address
+            except AttributeError as e:
+                pass
+
+            self._log.debug("Internal CP info {}".format(cp_info))
+            cp_list.append(cp_dict)
 
         vm_create_msg_dict["connection_points"] = cp_list
         vm_create_msg_dict.update(vdu_copy_dict)
@@ -680,28 +695,15 @@ class VirtualDeploymentUnitRecord(object):
                                 cp_name)
             return cp
 
-        def find_internal_vlr_by_cp_name(cp_name):
-            """ Find the VLR corresponding to the connection point name"""
-            cp = None
+        def find_internal_vlr_by_cp_id(cp_id):
+            self._log.debug("find_internal_vlr_by_cp_id(%s) called",
+                            cp_id)
 
-            self._log.debug("find_internal_vlr_by_cp_name(%s) called",
-                            cp_name)
-
-            for int_cp in self._vdud.internal_connection_point:
-                self._log.debug("Checking for int cp %s in internal connection points",
-                                int_cp.id)
-                if int_cp.id == cp_name:
-                    cp = int_cp
-                    break
-
-            if cp is None:
-                self._log.debug("Failed to find cp %s in internal connection points",
-                                cp_name)
-                msg = "Failed to find cp %s in internal connection points" % cp_name
-                raise VduRecordError(msg)
+            # Validate the cp
+            cp = self.find_internal_cp_by_cp_id(cp_id)
 
             # return the VLR associated with the connection point
-            return vnfr.find_vlr_by_cp(cp_name)
+            return vnfr.find_vlr_by_cp(cp_id)
 
         block = xact.block_create()
 
@@ -722,7 +724,7 @@ class VirtualDeploymentUnitRecord(object):
 
             vlr = vnfr.ext_vlr_by_id(cp.vlr_ref)
 
-            etuple = (ext_intf, cp.name, vlr)
+            etuple = (ext_intf, cp, vlr)
             self._ext_intf.append(etuple)
 
             self._log.debug("Created external interface tuple  : %s", etuple)
@@ -734,7 +736,7 @@ class VirtualDeploymentUnitRecord(object):
                             intf.name, cp_id)
 
             try:
-                vlr = find_internal_vlr_by_cp_name(cp_id)
+                vlr = find_internal_vlr_by_cp_id(cp_id)
             except Exception as e:
                 self._log.debug("Failed to find cp %s in internal VLR list", cp_id)
                 msg = "Failed to find cp %s in internal VLR list, e = %s" % (cp_id, e)
@@ -1738,7 +1740,7 @@ class VirtualNetworkFunctionRecord(object):
 
             def cpr_from_cp(cp):
                 """ Creates a record level connection point from the desciptor cp"""
-                cp_fields = ["name", "image", "vm-flavor"]
+                cp_fields = ["name", "image", "vm-flavor", "static_ip_address"]
                 cp_copy_dict = {k: v for k, v in cp.as_dict().items() if k in cp_fields}
                 cpr_dict = {}
                 cpr_dict.update(cp_copy_dict)

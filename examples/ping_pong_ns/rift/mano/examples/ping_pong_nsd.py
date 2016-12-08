@@ -127,7 +127,7 @@ class VirtualNetworkFunction(ManoDescriptor):
 
     def compose(self, image_name, cloud_init="", cloud_init_file="", endpoint=None, mon_params=[],
                 mon_port=8888, mgmt_port=8888, num_vlr_count=1, num_ivlr_count=1,
-                num_vms=1, image_md5sum=None, mano_ut=False):
+                num_vms=1, image_md5sum=None, mano_ut=False, use_static_ip=False):
         self.descriptor = RwVnfdYang.YangData_Vnfd_VnfdCatalog()
         self.id = str(uuid.uuid1())
         vnfd = self.descriptor.vnfd.add()
@@ -156,6 +156,11 @@ class VirtualNetworkFunction(ManoDescriptor):
             cp = vnfd.connection_point.add()
             cp.type_yang = 'VPORT'
             cp.name = '%s/cp%d' % (self.name, i)
+            if use_static_ip:
+                if 'pong_' in self.name:
+                    cp.static_ip_address = '31.31.31.31'
+                else:
+                    cp.static_ip_address = '31.31.31.32'
 
         if endpoint is not None:
             endp = VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd_HttpEndpoint(
@@ -892,6 +897,7 @@ def generate_ping_pong_descriptors(fmt="json",
                                    ex_pong_userdata=None,
                                    use_placement_group=True,
                                    use_ns_init_conf=True,
+                                   use_static_ip=False,
                                    ):
     # List of connection point groups
     # Each connection point group refers to a virtual link
@@ -936,6 +942,7 @@ def generate_ping_pong_descriptors(fmt="json",
             num_vms=num_vnf_vms,
             image_md5sum=ping_md5sum,
             mano_ut=mano_ut,
+            use_static_ip=use_static_ip,
             )
 
     pong = VirtualNetworkFunction("pong_vnfd%s" % (suffix))
@@ -976,6 +983,7 @@ def generate_ping_pong_descriptors(fmt="json",
             num_vms=num_vnf_vms,
             image_md5sum=pong_md5sum,
             mano_ut=mano_ut,
+            use_static_ip=use_static_ip,
             )
 
     # Initialize the member VNF index

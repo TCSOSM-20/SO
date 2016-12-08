@@ -961,7 +961,8 @@ class VirtualNetworkFunctionRecord(object):
 
         vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
 
-        vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict())
+        vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict(),
+                                                                           ignore_missing_keys=True)
         vnfr.member_vnf_index_ref = self.member_vnf_index
         vnfr.vnf_configuration.from_dict(self._vnfd.vnf_configuration.as_dict())
 
@@ -1083,6 +1084,13 @@ class VirtualNetworkFunctionRecord(object):
                 continue
 
             cpr.vlr_ref = vlr_ref.id
+
+            try:
+                if conn_p.static_ip_address:
+                    cpr.static_ip_address = conn_p.static_ip_address
+            except AttributeError as e:
+                pass
+
             self.vnfr_msg.connection_point.append(cpr)
             self._log.debug("Connection point [%s] added, vnf id=%s vnfd id=%s",
                             cpr, self.vnfr_msg.id, self.vnfr_msg.vnfd.id)
@@ -3266,7 +3274,11 @@ class NsrDtsHandler(object):
             def begin_instantiation(nsr):
                 # Begin instantiation
                 self._log.info("Beginning NS instantiation: %s", nsr.id)
-                yield from self._nsm.instantiate_ns(nsr.id, xact)
+                try:
+                    yield from self._nsm.instantiate_ns(nsr.id, xact)
+                except Exception as e:
+                    self._log.exception(e)
+                    raise e
 
             self._log.debug("Got nsr apply (xact: %s) (action: %s)(scr: %s)",
                             xact, action, scratch)

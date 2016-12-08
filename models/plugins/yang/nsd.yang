@@ -292,9 +292,9 @@ module nsd
           }
         }
 
-         leaf vnfd-id-ref {
-           description
-               "A reference to a vnfd. This is a
+        leaf vnfd-id-ref {
+          description
+            "A reference to a vnfd. This is a
                 leafref to path:
                     ../../nsd:constituent-vnfd
                     + [nsd:id = current()/../nsd:id-ref]
@@ -304,12 +304,12 @@ module nsd
                 to leafref, whose target is in a different module.
                 Once that is resovled this will switched to use
                 leafref";
-           type string;
-         }
+          type string;
+        }
 
-         leaf vnfd-connection-point-ref {
-           description
-               "A reference to a connection point name
+        leaf vnfd-connection-point-ref {
+          description
+            "A reference to a connection point name
                 in a vnfd. This is a leafref to path:
                     /vnfd:vnfd-catalog/vnfd:vnfd
                     + [vnfd:id = current()/../nsd:vnfd-id-ref]
@@ -319,7 +319,7 @@ module nsd
                 to leafref, whose target is in a different module.
                 Once that is resovled this will switched to use
                 leafref";
-            type string;
+          type string;
         }
       }
 

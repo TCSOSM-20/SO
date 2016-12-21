@@ -236,6 +236,7 @@ namespace RwCal {
     public abstract RwTypes.RwStatus get_vdu(
       Rwcal.CloudAccount account,
       string vdu_id,
+      string? mgmt_network,
       out Rwcal.VDUInfoParams response);
     
     public abstract RwTypes.RwStatus get_vdu_list(

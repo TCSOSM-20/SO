@@ -431,8 +431,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         with self._use_driver(account) as drv:
             vm_id = drv.nova_server_create(**kwargs)
             if floating_ip:
-                self.prepare_vdu_on_boot(account, vm_id, floating_ip)
-
+                self.prepare_vdu_on_boot(account, vm_id, floating_ip, mgmt_network = None)
         return vm_id
 
     @rwstatus
@@ -501,7 +500,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         vm.state     = vm_info['status']
         for network_name, network_info in vm_info['addresses'].items():
             if network_info:
-                if network_name == mgmt_network:
+                if network_name == mgmt_network :
                     vm.public_ip = next((item['addr']
                                             for item in network_info
                                             if item['OS-EXT-IPS:type'] == 'floating'),
@@ -1228,7 +1227,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         return link
 
     @staticmethod
-    def _fill_vdu_info(vm_info, flavor_info, mgmt_network, port_list, server_group, volume_list = None):
+    def _fill_vdu_info(vm_info, flavor_info, mgmt_network, port_list, server_group, volume_list = None, overridden_mgmt_network = None):
         """Create a GI object for VDUInfoParams
 
         Converts VM information dictionary object returned by openstack
@@ -1247,13 +1246,14 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         vdu.name = vm_info['name']
         vdu.vdu_id = vm_info['id']
         for network_name, network_info in vm_info['addresses'].items():
-            if network_info and network_name == mgmt_network:
+            if network_info and network_name == mgmt_network or network_name == overridden_mgmt_network :
                 for interface in network_info:
-                    if 'OS-EXT-IPS:type' in interface:
-                        if interface['OS-EXT-IPS:type'] == 'fixed':
-                            vdu.management_ip = interface['addr']
-                        elif interface['OS-EXT-IPS:type'] == 'floating':
-                            vdu.public_ip = interface['addr']
+                    for interface in network_info:
+                        if 'OS-EXT-IPS:type' in interface:
+                            if interface['OS-EXT-IPS:type'] == 'fixed':
+                                vdu.management_ip = interface['addr']
+                            elif interface['OS-EXT-IPS:type'] == 'floating':
+                                vdu.public_ip = interface['addr']
 
         # Look for any metadata
         for key, value in vm_info['metadata'].items():
@@ -1874,7 +1874,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                 raise OpenstackCALOperationFailure("Create-flavor operation failed for cloud account: %s" %(account.name))
             return flavor_id
 
-    def _create_vm(self, account, vduinfo, pci_assignement=None, server_group=None, port_list=None, network_list=None, imageinfo_list=None):
+    def _create_vm(self, account, vduinfo, pci_assignement=None, server_group=None, port_list=None, network_list=None, imageinfo_list=None, mgmt_network = None):
         """Create a new virtual machine.
 
         Arguments:
@@ -1969,7 +1969,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         with self._use_driver(account) as drv:
             vm_id = drv.nova_server_create(**kwargs)
             if floating_ip:
-                self.prepare_vdu_on_boot(account, vm_id, floating_ip)
+                self.prepare_vdu_on_boot(account, vm_id, floating_ip, mgmt_network)
 
         return vm_id
 
@@ -2017,6 +2017,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         """
         ### First create required number of ports aka connection points
         # Add the mgmt_ntwk by default.
+
         mgmt_network_id = None
         with self._use_driver(account) as drv:
             mgmt_network_id = drv._mgmt_network_id
@@ -2029,16 +2030,16 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                 floating_ip = self._allocate_floating_ip(drv, pool_name)
             else:
                 floating_ip = None
-
         port_list = []
         network_list = []
         imageinfo_list = []
-        is_explicit_mgmt_defined = False
-        for c_point in vdu_init.connection_points:
+        explicit_mgmt_network = None
+        if vdu_init.get_mgmt_network() is not None:
+            explicit_mgmt_network = vdu_init.get_mgmt_network()
+
+        for c_point in reversed(vdu_init.connection_points):
             # if the user has specified explicit mgmt_network connection point
             # then remove the mgmt_network from the VM list
-            if c_point.virtual_link_id == mgmt_network_id:
-                is_explicit_mgmt_defined = True
             if c_point.virtual_link_id in network_list:
                 assert False, "Only one port per network supported. Refer: http://specs.openstack.org/openstack/nova-specs/specs/juno/implemented/nfv-multiple-if-1-net.html"
             else:
@@ -2100,7 +2101,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         with self._use_driver(account) as drv:
             ### Now Create VM
             vm_network_list = []
-            if not is_explicit_mgmt_defined:
+            if explicit_mgmt_network is None:
                 vm_network_list.append(drv._mgmt_network_id)
   
             if vdu_init.has_field('volumes'):
@@ -2137,8 +2138,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             if pci_assignement != '':
                 vm.user_tags.pci_assignement = pci_assignement
 
-            vm_id = self._create_vm(account, vdu_init, pci_assignement=pci_assignement, server_group=server_group, port_list=port_list, network_list=vm_network_list, imageinfo_list = imageinfo_list)
-            self.prepare_vdu_on_boot(account, vm_id, floating_ip)
+            vm_id = self._create_vm(account, vdu_init, pci_assignement=pci_assignement, server_group=server_group, port_list=port_list, network_list=vm_network_list, imageinfo_list = imageinfo_list, mgmt_network = explicit_mgmt_network)           
             return vm_id
 
     def prepare_vpci_metadata(self, drv, vdu_init):
@@ -2184,12 +2184,21 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
 
 
 
-    def prepare_vdu_on_boot(self, account, server_id, floating_ip):
-        cmd = PREPARE_VM_CMD.format(auth_url     = account.openstack.auth_url,
+    def prepare_vdu_on_boot(self, account, server_id, floating_ip, mgmt_network = None):
+
+        if(mgmt_network is None):
+            cmd = PREPARE_VM_CMD.format(auth_url = account.openstack.auth_url,
                                     username     = account.openstack.key,
                                     password     = account.openstack.secret,
                                     tenant_name  = account.openstack.tenant,
                                     mgmt_network = account.openstack.mgmt_network,
+                                    server_id    = server_id)
+        else:
+            cmd = PREPARE_VM_CMD.format(auth_url = account.openstack.auth_url,
+                                    username     = account.openstack.key,
+                                    password     = account.openstack.secret,
+                                    tenant_name  = account.openstack.tenant,
+                                    mgmt_network = mgmt_network,
                                     server_id    = server_id)
 
         if floating_ip is not None:
@@ -2265,7 +2274,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
 
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    def do_get_vdu(self, account, vdu_id, mgmt_network = None):
         """Get information about a virtual deployment unit.
 
         Arguments:
@@ -2295,7 +2304,8 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                                                            account.openstack.mgmt_network,
                                                            port_list,
                                                            server_group,
-                                                           volume_list = openstack_srv_volume_list)
+                                                           volume_list = openstack_srv_volume_list,
+                                                           overridden_mgmt_network = mgmt_network)
             if vdu_info.state == 'active':
                 try:
                     console_info = drv.nova_server_console(vdu_info.vdu_id)

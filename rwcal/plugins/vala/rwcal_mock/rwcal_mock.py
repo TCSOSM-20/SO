@@ -599,7 +599,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
         logger.debug('deleted vdu: {}'.format(vdu_id))
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    def do_get_vdu(self, account, vdu_id, mgmt_network = None):
         vdu = self.resources[account.name].vdus[vdu_id]
         logger.debug('Returning vdu-info for : {}'.format(vdu_id))
         return vdu.copy()

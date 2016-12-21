@@ -682,7 +682,7 @@ class CloudSimProxyPlugin(GObject.Object, RwCal.Cloud):
         return self._proxy_rpc_call("delete_vdu", vdu_id=vdu_id)
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    def do_get_vdu(self, account, vdu_id, mgmt_network = None):
         """Get information about a virtual deployment unit.
 
         Arguments:

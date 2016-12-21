@@ -1071,7 +1071,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
 
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    def do_get_vdu(self, account, vdu_id, mgmt_network = None):
         """Get information about a virtual deployment unit.
 
         Arguments:

@@ -242,13 +242,14 @@ class ResourceMgrCALHandler(object):
             raise ResMgrCALOperationFailure("Virtual-compute-release operation failed for cloud account: %s. ResourceID: %s" %(self._account.name, compute_id))
 
     @asyncio.coroutine        
-    def get_virtual_compute_info(self, compute_id):
+    def get_virtual_compute_info(self, compute_id, mgmt_network = None):
         #rc, rs = self._rwcal.get_vdu(self._account, compute_id)
         self._log.debug("Calling get_vdu API with id: %s" %(compute_id))
         rc, rs = yield from self._loop.run_in_executor(self._executor,
                                                        self._rwcal.get_vdu,
                                                        self._account,
-                                                       compute_id)
+                                                       compute_id,
+                                                       mgmt_network)
         if rc != RwStatus.SUCCESS:
             self._log.error("Virtual-compute-info operation failed for cloud account: %s. ResourceID: %s",
                             self._account.name,
@@ -767,7 +768,7 @@ class ComputePool(ResourcePool):
 
     @asyncio.coroutine
     def get_resource_info(self, resource):
-        info = yield from self._cal.get_virtual_compute_info(resource.resource_id)
+        info = yield from self._cal.get_virtual_compute_info(resource.resource_id, resource.requested_params.mgmt_network)
 
         self._log.info("Successfully retrieved virtual-compute information from CAL with resource-id: %s. Info: %s",
                        resource.resource_id, str(info))

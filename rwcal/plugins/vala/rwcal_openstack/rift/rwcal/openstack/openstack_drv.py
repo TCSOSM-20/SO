@@ -1843,6 +1843,13 @@ class OpenstackDriver(object):
     def neutron_network_get(self, network_id):
         return self.neutron_drv.network_get(network_id)
 
+    def neutron_network_by_name(self, network_name):
+        networks = self.neutron_network_list()
+        for network in networks:
+            if network_name == network["name"]:
+                return network
+        return None
+        
     def neutron_network_create(self, **kwargs):
         return self.neutron_drv.network_create(**kwargs)
 

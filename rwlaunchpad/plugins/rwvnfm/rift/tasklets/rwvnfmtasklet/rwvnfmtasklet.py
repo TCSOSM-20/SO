@@ -855,6 +855,7 @@ class VirtualDeploymentUnitRecord(object):
             if (query_action == rwdts.QueryAction.UPDATE or
                     query_action == rwdts.QueryAction.CREATE):
                 self._vm_resp = msg
+                
                 if msg.resource_state == "active":
                     # Move this VDU to ready state
                     yield from self.vdu_is_active()
@@ -883,6 +884,7 @@ class VirtualDeploymentUnitRecord(object):
 
             vm_resp = yield from self.create_resource(xact, vnfr, config)
             self._vm_resp = vm_resp
+
             self._state = VDURecordState.RESOURCE_ALLOC_PENDING
             self._log.debug("Requested VM from resource manager response %s",
                             vm_resp)
@@ -1257,6 +1259,7 @@ class VirtualNetworkFunctionRecord(object):
 
         mgmt_intf = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MgmtInterface()
         ip_address, port = self.mgmt_intf_info()
+
         if ip_address is not None:
             mgmt_intf.ip_address = ip_address
         if port is not None:

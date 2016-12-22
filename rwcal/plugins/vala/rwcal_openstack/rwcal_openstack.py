@@ -500,7 +500,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         vm.state     = vm_info['status']
         for network_name, network_info in vm_info['addresses'].items():
             if network_info:
-                if network_name == mgmt_network :
+                if network_name == mgmt_network:
                     vm.public_ip = next((item['addr']
                                             for item in network_info
                                             if item['OS-EXT-IPS:type'] == 'floating'),
@@ -1227,7 +1227,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         return link
 
     @staticmethod
-    def _fill_vdu_info(vm_info, flavor_info, mgmt_network, port_list, server_group, volume_list = None, overridden_mgmt_network = None):
+    def _fill_vdu_info(vm_info, flavor_info, mgmt_network, port_list, server_group, volume_list=None):
         """Create a GI object for VDUInfoParams
 
         Converts VM information dictionary object returned by openstack
@@ -1246,7 +1246,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         vdu.name = vm_info['name']
         vdu.vdu_id = vm_info['id']
         for network_name, network_info in vm_info['addresses'].items():
-            if network_info and network_name == mgmt_network or network_name == overridden_mgmt_network :
+            if network_info and network_name == mgmt_network:
                 for interface in network_info:
                     for interface in network_info:
                         if 'OS-EXT-IPS:type' in interface:
@@ -2034,10 +2034,25 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         network_list = []
         imageinfo_list = []
         explicit_mgmt_network = None
+        vdu_connection_points = []
+        #This check is to identify the c_point of overriding management network first
         if vdu_init.get_mgmt_network() is not None:
             explicit_mgmt_network = vdu_init.get_mgmt_network()
+            with self._use_driver(account) as drv:
+                overridding_mgmt_network = drv.neutron_network_by_name(explicit_mgmt_network)
+                mgmt_network_conn_point_names = []
+                for c_point in vdu_init.connection_points:
+                    if overridding_mgmt_network["id"] == c_point.virtual_link_id:
+                        vdu_connection_points.append(c_point)
+                        mgmt_network_conn_point_names.append(c_point.name)
 
-        for c_point in reversed(vdu_init.connection_points):
+                for c_point in vdu_init.connection_points:
+                    if c_point.name not in mgmt_network_conn_point_names:
+                        vdu_connection_points.append(c_point)
+        else:
+            vdu_connection_points = vdu_init.connection_points
+       
+        for c_point in vdu_connection_points:
             # if the user has specified explicit mgmt_network connection point
             # then remove the mgmt_network from the VM list
             if c_point.virtual_link_id in network_list:
@@ -2274,7 +2289,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
 
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id, mgmt_network = None):
+    def do_get_vdu(self, account, vdu_id, mgmt_network=None):
         """Get information about a virtual deployment unit.
 
         Arguments:
@@ -2299,13 +2314,15 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             openstack_group_list = drv.nova_server_group_list()
             server_group = [ i['name'] for i in openstack_group_list if vm['id'] in i['members']]
             openstack_srv_volume_list = drv.nova_volume_list(vm['id'])
+
+            if mgmt_network is None:
+                mgmt_network = account.openstack.mgmt_network
             vdu_info = RwcalOpenstackPlugin._fill_vdu_info(vm,
                                                            flavor_info,
-                                                           account.openstack.mgmt_network,
+                                                           mgmt_network,
                                                            port_list,
                                                            server_group,
-                                                           volume_list = openstack_srv_volume_list,
-                                                           overridden_mgmt_network = mgmt_network)
+                                                           volume_list = openstack_srv_volume_list)
             if vdu_info.state == 'active':
                 try:
                     console_info = drv.nova_server_console(vdu_info.vdu_id)

@@ -1390,7 +1390,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
         return vdu
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id, mgmt_network = None):
+    def do_get_vdu(self, account, vdu_id, mgmt_network=None):
         """Get information about a virtual deployment unit.
 
         Arguments:

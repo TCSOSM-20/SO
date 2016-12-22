@@ -646,7 +646,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
         return vdu
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id, mgmt_network = None):
+    def do_get_vdu(self, account, vdu_id, mgmt_network=None):
         with self._use_driver(account) as drv:
             vm_info = drv.get_vminstance(vdu_id)
         return  RwcalOpenmanoVimConnector._fill_vdu_info(drv,account,vm_info)

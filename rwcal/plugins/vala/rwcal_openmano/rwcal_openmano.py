@@ -246,7 +246,7 @@ class RwcalOpenmanoPlugin(GObject.Object, RwCal.Cloud):
         raise NotImplementedError()
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id, mgmt_network = None):
+    def do_get_vdu(self, account, vdu_id, mgmt_network=None):
         raise NotImplementedError()
 
     @rwstatus(ret_on_failure=[""])

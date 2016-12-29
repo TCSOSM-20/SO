@@ -466,13 +466,13 @@ class VirtualDeploymentUnitRecord(object):
 
         ei_list = []
         for intf, cp, vlr in self._ext_intf:
-            ei_list.append({"name": cp,
-                            "vnfd_connection_point_ref": cp,
+            ei_list.append({"name": cp.name,
+                            "vnfd_connection_point_ref": cp.name,
                             "virtual_interface": {}})
-            self._vnfr.update_cp(cp,
-                                 self.cp_ip_addr(cp),
-                                 self.cp_mac_addr(cp),
-                                 self.cp_id(cp))
+            self._vnfr.update_cp(cp.name,
+                                 self.cp_ip_addr(cp.name),
+                                 self.cp_mac_addr(cp.name),
+                                 self.cp_id(cp.name))
 
         vdur_dict["external_interface"] = ei_list
 
@@ -633,9 +633,10 @@ class VirtualDeploymentUnitRecord(object):
 
         cp_list = []
         for intf, cp, vlr in self._ext_intf:
-            cp_info = {"name": cp,
+            cp_info = {"name": cp.name,
                        "virtual_link_id": vlr.network_id,
-                       "type_yang": intf.virtual_interface.type_yang}
+                       "type_yang": intf.virtual_interface.type_yang,
+                       "port_security_enabled": cp.port_security_enabled}
 
             if (intf.virtual_interface.has_field('vpci') and
                     intf.virtual_interface.vpci is not None):
@@ -656,7 +657,8 @@ class VirtualDeploymentUnitRecord(object):
             else:
                 cp_list.append({"name": cp,
                                 "virtual_link_id": vlr.network_id,
-                                "type_yang": intf.virtual_interface.type_yang})
+                                "type_yang": intf.virtual_interface.type_yang,
+                                "port_security_enabled": cp.port_security_enabled})
 
         vm_create_msg_dict["connection_points"] = cp_list
         vm_create_msg_dict.update(vdu_copy_dict)
@@ -781,7 +783,7 @@ class VirtualDeploymentUnitRecord(object):
 
             vlr = vnfr.ext_vlr_by_id(cp.vlr_ref)
 
-            etuple = (ext_intf, cp.name, vlr)
+            etuple = (ext_intf, cp, vlr)
             self._ext_intf.append(etuple)
 
             self._log.debug("Created external interface tuple  : %s", etuple)
@@ -1809,7 +1811,7 @@ class VirtualNetworkFunctionRecord(object):
 
             def cpr_from_cp(cp):
                 """ Creates a record level connection point from the desciptor cp"""
-                cp_fields = ["name", "image", "vm-flavor"]
+                cp_fields = ["name", "image", "vm-flavor", "port_security_enabled"]
                 cp_copy_dict = {k: v for k, v in cp.as_dict().items() if k in cp_fields}
                 cpr_dict = {}
                 cpr_dict.update(cp_copy_dict)

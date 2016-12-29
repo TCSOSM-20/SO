@@ -982,6 +982,10 @@ module rwcal
         description "Name of the security group";
         type string;
       }
+      leaf port-security-enabled {
+        description "Enables the port security";
+        type boolean;
+      }
 
       uses connection-point-type;
     }
@@ -1060,6 +1064,10 @@ module rwcal
       leaf associate-public-ip {
         type boolean;
         default false;
+      }
+      leaf port-security-enabled {
+        description "Enables the port security";
+        type boolean;
       }
 
       uses connection-point-type;

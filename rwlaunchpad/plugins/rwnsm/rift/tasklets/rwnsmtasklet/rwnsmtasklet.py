@@ -963,7 +963,8 @@ class VirtualNetworkFunctionRecord(object):
 
         vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
 
-        vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict())
+        vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict(),
+                                                                          ignore_missing_keys=True)
         vnfr.member_vnf_index_ref = self.member_vnf_index
         vnfr.vnf_configuration.from_dict(self._vnfd.vnf_configuration.as_dict())
 
@@ -1120,6 +1121,7 @@ class VirtualNetworkFunctionRecord(object):
             cpr = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_ConnectionPoint()
             cpr.name = conn_p.name
             cpr.type_yang = conn_p.type_yang
+            cpr.port_security_enabled = conn_p.port_security_enabled
             vlr_ref = find_vlr_for_cp(conn_p)
             if vlr_ref is None:
                 msg = "Failed to find VLR for cp = %s" % conn_p.name

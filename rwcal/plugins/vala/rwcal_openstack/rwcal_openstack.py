@@ -1500,6 +1500,12 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         else:
             raise NotImplementedError("Port Type: %s not supported" %(c_point.type_yang))
 
+        # By default port gets created with post_security enaled as True
+        if c_point.port_security_enabled is not None and c_point.port_security_enabled == False:
+            kwargs['port_security_enabled'] = False
+        else:
+            kwargs['port_security_enabled'] = True
+
         with self._use_driver(account) as drv:
             if c_point.has_field('security_group'):
                 group = drv.neutron_security_group_by_name(c_point.security_group)

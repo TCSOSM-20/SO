@@ -67,6 +67,11 @@ module vnfd
       description "Type of the connection point.";
       type manotypes:connection-point-type;
     }
+    leaf port-security-enabled {
+      description "Enables the port security for the port";
+      type boolean;
+      default true;
+    }
   }
 
   grouping virtual-interface {

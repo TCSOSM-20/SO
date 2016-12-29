@@ -645,12 +645,10 @@ ssh_authorized_keys:
 
         cp_list = []
         for intf, cp, vlr in self._ext_intf:
-            cp_info = { "name": cp.name,
-                        "virtual_link_id": vlr.network_id,
-                        "type_yang": intf.virtual_interface.type_yang }
-
-            if cp.has_field('port_security_enabled'):
-                cp_info["port_security_enabled"] = cp.port_security_enabled
+            cp_info = {"name": cp.name,
+                       "virtual_link_id": vlr.network_id,
+                       "type_yang": intf.virtual_interface.type_yang,
+                       "port_security_enabled": cp.port_security_enabled}
 
             if (intf.virtual_interface.has_field('vpci') and
                     intf.virtual_interface.vpci is not None):
@@ -669,16 +667,10 @@ ssh_authorized_keys:
                                 "type_yang": intf.virtual_interface.type_yang,
                                 "vpci": intf.virtual_interface.vpci})
             else:
-                if cp.has_field('port_security_enabled'):
-                    cp_list.append({"name": cp,
-                                    "virtual_link_id": vlr.network_id,
-                                    "type_yang": intf.virtual_interface.type_yang,
-                                    "port_security_enabled": cp.port_security_enabled})
-                else:
-                    cp_list.append({"name": cp,
-                                    "virtual_link_id": vlr.network_id,
-                                    "type_yang": intf.virtual_interface.type_yang})
-
+                cp_list.append({"name": cp,
+                                "virtual_link_id": vlr.network_id,
+                                "type_yang": intf.virtual_interface.type_yang,
+                                "port_security_enabled": cp.port_security_enabled})
 
         vm_create_msg_dict["connection_points"] = cp_list
         vm_create_msg_dict.update(vdu_copy_dict)

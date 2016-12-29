@@ -1449,9 +1449,8 @@ class NeutronDriver(object):
                 "name"              : kwargs['name'],
                 "network_id"        : kwargs['network_id'],
                 "fixed_ips"         : [ {"subnet_id": kwargs['subnet_id']}],
-                "binding:vnic_type" : kwargs['port_type']}}
-        if 'port_security_enabled' in kwargs:
-            params["port"]["port_security_enabled"] = kwargs['port_security_enabled']
+                "binding:vnic_type" : kwargs['port_type'],
+                "port_security_enabled" : kwargs['port_security_enabled']}}
 
         ntconn = self._get_neutron_connection()
         try:

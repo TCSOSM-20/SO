@@ -70,6 +70,7 @@ module vnfd
     leaf port-security-enabled {
       description "Enables the port security for the port";
       type boolean;
+      default true;
     }
   }
 
@@ -319,7 +320,7 @@ module vnfd
                 "Use the default management interface on this VDU.";
             leaf vdu-id {
               type leafref {
-                path "../../vdu/id";
+                path "/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:vdu/vnfd:id";
               }
             }
           }
@@ -329,7 +330,7 @@ module vnfd
                 "Use the ip address associated with this connection point.";
             leaf cp {
               type leafref {
-                path "../../connection-point/name";
+                path "/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:connection-point/vnfd:name";
               }
             }
           }

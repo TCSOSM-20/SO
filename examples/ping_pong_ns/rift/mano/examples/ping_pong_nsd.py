@@ -163,7 +163,7 @@ class VirtualNetworkFunction(ManoDescriptor):
         src.from_dict({
             "name": "mgmt_ip",
             "description": "Management address",
-            "attribute": "../../../../mgmt-interface, ip-address",
+            "attribute": "../../../mgmt-interface, ip-address",
             "parameter" : get_params("mgmt_ip")
         })
         confparam.config_parameter_source.append(src)
@@ -171,7 +171,7 @@ class VirtualNetworkFunction(ManoDescriptor):
         src.from_dict({
             "name": "mgmt_port",
             "description": "Management port",
-            "descriptor": "../../../../mgmt-interface/port",
+            "descriptor": "../../../mgmt-interface/port",
             "parameter" : get_params("mgmt_port")
         })
         confparam.config_parameter_source.append(src)
@@ -198,7 +198,7 @@ class VirtualNetworkFunction(ManoDescriptor):
             src.from_dict({
                 "name": "service_ip",
                 "description": "IP on which Pong service is listening",
-                "attribute": "../../../../connection-point[name='pong_vnfd/cp0'], ip-address",
+                "attribute": "../../../connection-point[name='pong_vnfd/cp0'], ip-address",
                 "parameter" : [
                     {
                         "config_primitive_name_ref": "config",

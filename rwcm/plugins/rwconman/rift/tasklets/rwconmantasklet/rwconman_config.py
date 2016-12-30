@@ -547,7 +547,7 @@ class ConfigManagerConfig(object):
     @asyncio.coroutine
     def resolve_xpath(self, xpath, name, vnfd):
         xpath_prefix = "C,/vnfd:vnfd-catalog/vnfd[id='{}']/config-parameter" \
-                "/config-parameter-source/config-parameter-source[name='{}']" \
+                "/config-parameter-source[name='{}']" \
                 "/descriptor".format(vnfd.id, name)
 
         dts_path = yield from self.get_resolved_xpath(xpath, name,
@@ -597,7 +597,7 @@ class ConfigManagerConfig(object):
                              format(attribute, name, vnfd.name))
 
         xpath_prefix = "D,/vnfr:vnfr-catalog/vnfr[id='{}']/config_parameter" \
-                "/config-parameter-source/config-parameter-source[name='{}']" \
+                "/config-parameter-source[name='{}']" \
                 "/attribute".format(vnfr['id'], name)
         dts_path = yield from self.get_resolved_xpath(xpath, name,
                                                       vnfr['name'],

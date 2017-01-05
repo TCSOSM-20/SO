@@ -834,14 +834,14 @@ class VirtualNetworkFunction(ManoDescriptor):
                     member_vdu.member_vdu_ref = vdu.id
 
 
-    def write_to_file(self, outdir, output_format, use_vca_conf=False):
+    def write_to_file(self, outdir, output_format):
         dirpath = "%s/%s" % (outdir, self.name)
         if not os.path.exists(dirpath):
             os.makedirs(dirpath)
         super(VirtualNetworkFunction, self).write_to_file(['vnfd', 'rw-vnfd'],
                                                           dirpath,
                                                           output_format)
-        self.add_scripts(outdir, use_vca_conf=use_vca_conf)
+        self.add_scripts(outdir)
 
     def add_cloud_init(self, outdir):
         script_dir = os.path.join(outdir, self.name, 'cloud_init')
@@ -1700,10 +1700,8 @@ def generate_ping_pong_descriptors(fmt="json",
     )
 
     if write_to_file:
-        ping.write_to_file(out_dir, ping_fmt if ping_fmt is not None else fmt,
-                           use_vca_conf=use_vca_conf)
-        pong.write_to_file(out_dir, pong_fmt if ping_fmt is not None else fmt,
-                           use_vca_conf=use_vca_conf)
+        ping.write_to_file(out_dir, ping_fmt if ping_fmt is not None else fmt)
+        pong.write_to_file(out_dir, pong_fmt if ping_fmt is not None else fmt)
         nsd_catalog.write_config(out_dir, vnfd_list)
         nsd_catalog.write_to_file(out_dir, ping_fmt if nsd_fmt is not None else fmt)
 

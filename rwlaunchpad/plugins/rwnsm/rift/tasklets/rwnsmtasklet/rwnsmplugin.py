@@ -48,7 +48,7 @@ class NsmPluginBase(object):
     def nsm(self):
         return self._nsm
 
-    def create_nsr(self, nsr):
+    def create_nsr(self, nsr, nsd, key_pairs=None, ssh_key=None):
         """ Create an NSR """
         pass
 
@@ -73,6 +73,12 @@ class NsmPluginBase(object):
     @asyncio.coroutine
     def instantiate_vl(self, nsr, vl):
         """ Instantiate the virtual link"""
+        pass
+
+    @abc.abstractmethod
+    @asyncio.coroutine
+    def update_vnfr(self, vnfr):
+        """ Update the virtual network function record """
         pass
 
     @abc.abstractmethod

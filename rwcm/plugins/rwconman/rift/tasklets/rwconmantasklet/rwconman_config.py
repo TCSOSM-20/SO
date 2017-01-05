@@ -468,11 +468,12 @@ class ConfigManagerConfig(object):
                 prims = vnfd.vnf_configuration.config_primitive
                 if not prims:
                     self._log.debug("VNFR {} with VNFD {} has no config primitives defined".
-                                    format(vnfr.name, vnfd.name))
+                                    format(vnfr['name'], vnfd.name))
                     return
             except AttributeError as e:
                 self._log.error("No config primitives found on VNFR {} ({})".
-                                format(vnfr.name, vnfd.name))
+                                format(vnfr['name'], vnfd.name))
+                continue
 
             cm_state = nsr_obj.find_vnfr_cm_state(vnfr['id'])
             srcs = cm_state['config_parameter']['config_parameter_source']
@@ -482,6 +483,9 @@ class ConfigManagerConfig(object):
             vnf_configuration['config_primitive'] = []
             for prim in prims:
                 confp = prim.as_dict()
+                if 'parameter' not in confp:
+                    continue
+
                 for param in confp['parameter']:
                     # First check the param in capabilities
                     found = False
@@ -1055,12 +1059,15 @@ class ConfigManagerConfig(object):
                         )
 
                 v['vdur'] = []
-                vdu_data = [(vdu['name'], vdu['management_ip'], vdu['vm_management_ip'], vdu['id'])
-                        for vdu in vnfr['vdur']]
+                vdu_data = []
+                for vdu in vnfr['vdur']:
+                    d = {}
+                    for k in ['name', 'management_ip', 'vm_management_ip', 'id']:
+                        if k in vdu:
+                            d[k] = vdu[k]
+                    vdu_data.append(d)
 
-                for data in vdu_data:
-                    data = dict(zip(['name', 'management_ip', 'vm_management_ip', 'id'] , data))
-                    v['vdur'].append(data)
+                v['vdur'].append(vdu_data)
 
                 inp['vnfr'][vnfr['member_vnf_index_ref']] = v
 
@@ -1152,7 +1159,7 @@ class ConfigManagerConfig(object):
                                   stderr=asyncio.subprocess.PIPE)
                     yield from process.wait()
                     if process.returncode:
-                        script_out, script_err = yield from proc.communicate()
+                        script_out, script_err = yield from process.communicate()
                         msg = "NSR {} initial config using {} failed with {}". \
                               format(nsr_name, script, process.returncode)
                         self._log.error(msg)
@@ -1163,7 +1170,7 @@ class ConfigManagerConfig(object):
                         os.remove(inp_file)
 
             except KeyError as e:
-                self._log.debug("Did not find initial config {}".
+                self._log.debug("Did not find initial config: {}".
                                 format(e))
 
 

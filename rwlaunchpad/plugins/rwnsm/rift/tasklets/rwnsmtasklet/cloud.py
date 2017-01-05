@@ -40,7 +40,7 @@ class RwNsPlugin(rwnsmplugin.NsmPluginBase):
         self._log = log
         self._loop = loop
 
-    def create_nsr(self, nsr_msg, nsd,key_pairs=None):
+    def create_nsr(self, nsr_msg, nsd, key_pairs=None, ssh_key=None):
         """
         Create Network service record
         """
@@ -91,6 +91,11 @@ class RwNsPlugin(rwnsmplugin.NsmPluginBase):
         Terminate the virtual link
         """
         yield from vlr.terminate()
+
+    @asyncio.coroutine
+    def update_vnfr(self, vnfr):
+        """ Update the virtual network function record """
+        yield from vnfr.update_vnfm()
 
 
 class NsmPlugins(object):

@@ -502,7 +502,20 @@ class VirtualDeploymentUnitRecord(object):
     def vdud_cloud_init(self):
         """ Return the cloud-init contents for the VDU """
         if self._vdud_cloud_init is None:
-            self._vdud_cloud_init = self.cloud_init()
+            ci = self.cloud_init()
+
+            # VNFR ssh public key, if available
+            if self._vnfr.public_key:
+                if not ci:
+                    ci = "#cloud-config"
+                self._vdud_cloud_init = """{}
+ssh_authorized_keys:
+  - {}""". \
+                  format(ci, self._vnfr.public_key)
+            else:
+                self._vdud_cloud_init = ci
+
+            self._log.debug("Cloud init: {}".format(self._vdud_cloud_init))
 
         return self._vdud_cloud_init
 
@@ -1159,6 +1172,9 @@ class VirtualNetworkFunctionRecord(object):
         self._rw_vnfd = None
         self._vnfd_ref_count = 0
 
+        self._ssh_pub_key = None
+        self._ssh_key_file = None
+
     def _get_vdur_from_vdu_id(self, vdu_id):
         self._log.debug("Finding vdur for vdu_id %s", vdu_id)
         self._log.debug("Searching through vdus: %s", self._vdus)
@@ -1254,6 +1270,10 @@ class VirtualNetworkFunctionRecord(object):
         """ Config agent status for this VNFR """
         return self._config_status
 
+    @property
+    def public_key(self):
+        return self._ssh_pub_key
+
     def component_by_name(self, component_name):
         """ Find a component by name in the inventory list"""
         mangled_name = VcsComponent.mangle_name(component_name,
@@ -1276,6 +1296,22 @@ class VirtualNetworkFunctionRecord(object):
             for nsr in ns_instance_config.nsr:
                 if nsr.id == self._vnfr_msg.nsr_id_ref:
                     return nsr
+        return None
+
+    @asyncio.coroutine
+    def get_nsr_opdata(self):
+        """ NSR opdata associated with this VNFR """
+        xpath = "D,/nsr:ns-instance-opdata/nsr:nsr" \
+            "[nsr:ns-instance-config-ref = '{}']". \
+            format(self._vnfr_msg.nsr_id_ref)
+
+        results = yield from self._dts.query_read(xpath, rwdts.XactFlag.MERGE)
+
+        for result in results:
+            entry = yield from result
+            nsr_op = entry.result
+            return nsr_op
+
         return None
 
     @asyncio.coroutine
@@ -1324,6 +1360,10 @@ class VirtualNetworkFunctionRecord(object):
             mgmt_intf.ip_address = ip_address
         if port is not None:
             mgmt_intf.port = port
+
+        if self._ssh_pub_key:
+            mgmt_intf.ssh_key.public_key = self._ssh_pub_key
+            mgmt_intf.ssh_key.private_key_file = self._ssh_key_file
 
         vnfr_dict = {"id": self._vnfr_id,
                      "nsr_id_ref": self._vnfr_msg.nsr_id_ref,
@@ -1388,7 +1428,7 @@ class VirtualNetworkFunctionRecord(object):
         self._vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(
             msg.as_dict())
         self._log.debug("VNFR msg config: {}".
-                        format(self.msg.vnf_configuration.as_dict()))
+                        format(self._vnfr.as_dict()))
         yield from self.publish(xact)
 
     @property
@@ -1802,6 +1842,11 @@ class VirtualNetworkFunctionRecord(object):
         """ instantiate this VNF """
         self.set_state(VirtualNetworkFunctionRecordState.VL_INIT_PHASE)
         self._rw_vnfd = yield from self._vnfm.fetch_vnfd(self._vnfd_id)
+
+        nsr_op = yield from self.get_nsr_opdata()
+        if nsr_op:
+            self._ssh_key_file = nsr_op.ssh_key_generated.private_key_file
+            self._ssh_pub_key = nsr_op.ssh_key_generated.public_key
 
         @asyncio.coroutine
         def fetch_vlrs():

@@ -299,7 +299,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
 
     @asyncio.coroutine
     def _vnf_config_primitive(self, nsr_id, vnfr_id, primitive,
-                              vnf_config=None):
+                              vnf_config=None, wait=False):
         self._log.debug("jujuCA: VNF config primitive {} for nsr {}, "
                         "vnfr_id {}".
                         format(primitive, nsr_id, vnfr_id))
@@ -370,11 +370,10 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                             rc = yield from self.api.apply_config(
                                 params,
                                 service=service,
-                                wait=False)
+                                wait=True)
 
                             if rc:
-                                # Mark as pending and check later for the status
-                                rc = "pending"
+                                rc = "completed"
                                 self._log.debug("jujuCA: applied config {} "
                                                 "on {}".format(params, service))
                             else:
@@ -401,7 +400,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
 
                         if resp:
                             if 'error' in resp:
-                                details = resp['error']['Message']
+                                details = resp['error']['message']
                             else:
                                 exec_id = resp['action']['tag']
                                 rc = resp['status']
@@ -423,9 +422,16 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
 
         except KeyError as e:
             msg = "VNF %s does not have config primitives, e=%s", \
-                  vnfr_msg.name, e
-            self._log.error(msg)
+                  vnfr_id, e
+            self._log.exception(msg)
             raise ValueError(msg)
+
+        while wait and (rc in ['pending', 'running']):
+            self._log.debug("JujuCA: action {}, rc {}".
+                            format(exec_id, rc))
+            yield from asyncio.sleep(0.2, loop=self._loop)
+            status = yield from self.api.get_action_status(exec_id)
+            rc = status['status']
 
         return rc, exec_id, details
 
@@ -590,7 +596,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
 
             for primitive in primitives:
                 self._log.debug("(%s) Initial config primitive %s",
-                                vnfr['vnf_juju_name'], primitive)
+                                vnfr['vnf_juju_name'], primitive.as_dict())
                 if primitive.config_primitive_ref:
                     # Reference to a primitive in config primitive
                     class Primitive:
@@ -604,7 +610,8 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                         agent_nsr.id,
                         agent_vnfr.id,
                         prim,
-                        vnf_config)
+                        vnf_config,
+                        wait=True)
 
                     if rc == "failed":
                         msg = "Error executing initial config primitive" \

@@ -118,6 +118,10 @@ class VirtualNetworkFunction(ManoDescriptor):
     def __init__(self, name, instance_count=1):
         self.vnfd_catalog = None
         self.vnfd = None
+        self.mano_ut = False
+        self.use_ns_init_conf = False
+        self.use_vca_conf = False
+        self.use_charm = False
         self.instance_count = instance_count
         self._placement_groups = []
         super(VirtualNetworkFunction, self).__init__(name)
@@ -125,7 +129,116 @@ class VirtualNetworkFunction(ManoDescriptor):
     def add_placement_group(self, group):
         self._placement_groups.append(group)
 
-    def add_vnf_access_point(self, mano_ut=False):
+    def add_vnf_conf_param_charm(self):
+        vnfd = self.descriptor.vnfd[0]
+        confparam = vnfd.config_parameter
+
+        src = confparam.create_config_parameter_source()
+        src.from_dict({
+            "name": "mgmt_ip",
+            "description": "Management IP address",
+            "attribute": "../../../mgmt-interface, ip-address",
+            "parameter" : [{
+                "config_primitive_name_ref": "config",
+                "config_primitive_parameter_ref": "ssh-hostname"
+            }]
+        })
+        confparam.config_parameter_source.append(src)
+
+        src = confparam.create_config_parameter_source()
+        src.from_dict({
+            "name": "username",
+            "description": "SSH username",
+            "value": "fedora",
+            "parameter" : [{
+                "config_primitive_name_ref": "config",
+                "config_primitive_parameter_ref": "ssh-username"
+            }]
+        })
+        confparam.config_parameter_source.append(src)
+
+        src = confparam.create_config_parameter_source()
+        src.from_dict({
+            "name": "ssh_key",
+            "description": "SSH private key file",
+            "attribute": "../../../mgmt-interface/ssh-key, private-key-file",
+            "parameter" : [{
+                "config_primitive_name_ref": "config",
+                "config_primitive_parameter_ref": "ssh-private-key"
+            }]
+        })
+        confparam.config_parameter_source.append(src)
+
+        # Check if pong
+        if 'pong_' in self.name:
+            src = confparam.create_config_parameter_source()
+            src.from_dict({
+                "name": "service_ip",
+                "description": "IP on which Pong service is listening",
+                "attribute": "../../../connection-point[name='pong_vnfd/cp0'], ip-address",
+                "parameter" : [
+                    {
+                        "config_primitive_name_ref": "set-server",
+                        "config_primitive_parameter_ref": "server-ip"
+                    },
+                ]
+            })
+            confparam.config_parameter_source.append(src)
+            src = confparam.create_config_parameter_source()
+            src.from_dict({
+                "name": "service_port",
+                "description": "Port on which server listens for incoming data packets",
+                "value": "5555",
+                "parameter" : [
+                    {
+                        "config_primitive_name_ref": "set-server",
+                        "config_primitive_parameter_ref": "server-port"
+                    },
+                ]
+            })
+            confparam.config_parameter_source.append(src)
+
+        else:
+            src = confparam.create_config_parameter_source()
+            src.from_dict({
+                "name": "rate",
+                "description": "Rate of packet generation",
+                "value": "5",
+                "parameter" : [
+                    {
+                        "config_primitive_name_ref": "set-rate",
+                        "config_primitive_parameter_ref": "rate"
+                    },
+                ]
+            })
+            confparam.config_parameter_source.append(src)
+
+            req = confparam.create_config_parameter_request()
+            req.from_dict({
+                "name": "pong_ip",
+                "description": "IP on which Pong service is listening",
+                "parameter" : [
+                    {
+                        "config_primitive_name_ref": "set-server",
+                        "config_primitive_parameter_ref": "server-ip"
+                    },
+                ]
+            })
+            confparam.config_parameter_request.append(req)
+            req = confparam.create_config_parameter_request()
+            req.from_dict({
+                "name": "pong_port",
+                "description": "Port on which Pong service is listening",
+                "parameter" : [
+                    {
+                        "config_primitive_name_ref": "set-server",
+                        "config_primitive_parameter_ref": "server-port"
+                    },
+                ]
+            })
+            confparam.config_parameter_request.append(req)
+
+    def add_vnf_conf_param(self):
         vnfd = self.descriptor.vnfd[0]
         confparam = vnfd.config_parameter
 
@@ -261,7 +374,7 @@ class VirtualNetworkFunction(ManoDescriptor):
             })
             confparam.config_parameter_request.append(req)
 
-    def add_ping_config(self, mano_ut=False, use_ns_init_conf=False):
+    def add_ping_config(self):
         vnfd = self.descriptor.vnfd[0]
         # Add vnf configuration
         vnf_config = vnfd.vnf_configuration
@@ -334,7 +447,7 @@ class VirtualNetworkFunction(ManoDescriptor):
         )
         vnf_config.initial_config_primitive.append(init_config)
 
-        if use_ns_init_conf is False:
+        if self.use_ns_init_conf is False:
             init_config = VnfdYang.InitialConfigPrimitive.from_dict(
                 {
                     "seq": 3,
@@ -343,7 +456,7 @@ class VirtualNetworkFunction(ManoDescriptor):
             )
             vnf_config.initial_config_primitive.append(init_config)
 
-    def add_pong_config(self, mano_ut=False, use_ns_init_conf=False):
+    def add_pong_config(self):
         vnfd = self.descriptor.vnfd[0]
         # Add vnf configuration
         vnf_config = vnfd.vnf_configuration
@@ -391,7 +504,7 @@ class VirtualNetworkFunction(ManoDescriptor):
         )
         vnf_config.initial_config_primitive.append(init_config)
 
-        if use_ns_init_conf is False:
+        if self.use_ns_init_conf is False:
             init_config = VnfdYang.InitialConfigPrimitive.from_dict(
                 {
                     "seq": 2,
@@ -400,10 +513,131 @@ class VirtualNetworkFunction(ManoDescriptor):
             )
             vnf_config.initial_config_primitive.append(init_config)
 
+    def add_charm_config(self):
+        vnfd = self.descriptor.vnfd[0]
+        # Add vnf configuration
+        vnf_config = vnfd.vnf_configuration
+
+        if 'pong_' in self.name:
+            mode = "pong"
+        else:
+            mode = "ping"
+
+        # Select "script" configuration
+        vnf_config.juju.charm = 'pingpong'
+
+        # Add config primitive
+        vnf_config.create_config_primitive()
+        prim = VnfdYang.ConfigPrimitive.from_dict({
+            "name": "start",
+        })
+        vnf_config.config_primitive.append(prim)
+
+        prim = VnfdYang.ConfigPrimitive.from_dict({
+            "name": "stop",
+        })
+        vnf_config.config_primitive.append(prim)
+
+        prim = VnfdYang.ConfigPrimitive.from_dict({
+            "name": "restart",
+        })
+        vnf_config.config_primitive.append(prim)
+
+        prim = VnfdYang.ConfigPrimitive.from_dict({
+            "name": "config",
+            "parameter": [
+                {"name": "ssh-hostname", "data_type": "STRING"},
+                {"name": "ssh-username", "data_type": "STRING"},
+                {"name": "ssh-private-key", "data_type": "STRING"},
+                {"name": "mode", "data_type": "STRING",
+                 "default_value": "{}".format(mode),
+                 "read_only": "true"},
+            ],
+        })
+        vnf_config.config_primitive.append(prim)
+
+        prim = VnfdYang.ConfigPrimitive.from_dict({
+            "name": "set-server",
+            "parameter": [
+                {"name": "server-ip", "data_type": "STRING"},
+                {"name": "server-port", "data_type": "INTEGER"},
+            ],
+        })
+        vnf_config.config_primitive.append(prim)
+
+        if mode == 'ping':
+            prim = VnfdYang.ConfigPrimitive.from_dict({
+                "name": "set-rate",
+                "parameter": [
+                    {"name": "rate", "data_type": "INTEGER",
+                     "default_value": "5"},
+                ],
+            })
+            vnf_config.config_primitive.append(prim)
+
+        prim = VnfdYang.ConfigPrimitive.from_dict({
+            "name": "start-traffic",
+        })
+        vnf_config.config_primitive.append(prim)
+
+        prim = VnfdYang.ConfigPrimitive.from_dict({
+            "name": "stop-traffic",
+        })
+        vnf_config.config_primitive.append(prim)
+
+        # Add initial config primitive
+        vnf_config.create_initial_config_primitive()
+        init_config = VnfdYang.InitialConfigPrimitive.from_dict(
+            {
+                "seq": 1,
+                "config_primitive_ref": "config",
+            }
+        )
+        vnf_config.initial_config_primitive.append(init_config)
+
+        init_config = VnfdYang.InitialConfigPrimitive.from_dict(
+            {
+                "seq": 2,
+                "config_primitive_ref": "start",
+            }
+        )
+        vnf_config.initial_config_primitive.append(init_config)
+
+        init_config = VnfdYang.InitialConfigPrimitive.from_dict(
+            {
+                "seq": 3,
+                "config_primitive_ref": "set-server",
+            },
+        )
+        vnf_config.initial_config_primitive.append(init_config)
+
+        if mode == 'ping':
+            init_config = VnfdYang.InitialConfigPrimitive.from_dict(
+                {
+                    "seq": 4,
+                    "config_primitive_ref": "set-rate",
+                },
+            )
+            vnf_config.initial_config_primitive.append(init_config)
+
+        if self.use_ns_init_conf is False:
+            init_config = VnfdYang.InitialConfigPrimitive.from_dict(
+                {
+                    "seq": 5,
+                    "config_primitive_ref": "start-traffic",
+                },
+            )
+            vnf_config.initial_config_primitive.append(init_config)
+
     def compose(self, image_name, cloud_init="", cloud_init_file="", endpoint=None, mon_params=[],
                 mon_port=8888, mgmt_port=8888, num_vlr_count=1, num_ivlr_count=1,
                 num_vms=1, image_md5sum=None, mano_ut=False, use_ns_init_conf=False,
-                use_vca_conf=False):
+                use_vca_conf=False, use_charm=False):
+        self.mano_ut = mano_ut
+        self.use_ns_init_conf = use_ns_init_conf
+        self.use_vca_conf = use_vca_conf
+        self.use_charm = use_charm
+
         self.descriptor = RwVnfdYang.YangData_Vnfd_VnfdCatalog()
         self.id = str(uuid.uuid1())
         vnfd = self.descriptor.vnfd.add()
@@ -471,22 +705,28 @@ class VirtualNetworkFunction(ManoDescriptor):
             mgmt_intf.dashboard_params.path = endpoint
             mgmt_intf.dashboard_params.port = mgmt_port
 
-            if cloud_init_file and len(cloud_init_file):
-                vdu.cloud_init_file = cloud_init_file
-            else:
-                vdu.cloud_init = cloud_init
-                if aws:
-                    vdu.cloud_init += "  - [ systemctl, restart, --no-block, elastic-network-interfaces.service ]\n"
+            if use_charm:
+                mgmt_intf.ssh_key = True
+
+            if not self.use_charm:
+                if cloud_init_file and len(cloud_init_file):
+                    vdu.cloud_init_file = cloud_init_file
+                else:
+                    vdu.cloud_init = cloud_init
+                    if aws:
+                        vdu.cloud_init += "  - [ systemctl, restart, --no-block, elastic-network-interfaces.service ]\n"
 
             # Add VNF access point
             if use_vca_conf:
-                self.add_vnf_access_point(mano_ut=mano_ut)
-                if 'pong_' in self.name:
-                    self.add_pong_config(mano_ut=mano_ut,
-                                         use_ns_init_conf=use_ns_init_conf)
+                if use_charm:
+                    self.add_vnf_conf_param_charm()
+                    self.add_charm_config()
                 else:
-                    self.add_ping_config(mano_ut=mano_ut,
-                                         use_ns_init_conf=use_ns_init_conf)
+                    self.add_vnf_conf_param()
+                    if 'pong_' in self.name:
+                        self.add_pong_config()
+                    else:
+                        self.add_ping_config()
 
             # sepcify the guest EPA
             if use_epa:
@@ -583,14 +823,14 @@ class VirtualNetworkFunction(ManoDescriptor):
                     member_vdu.member_vdu_ref = vdu.id
 
 
-    def write_to_file(self, outdir, output_format, use_vca_conf=False):
+    def write_to_file(self, outdir, output_format):
         dirpath = "%s/%s" % (outdir, self.name)
         if not os.path.exists(dirpath):
             os.makedirs(dirpath)
         super(VirtualNetworkFunction, self).write_to_file(['vnfd', 'rw-vnfd'],
                                                           dirpath,
                                                           output_format)
-        self.add_scripts(outdir, use_vca_conf=use_vca_conf)
+        self.add_scripts(outdir)
 
     def add_cloud_init(self, outdir):
         script_dir = os.path.join(outdir, self.name, 'cloud_init')
@@ -610,9 +850,11 @@ class VirtualNetworkFunction(ManoDescriptor):
         with open(script_file, "w") as f:
             f.write("{}".format(cfg))
 
-    def add_scripts(self, outdir, use_vca_conf=False):
-        self.add_cloud_init(outdir)
-        if use_vca_conf:
+    def add_scripts(self, outdir):
+        if not self.use_charm:
+            self.add_cloud_init(outdir)
+
+        if self.use_vca_conf and not self.use_charm:
             self.add_vca_scripts(outdir)
 
     def add_vca_scripts(self, outdir):
@@ -927,7 +1169,7 @@ exit 0
                 self.nsd.monitoring_param.append(nsd_monp)
                 param_id += 1
 
-    def add_confparam_map(self):
+    def add_conf_param_map(self):
         nsd = self.nsd
 
         confparam_map = nsd.config_parameter_map.add()
@@ -1051,7 +1293,7 @@ exit 0
 
         # self.create_mon_params(vnfd_list)
         if use_vca_conf:
-            self.add_confparam_map()
+            self.add_conf_param_map()
 
     def write_config(self, outdir, vnfds):
 
@@ -1227,6 +1469,7 @@ def generate_ping_pong_descriptors(fmt="json",
                                    use_placement_group=True,
                                    use_ns_init_conf=True,
                                    use_vca_conf=True,
+                                   use_charm=False,
                                    ):
     # List of connection point groups
     # Each connection point group refers to a virtual link
@@ -1273,6 +1516,7 @@ def generate_ping_pong_descriptors(fmt="json",
             mano_ut=mano_ut,
             use_ns_init_conf=use_ns_init_conf,
             use_vca_conf=use_vca_conf,
+            use_charm=use_charm,
             )
 
     pong = VirtualNetworkFunction("pong_vnfd%s" % (suffix))
@@ -1315,6 +1559,7 @@ def generate_ping_pong_descriptors(fmt="json",
             mano_ut=mano_ut,
             use_ns_init_conf=use_ns_init_conf,
             use_vca_conf=use_vca_conf,
+            use_charm=use_charm,
             )
 
     # Initialize the member VNF index
@@ -1385,10 +1630,8 @@ def generate_ping_pong_descriptors(fmt="json",
     )
 
     if write_to_file:
-        ping.write_to_file(out_dir, ping_fmt if ping_fmt is not None else fmt,
-                           use_vca_conf=use_vca_conf)
-        pong.write_to_file(out_dir, pong_fmt if ping_fmt is not None else fmt,
-                           use_vca_conf=use_vca_conf)
+        ping.write_to_file(out_dir, ping_fmt if ping_fmt is not None else fmt)
+        pong.write_to_file(out_dir, pong_fmt if ping_fmt is not None else fmt)
         nsd_catalog.write_config(out_dir, vnfd_list)
         nsd_catalog.write_to_file(out_dir, ping_fmt if nsd_fmt is not None else fmt)
 
@@ -1407,6 +1650,8 @@ def main(argv=sys.argv[1:]):
     parser.add_argument('--pong-image-md5')
     parser.add_argument('--ping-cloud-init', default=None)
     parser.add_argument('--pong-cloud-init', default=None)
+    parser.add_argument('--charm', action="store_true", default=False)
+
     args = parser.parse_args()
     outdir = args.outdir
     output_format = args.format
@@ -1417,9 +1662,12 @@ def main(argv=sys.argv[1:]):
     use_pong_cloud_init_file = args.pong_cloud_init
 
     generate_ping_pong_descriptors(args.format, True, args.outdir, pingcount,
-                                   ping_md5sum=args.ping_image_md5, pong_md5sum=args.pong_image_md5,
+                                   ping_md5sum=args.ping_image_md5,
+                                   pong_md5sum=args.pong_image_md5,
                                    mano_ut=False,
-                                   use_scale_group=False,)
+                                   use_scale_group=False,
+                                   use_charm=args.charm,
+    )
 
 if __name__ == "__main__":
     main()

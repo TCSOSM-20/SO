@@ -108,6 +108,7 @@ rift_python_install_tree(
     rift/mano/utils/__init.py__
     rift/mano/utils/compare_desc.py
     rift/mano/utils/juju_api.py
+    rift/mano/utils/ssh_keys.py
   COMPONENT ${PKG_LONG_NAME}
   PYTHON3_ONLY
   )

@@ -621,6 +621,18 @@ module nsr
         type uint32;
       }
 
+      container ssh-key-generated {
+        description "SSH key pair generated for this NS";
+        leaf public-key {
+          description "Public key generated";
+          type string;
+        }
+        leaf private-key-file {
+          description "Path to the private key file";
+          type string;
+        }
+      }
+
       list connection-point {
         description
             "List for external connection points.

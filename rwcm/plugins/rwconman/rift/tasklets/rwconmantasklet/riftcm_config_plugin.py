@@ -18,6 +18,7 @@ import asyncio
 import abc
 import os
 import tempfile
+from urllib.parse import urlparse
 import yaml
 
 import gi
@@ -325,6 +326,11 @@ class RiftCMConfigPluginBase(object):
 
     def convert_value(self, value, type_='STRING'):
         if type_ == 'STRING':
+            if value.startswith('file://'):
+                p = urlparse(value)
+                with open(p[2], 'r') as f:
+                    val = f.read()
+                    return(val)
             return str(value)
 
         if type_ == 'INTEGER':

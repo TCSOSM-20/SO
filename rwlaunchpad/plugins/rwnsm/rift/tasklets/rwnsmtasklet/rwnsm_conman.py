@@ -101,7 +101,8 @@ class ROConfigManager(object):
 
                 yield from \
                     self.nsm.vnfrs[vnfrid].update_config_primitives(
-                        vnfr.vnf_configuration)
+                        vnfr.vnf_configuration,
+                        self.nsm.nsrs[nsrid])
 
             # Update the NSR's config status
             new_status = ROConfigManager.map_config_status(cm_nsr.state)

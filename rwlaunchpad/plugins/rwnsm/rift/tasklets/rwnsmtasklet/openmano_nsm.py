@@ -153,7 +153,7 @@ class VnfrConsoleOperdataDtsHandler(object):
 
 
 class OpenmanoVnfr(object):
-    def __init__(self, log, loop, cli_api, vnfr, nsd):
+    def __init__(self, log, loop, cli_api, vnfr, nsd, ssh_key=None):
         self._log = log
         self._loop = loop
         self._cli_api = cli_api
@@ -165,6 +165,7 @@ class OpenmanoVnfr(object):
         self._created = False
 
         self.nsd = nsd
+        self._ssh_key = ssh_key
 
     @property
     def vnfd(self):
@@ -260,7 +261,8 @@ class OpenmanoNSRecordState(Enum):
 class OpenmanoNsr(object):
     TIMEOUT_SECS = 300
 
-    def __init__(self, dts, log, loop, publisher, cli_api, http_api, nsd_msg, nsr_config_msg,key_pairs):
+    def __init__(self, dts, log, loop, publisher, cli_api, http_api, nsd_msg,
+                 nsr_config_msg, key_pairs, ssh_key):
         self._dts = dts
         self._log = log
         self._loop = loop
@@ -275,6 +277,7 @@ class OpenmanoNsr(object):
         self._vnfrs = []
         self._vdur_console_handler = {}
         self._key_pairs = key_pairs
+        self._ssh_key = ssh_key
 
         self._nsd_uuid = None
         self._nsr_uuid = None
@@ -319,6 +322,10 @@ class OpenmanoNsr(object):
         for authorized_key in self._nsd_msg.key_pair:
             self._log.debug("Key pair  NSD  is %s",authorized_key)
             key_pairs.append(authorized_key.key)
+
+        if self._ssh_key:
+            self._log.debug("Pub key  NSD  is %s", self._ssh_key['public_key'])
+            key_pairs.append(self._ssh_key['public_key'])
 
         if key_pairs:
             cloud_config["key-pairs"] = key_pairs
@@ -434,7 +441,8 @@ class OpenmanoNsr(object):
 
     @asyncio.coroutine
     def add_vnfr(self, vnfr):
-        vnfr = OpenmanoVnfr(self._log, self._loop, self._cli_api, vnfr, nsd=self.nsd)
+        vnfr = OpenmanoVnfr(self._log, self._loop, self._cli_api, vnfr,
+                            nsd=self.nsd, ssh_key=self._ssh_key)
         yield from vnfr.create()
         self._vnfrs.append(vnfr)
 
@@ -635,8 +643,13 @@ class OpenmanoNsr(object):
                         self._log.debug("All VMs in VNF are active.  Marking as running.")
                         vnfr_msg.operational_status = "running"
 
-                        self._log.debug("Got VNF ip address: %s, mac-address: %s", vnf_ip_address, vnf_mac_address)
+                        self._log.debug("Got VNF ip address: %s, mac-address: %s",
+                                        vnf_ip_address, vnf_mac_address)
                         vnfr_msg.mgmt_interface.ip_address = vnf_ip_address
+                        vnfr_msg.mgmt_interface.ssh_key.public_key = \
+                                                    vnfr._ssh_key['public_key']
+                        vnfr_msg.mgmt_interface.ssh_key.private_key_file = \
+                                                    vnfr._ssh_key['private_key']
                         vnfr_msg.vnf_configuration.config_access.mgmt_ip_address = vnf_ip_address
 
 
@@ -815,7 +828,7 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                 ro_account.openmano.tenant_id,
                 )
 
-    def create_nsr(self, nsr_config_msg, nsd_msg, key_pairs=None):
+    def create_nsr(self, nsr_config_msg, nsd_msg, key_pairs=None, ssh_key=None):
         """
         Create Network service record
         """
@@ -828,7 +841,8 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                 self._http_api,
                 nsd_msg,
                 nsr_config_msg,
-                key_pairs
+                key_pairs,
+                ssh_key,
                 )
         self._openmano_nsrs[nsr_config_msg.id] = openmano_nsr
 
@@ -864,6 +878,12 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
             yield from self._publisher.publish_vnfr(xact, vnfr_msg)
         self._log.debug("Creating a task to update uptime for vnfr: %s", vnfr.id)
         self._vnfr_uptime_tasks[vnfr.id] = self._loop.create_task(self.vnfr_uptime_update(vnfr))
+
+    def update_vnfr(self, vnfr):
+        vnfr_msg = vnfr.vnfr_msg.deep_copy()
+        self._log.debug("Attempting to publish openmano vnf: %s", vnfr_msg)
+        with self._dts.transaction() as xact:
+            yield from self._publisher.publish_vnfr(xact, vnfr_msg)
 
     def vnfr_uptime_update(self, vnfr):
         try:

@@ -27,7 +27,7 @@ import uuid
 import yaml
 import requests
 import json
-
+from urllib.parse import urlparse
 
 from collections import deque
 from collections import defaultdict
@@ -59,10 +59,11 @@ from gi.repository import (
     ProtobufC,
 )
 
-import rift.tasklets
+from rift.mano.utils.ssh_keys import ManoSshKey
 import rift.mano.ncclient
 import rift.mano.config_data.config
 import rift.mano.dts as mano_dts
+import rift.tasklets
 
 from . import rwnsm_conman as conman
 from . import cloud
@@ -963,8 +964,9 @@ class VirtualNetworkFunctionRecord(object):
 
         vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
 
-        vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict(),
-                                                                          ignore_missing_keys=True)
+        vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(
+            self.vnfd.as_dict(),
+            ignore_missing_keys=True)
         vnfr.member_vnf_index_ref = self.member_vnf_index
         vnfr.vnf_configuration.from_dict(self._vnfd.vnf_configuration.as_dict())
 
@@ -1049,7 +1051,7 @@ class VirtualNetworkFunctionRecord(object):
         return False
 
     @asyncio.coroutine
-    def update_config_primitives(self, vnf_config):
+    def update_config_primitives(self, vnf_config, nsr):
         # Update only after we are configured
         if self._config_status == NsrYang.ConfigStates.INIT:
             return
@@ -1084,7 +1086,7 @@ class VirtualNetworkFunctionRecord(object):
             self._vnfr_msg = self.create_vnfr_msg()
 
             try:
-                yield from self.update_vnfm()
+                yield from nsr.nsm_plugin.update_vnfr(self)
             except Exception as e:
                 self._log.error("Exception updating VNFM with new config "
                                 "primitive for VNFR {}: {}".
@@ -1296,6 +1298,8 @@ class NetworkServiceRecord(object):
         self._nsr_msg = None
         self._nsr_regh = None
         self._key_pairs = key_pairs
+        self._ssh_key_file = None
+        self._ssh_pub_key = None
         self._vlrs = []
         self._vnfrs = {}
         self._vnfds = {}
@@ -1431,6 +1435,14 @@ class NetworkServiceRecord(object):
         """ Config status for NSR """
         return self._config_status
 
+    @property
+    def public_key(self):
+        return self._ssh_pub_key
+
+    @property
+    def private_key(self):
+        return self._ssh_key_file
+
     def resolve_placement_group_cloud_construct(self, input_group):
         """
         Returns the cloud specific construct for placement group
@@ -1494,6 +1506,33 @@ class NetworkServiceRecord(object):
                             format(trigger, e))
             self._log.exception(e)
             return "Unknown trigger"
+
+    @asyncio.coroutine
+    def generate_ssh_key_pair(self, config_xact):
+        '''Generate a ssh key pair if required'''
+        if self._ssh_key_file:
+            self._log.debug("Key pair already generated")
+            return
+
+        gen_key = False
+        for cv in self.nsd_msg.constituent_vnfd:
+            vnfd = self._get_vnfd(cv.vnfd_id_ref, config_xact)
+            if vnfd and vnfd.mgmt_interface.ssh_key:
+                gen_key = True
+                break
+
+        if not gen_key:
+            return
+
+        try:
+            key = ManoSshKey(self._log)
+            path = tempfile.mkdtemp()
+            key.write_to_disk(name=self.id, directory=path)
+            self._ssh_key_file = "file://{}".format(key.private_key_file)
+            self._ssh_pub_key = key.public_key
+        except Exception as e:
+            self._log.exception("Error generating ssh key for {}: {}".
+                                format(self.nsr_cfg_msg.name, e))
 
     @asyncio.coroutine
     def instantiate_vls(self):
@@ -2498,6 +2537,15 @@ class NetworkServiceRecord(object):
 
         yield from self.nsm_plugin.terminate_ns(self)
 
+        # Remove the generated SSH key
+        if self._ssh_key_file:
+            p = urlparse(self._ssh_key_file)
+            if p[0] == 'file':
+                path = os.path.dirname(p[2])
+                self._log.debug("NSR {}: Removing keys in {}".format(self.name,
+                                                                     path))
+                shutil.rmtree(path, ignore_errors=True)
+
         # Move the state to TERMINATED
         self.set_state(NetworkServiceRecordState.TERMINATED)
         event_descr = "Terminated NS Id:%s" % self.id
@@ -2543,6 +2591,11 @@ class NetworkServiceRecord(object):
         nsr.config_status_details = self._config_status_details
         nsr.create_time = self._create_time
         nsr.uptime = int(time.time()) - self._create_time
+
+        # Generated SSH key
+        if self._ssh_pub_key:
+            nsr.ssh_key_generated.private_key_file = self._ssh_key_file
+            nsr.ssh_key_generated.public_key = self._ssh_pub_key
 
         for cfg_prim in self.nsd_msg.service_primitive:
             cfg_prim = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ServicePrimitive.from_dict(
@@ -3283,6 +3336,7 @@ class NsrDtsHandler(object):
             self._log.debug("Got nsr apply (xact: %s) (action: %s)(scr: %s)",
                             xact, action, scratch)
 
+            @asyncio.coroutine
             def handle_create_nsr(msg, key_pairs=None, restart_mode=False):
                 # Handle create nsr requests """
                 # Do some validations
@@ -3293,7 +3347,10 @@ class NsrDtsHandler(object):
 
                 self._log.debug("Creating NetworkServiceRecord %s  from nsr config  %s",
                                msg.id, msg.as_dict())
-                nsr = self.nsm.create_nsr(msg, key_pairs=key_pairs, restart_mode=restart_mode)
+                nsr = self.nsm.create_nsr(msg,
+                                          xact,
+                                          key_pairs=key_pairs,
+                                          restart_mode=restart_mode)
                 return nsr
 
             def handle_delete_nsr(msg):
@@ -3320,6 +3377,12 @@ class NsrDtsHandler(object):
                 self._log.info("Beginning NS instantiation: %s", nsr.id)
                 yield from self._nsm.instantiate_ns(nsr.id, xact)
 
+            @asyncio.coroutine
+            def instantiate_ns(msg, key_pairs, restart_mode=False):
+                nsr = yield from handle_create_nsr(msg, key_pairs,
+                                                   restart_mode=restart_mode)
+                yield from begin_instantiation(nsr)
+
             self._log.debug("Got nsr apply (xact: %s) (action: %s)(scr: %s)",
                             xact, action, scratch)
 
@@ -3328,9 +3391,8 @@ class NsrDtsHandler(object):
                 for element in self._key_pair_regh.elements:
                     key_pairs.append(element)
                 for element in self._nsr_regh.elements:
-                    nsr = handle_create_nsr(element, key_pairs, restart_mode=True)
-                    self._loop.create_task(begin_instantiation(nsr))
-
+                    self._loop.create_task(instantiate_ns(element, key_pairs,
+                                                          restart_mode=True))
 
             (added_msgs, deleted_msgs, updated_msgs) = get_add_delete_update_cfgs(self._nsr_regh,
                                                                                   xact,
@@ -3343,8 +3405,7 @@ class NsrDtsHandler(object):
                 if msg.id not in self._nsm.nsrs:
                     self._log.info("Create NSR received in on_apply to instantiate NS:%s", msg.id)
                     key_pairs = get_nsr_key_pairs(self._key_pair_regh, xact)
-                    nsr = handle_create_nsr(msg,key_pairs)
-                    self._loop.create_task(begin_instantiation(nsr))
+                    self._loop.create_task(instantiate_ns(msg, key_pairs))
 
             for msg in deleted_msgs:
                 self._log.info("Delete NSR received in on_apply to terminate NS:%s", msg.id)
@@ -3884,7 +3945,7 @@ class NsManager(object):
         # Not calling in a separate task as this is called from a separate task
         yield from nsr.delete_vl_instance(vld)
 
-    def create_nsr(self, nsr_msg, key_pairs=None,restart_mode=False):
+    def create_nsr(self, nsr_msg, config_xact, key_pairs=None, restart_mode=False):
         """ Create an NSR instance """
         if nsr_msg.id in self._nsrs:
             msg = "NSR id %s already exists" % nsr_msg.id
@@ -3910,7 +3971,18 @@ class NsManager(object):
                                    vlr_handler=self._ro_plugin_selector._records_publisher._vlr_pub_hdlr
                                    )
         self._nsrs[nsr_msg.id] = nsr
-        nsm_plugin.create_nsr(nsr_msg, nsr_msg.nsd, key_pairs)
+
+        # Generate ssh key pair if required
+        yield from nsr.generate_ssh_key_pair(config_xact)
+
+        self._log.debug("NSR {}: SSh key generated: {}".format(nsr_msg.name,
+                                                               nsr.public_key))
+
+        ssh_key = {'private_key': nsr.private_key,
+                   'public_key': nsr.public_key
+        }
+
+        nsm_plugin.create_nsr(nsr_msg, nsr_msg.nsd, key_pairs, ssh_key=ssh_key)
 
         return nsr
 

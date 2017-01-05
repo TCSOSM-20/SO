@@ -223,6 +223,18 @@ module vnfr
         leaf port {
           type inet:port-number;
         }
+
+        container ssh-key {
+          description "SSH key pair used for this VNF";
+          leaf public-key {
+            description "Public key configured on this VNF";
+            type string;
+          }
+          leaf private-key-file {
+            description "Path to the private key file";
+            type string;
+          }
+        }
       }
 
       list internal-vlr {

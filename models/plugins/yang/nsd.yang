@@ -124,38 +124,6 @@ module nsd
     }
   }
 
-  grouping ns-initial-config-primitive {
-    leaf seq {
-      description
-          "Sequence number for the configuration primitive.";
-      type uint64;
-    }
-
-    leaf name {
-      description
-          "Name of the configuration primitive.";
-      type string;
-      mandatory "true";
-    }
-
-    leaf user-defined-script {
-      description
-          "A user defined script.";
-      type string;
-    }
-
-    list parameter {
-      key "name";
-      leaf name {
-        type string;
-      }
-
-      leaf value {
-        type string;
-      }
-    }
-  }
-
   grouping nsd-descriptor {
     leaf id {
       description "Identifier for the NSD.";
@@ -942,7 +910,7 @@ module nsd
         "Initial set of configuration primitives for NSD.";
       key "seq";
 
-      uses ns-initial-config-primitive;
+      uses manotypes:initial-config;
     }
 
     list key-pair {

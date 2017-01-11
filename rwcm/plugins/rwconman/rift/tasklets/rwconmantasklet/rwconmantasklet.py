@@ -146,7 +146,20 @@ class ConfigurationManager(object):
                                                  done))
 
             if done:
-                yield from self.update_vnf_state(vnf_cfg, conmanY.RecordState.READY)
+                self._log.warn("Apply initial config on VNFR {}".
+                                format(log_this_vnf(vnf_cfg)))
+                try:
+                    yield from nsr_obj.parent.process_vnf_initial_config(
+                        nsr_obj,
+                        agent_vnfr.vnfr_msg)
+                    yield from self.update_vnf_state(vnf_cfg,
+                                                     conmanY.RecordState.READY)
+
+                except Exception as e:
+                    nsr_obj.vnf_failed = True
+                    self._log.exception(e)
+                    yield from self.update_vnf_state(vnf_cfg,
+                                                     conmanY.RecordState.CFG_FAILED)
 
             else:
                 # Check to see if the VNF configure failed
@@ -162,6 +175,7 @@ class ConfigurationManager(object):
                     yield from self.update_vnf_state(vnf_cfg, conmanY.RecordState.CFG_FAILED)
                     self._log.error("Failed to apply configuration for VNF = {}"
                                     .format(log_this_vnf(vnf_cfg)))
+
 
             return done
 

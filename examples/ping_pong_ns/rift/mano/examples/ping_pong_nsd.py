@@ -124,6 +124,7 @@ class VirtualNetworkFunction(ManoDescriptor):
         self.use_charm = False
         self.instance_count = instance_count
         self._placement_groups = []
+        self.use_vnf_init_conf = False
         super(VirtualNetworkFunction, self).__init__(name)
 
     def add_placement_group(self, group):
@@ -850,6 +851,22 @@ class VirtualNetworkFunction(ManoDescriptor):
         with open(script_file, "w") as f:
             f.write("{}".format(cfg))
 
+        # Copy the vnf_init_config script
+        if self.use_vnf_init_conf and ('ping' in self.name):
+            script_name = 'ping_set_rate.py'
+
+            src_path = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+            script_src = os.path.join(src_path, script_name)
+            if not os.path.exists(script_src):
+                src_path = os.path.join(os.environ['RIFT_ROOT'],
+                                        'modules/core/mano/examples/ping_pong_ns/rift/mano/examples')
+                script_src = os.path.join(src_path, script_name)
+
+            dest_path = os.path.join(outdir, self.name, 'scripts')
+            os.makedirs(dest_path, exist_ok=True)
+
+            shutil.copy2(script_src, dest_path)
+
     def add_scripts(self, outdir):
         if not self.use_charm:
             self.add_cloud_init(outdir)
@@ -882,6 +899,7 @@ class VirtualNetworkFunction(ManoDescriptor):
 
             shutil.copy2(script_src, dest_path)
 
+
 class NetworkService(ManoDescriptor):
     def __init__(self, name):
         super(NetworkService, self).__init__(name)
@@ -889,7 +907,7 @@ class NetworkService(ManoDescriptor):
         self.vnfd_config = {}
         self._placement_groups = []
 
-    def ping_config(self, mano_ut, use_ns_init_conf):
+    def ping_config(self, mano_ut, use_ns_init_conf, use_vnf_init_conf):
         suffix = ''
         if mano_ut:
             ping_cfg = r'''
@@ -923,7 +941,10 @@ then
     echo "Failed to set server info for ping!"
     exit $rc
 fi
+''' % suffix
 
+            if use_vnf_init_conf is False:
+                 ping_cfg +='''
 curl -D /dev/stdout \
     -H "Accept: application/vnd.yang.data+xml" \
     -H "Content-Type: application/vnd.yang.data+json" \
@@ -937,7 +958,7 @@ then
     exit $rc
 fi
 
-''' % suffix
+'''
             if use_ns_init_conf:
                 ping_cfg += "exit 0\n"
             else:
@@ -1086,7 +1107,9 @@ exit 0
             })
             vnf_config.config_primitive.append(config)
 
-    def default_config(self, const_vnfd, vnfd, mano_ut, use_ns_init_conf):
+    def default_config(self, const_vnfd, vnfd, mano_ut,
+                       use_ns_init_conf,
+                       use_vnf_init_conf):
         vnf_config = vnfd.vnfd.vnf_configuration
 
         vnf_config.config_attributes.config_priority = 0
@@ -1109,7 +1132,23 @@ exit 0
 
         if vnfd.name == 'ping_vnfd' or vnfd.name == 'ping_vnfd_with_epa' or vnfd.name == 'ping_vnfd_aws':
             vnf_config.config_attributes.config_priority = 2
-            vnf_config.config_template = self.ping_config(mano_ut, use_ns_init_conf)
+            vnf_config.config_template = self.ping_config(mano_ut,
+                                                          use_ns_init_conf,
+                                                          use_vnf_init_conf)
+            if use_vnf_init_conf:
+                vnf_config.initial_config_primitive.add().from_dict(
+                    {
+                        "seq": 1,
+                        "name": "set ping rate",
+                        "user_defined_script": "ping_set_rate.py",
+                        "parameter": [
+                            {
+                                'name': 'rate',
+                                'value': '5',
+                            },
+                        ],
+                    }
+                )
 
     def ns_config(self, nsd, vnfd_list, mano_ut):
         # Used by scale group
@@ -1188,11 +1227,13 @@ exit 0
 
     def compose(self, vnfd_list, cpgroup_list, mano_ut,
                 use_ns_init_conf=True,
+                use_vnf_init_conf=True,
                 use_vca_conf=False):
 
         if mano_ut:
             # Disable NS initial config primitive
-            use_ns_init_conf=False
+            use_ns_init_conf = False
+            use_vnf_init_conf = False
 
         self.descriptor = RwNsdYang.YangData_Nsd_NsdCatalog()
         self.id = str(uuid.uuid1())
@@ -1253,7 +1294,7 @@ exit 0
                 constituent_vnfd.vnfd_id_ref = vnfd.descriptor.vnfd[0].id
                 if use_vca_conf is False:
                     self.default_config(constituent_vnfd, vnfd, mano_ut,
-                                        use_ns_init_conf)
+                                        use_ns_init_conf, use_vnf_init_conf)
                 member_vnf_index += 1
 
         # Enable config primitives if either mano_ut or
@@ -1468,6 +1509,7 @@ def generate_ping_pong_descriptors(fmt="json",
                                    ex_pong_userdata=None,
                                    use_placement_group=True,
                                    use_ns_init_conf=True,
+                                   use_vnf_init_conf=True,
                                    use_vca_conf=True,
                                    use_charm=False,
                                    ):
@@ -1480,6 +1522,7 @@ def generate_ping_pong_descriptors(fmt="json",
 
     suffix = ''
     ping = VirtualNetworkFunction("ping_vnfd%s" % (suffix), pingcount)
+    ping.use_vnf_init_conf = use_vnf_init_conf
 
     if use_placement_group:
         ### Add group name Eris
@@ -1626,6 +1669,7 @@ def generate_ping_pong_descriptors(fmt="json",
                         cpgroup_list,
                         mano_ut,
                         use_ns_init_conf=use_ns_init_conf,
+                        use_vnf_init_conf=use_vnf_init_conf,
                         use_vca_conf=use_vca_conf,
     )
 

@@ -20,6 +20,8 @@ rw-dtsperf
 rw-dtsperfmgr
 rw-launchpad
 rw-image-mgmt
+rw-pkg-mgmt
+rw-staging-mgmt
 rw-log
 rwlog-mgmt
 rw-manifest

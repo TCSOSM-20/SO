@@ -1270,13 +1270,13 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             if key == 'node_id':
                 vdu.node_id = value
             else:
-                custommetadata = vdu.custom_boot_data.custom_meta_data.add()
+                custommetadata = vdu.supplemental_boot_data.custom_meta_data.add()
                 custommetadata.name = key
                 custommetadata.value = str(value)
 
         # Look for config_drive
         if ('config_drive' in vm_info):
-            vdu.custom_boot_data.custom_drive = vm_info['config_drive']
+            vdu.supplemental_boot_data.boot_data_drive = vm_info['config_drive']
         if ('image' in vm_info) and ('id' in vm_info['image']):
             vdu.image_id = vm_info['image']['id']
         if ('flavor' in vm_info) and ('id' in vm_info['flavor']):
@@ -1950,21 +1950,21 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             metadata['node_id'] = vduinfo.node_id
         if pci_assignement is not None:
             metadata['pci_assignement'] = pci_assignement
-        if vduinfo.has_field('custom_boot_data'):
-            if vduinfo.custom_boot_data.has_field('custom_meta_data'):
-                for custom_meta_item in vduinfo.custom_boot_data.custom_meta_data:
+        if vduinfo.has_field('supplemental_boot_data'):
+            if vduinfo.supplemental_boot_data.has_field('custom_meta_data'):
+                for custom_meta_item in vduinfo.supplemental_boot_data.custom_meta_data:
                     if custom_meta_item.data_type == "STRING":
                        metadata[custom_meta_item.name] = custom_meta_item.value
                     elif custom_meta_item.data_type == "JSON":
                        metadata[custom_meta_item.name] = tornado.escape.json_decode(custom_meta_item.value)
                     else:
                        raise OpenstackCALOperationFailure("Create-vdu operation failed. Unsupported data-type {} for custom-meta-data name {} ".format(custom_meta_item.data_type, custom_meta_item.name))
-            if vduinfo.custom_boot_data.has_field('custom_config_files'):
-                for custom_config_file in vduinfo.custom_boot_data.custom_config_files:
+            if vduinfo.supplemental_boot_data.has_field('config_file'):
+                for custom_config_file in vduinfo.supplemental_boot_data.config_file:
                     files[custom_config_file.dest] = custom_config_file.source
 
-            if vduinfo.custom_boot_data.has_field('custom_drive'):
-                if vduinfo.custom_boot_data.custom_drive is True:
+            if vduinfo.supplemental_boot_data.has_field('boot_data_drive'):
+                if vduinfo.supplemental_boot_data.boot_data_drive is True:
                      config_drive = True
                      
         kwargs['metadata'] = metadata
@@ -1989,7 +1989,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             # Only support image->volume
                 for volume in vduinfo.volumes:
                     block_map = dict()
-                    block_map['boot_index'] = volume.boot_params.boot_priority
+                    block_map['boot_index'] = volume.boot_priority
                     if "image" in volume:
                         # Support image->volume
                         # Match retrived image info with volume based image name and checksum
@@ -2009,9 +2009,9 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                     block_map['destination_type'] = "volume"
                     block_map['volume_size'] = volume.size
                     block_map['delete_on_termination'] = True
-                    if volume.guest_params.has_field('device_type') and volume.guest_params.device_type == 'cdrom':
+                    if volume.has_field('device_type') and volume.device_type == 'cdrom':
                         block_map['device_type'] = 'cdrom'
-                    if volume.guest_params.has_field('device_bus') and volume.guest_params.device_bus == 'ide':
+                    if volume.has_field('device_bus') and volume.device_bus == 'ide':
                         block_map['disk_bus'] = 'ide'
                     kwargs['block_device_mapping_v2'].append(block_map)
                 
@@ -2160,16 +2160,12 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                           err_str = ("VDU Volume source not supported yet")
                           self.log.error(err_str)
                           raise OpenstackCALOperationFailure("Create-vdu operation failed. Error- %s" % err_str)
-                      if "guest_params" not in volume:
-                          err_str = ("VDU Volume destination parameters '%s' not defined")
+                      if not volume.has_field('device_type'):
+                          err_str = ("VDU Volume destination type not defined")
                           self.log.error(err_str)
                           raise OpenstackCALOperationFailure("Create-vdu operation failed. Error- %s" % err_str)
-                      if not volume.guest_params.has_field('device_type'):
-                          err_str = ("VDU Volume destination type '%s' not defined")
-                          self.log.error(err_str)
-                          raise OpenstackCALOperationFailure("Create-vdu operation failed. Error- %s" % err_str)
-                      if volume.guest_params.device_type not in ['disk', 'cdrom'] :
-                          err_str = ("VDU Volume destination type '%s' not supported" % volume.guest_params.device_type)
+                      if volume.device_type not in ['disk', 'cdrom'] :
+                          err_str = ("VDU Volume destination type '%s' not supported" % volume.device_type)
                           self.log.error(err_str)
                           raise OpenstackCALOperationFailure("Create-vdu operation failed. Error- %s" % err_str)
   
@@ -2247,7 +2243,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         vol_metadata = False
         if volumes is not None:
             for volume in volumes:
-                if volume.guest_params.has_field('custom_meta_data'):
+                if volume.has_field('custom_meta_data'):
                     vol_metadata = True
                     break
         

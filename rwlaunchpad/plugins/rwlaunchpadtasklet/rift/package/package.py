@@ -1,5 +1,5 @@
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,10 @@ class PackageError(Exception):
 
 
 class PackageValidationError(Exception):
+    pass
+
+
+class PackageAppendError(Exception):
     pass
 
 
@@ -333,6 +337,36 @@ class DescriptorPackage(object):
                     # Set the file mode to original
                     os.chmod(dest_file_path, self._package_file_mode_map[filename])
 
+    def insert_file(self, new_file, dest_file, rel_path, mode=0o777):
+        self.add_file(rel_path, mode)
+
+        try:
+            # Copy the contents of the file to the correct path
+            dest_dir_path = os.path.dirname(dest_file)
+            if not os.path.isdir(dest_dir_path):
+                os.makedirs(dest_dir_path)
+
+            with open(dest_file, 'wb') as dst_hdl:
+                with open(new_file, 'rb') as src_hdl:
+                    shutil.copyfileobj(src_hdl, dst_hdl, 10 * 1024 * 1024)
+
+                    # Set the file mode to original
+                    os.chmod(dest_file, self._package_file_mode_map[rel_path])
+        except Exception as e:
+            # Clear the file when an exception happens
+            if os.path.isfile(dest_file):
+                os.remove(dest_file)
+
+            raise PackageAppendError(str(e))
+
+    def delete_file(self, dest_file, rel_path):
+        self.remove_file(rel_path)
+
+        try:
+            os.remove(dest_file)
+        except Exception as e:
+            raise PackageAppendError(str(e))
+
     def extract_file(self, src_file, dest_file):
         """ Extract a specific package file to dest_file
 
@@ -427,6 +461,15 @@ class DescriptorPackage(object):
             rel_dir = os.path.dirname(rel_dir)
 
         self._package_file_mode_map[rel_path] = mode
+
+    def remove_file(self, rel_path):
+        if not rel_path:
+            raise PackageError("Empty file name added")
+
+        if rel_path not in self._package_file_mode_map:
+            raise PackageError("File %s does not in package" % rel_path)
+
+        del self._package_file_mode_map[rel_path]
 
     def add_dir(self, rel_path):
         """ Add a directory to the package

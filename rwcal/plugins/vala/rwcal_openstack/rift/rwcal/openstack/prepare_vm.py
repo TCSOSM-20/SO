@@ -114,12 +114,10 @@ def create_volume_metadata(drv, argument):
 
     srv_volume_list = drv.nova_volume_list(argument.server_id)
     for volume in yaml_vol_cfg:
-        if 'guest_params' not in volume:
-            continue
-        if 'custom_meta_data' not in volume['guest_params']:
+        if 'custom_meta_data' not in volume:
             continue
         vmd = dict()
-        for vol_md_item in volume['guest_params']['custom_meta_data']:
+        for vol_md_item in volume['custom_meta_data']:
             if 'value' not in vol_md_item:
                continue
             vmd[vol_md_item['name']] = vol_md_item['value']

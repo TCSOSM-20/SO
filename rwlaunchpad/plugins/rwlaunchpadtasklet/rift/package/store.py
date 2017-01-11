@@ -49,6 +49,11 @@ class PackageFilesystemStore(object):
 
         self.refresh()
 
+    @property
+    def root_dir(self):
+        return self._root_dir
+    
+
     def _get_package_dir(self, package_id):
         return os.path.join(self._root_dir, package_id)
 

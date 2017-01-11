@@ -423,7 +423,29 @@ module vnfd
           }
         }
         uses manotypes:provider-network;
+        choice init-params {
+          description "Extra parameters for VLD instantiation";
+
+          case vim-network-ref {
+            leaf vim-network-name {
+              description
+                  "Name of network in VIM account. This is used to indicate
+                    pre-provisioned network name in cloud account.";
+              type string;
+            }
+          }
+
+          case vim-network-profile {
+            leaf ip-profile-ref {
+              description "Named reference to IP-profile object";
+              type string;
+            }
+          }
+
+        }
       }
+
+      uses manotypes:ip-profile-list;
 
       list connection-point {
         key "name";
@@ -510,7 +532,7 @@ module vnfd
           }
         }
 
-        uses manotypes:custom-boot-data;
+        uses manotypes:supplemental-boot-data;
 
         list internal-connection-point {
           key "id";

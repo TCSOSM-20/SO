@@ -425,24 +425,22 @@ class VirtualDeploymentUnitRecord(object):
                            metadata_list = list()
                            for metadata_item in opvolume.custom_meta_data:
                                metadata_list.append(metadata_item.as_dict())
-                           if 'guest_params' not in vdurvol_data[0]:
-                               vdurvol_data[0]['guest_params'] = dict()
-                           vdurvol_data[0]['guest_params']['custom_meta_data'] = metadata_list
+                           vdurvol_data[0]['custom_meta_data'] = metadata_list
 
-            if self._vm_resp.has_field('custom_boot_data'):
-                vdur_dict['custom_boot_data'] = dict()
-                if self._vm_resp.custom_boot_data.has_field('custom_drive'):
-                    vdur_dict['custom_boot_data']['custom_drive'] = self._vm_resp.custom_boot_data.custom_drive
-                if self._vm_resp.custom_boot_data.has_field('custom_meta_data'):
+            if self._vm_resp.has_field('supplemental_boot_data'):
+                vdur_dict['supplemental_boot_data'] = dict()
+                if self._vm_resp.supplemental_boot_data.has_field('boot_data_drive'):
+                    vdur_dict['supplemental_boot_data']['boot_data_drive'] = self._vm_resp.supplemental_boot_data.boot_data_drive
+                if self._vm_resp.supplemental_boot_data.has_field('custom_meta_data'):
                     metadata_list = list()
-                    for metadata_item in self._vm_resp.custom_boot_data.custom_meta_data:
+                    for metadata_item in self._vm_resp.supplemental_boot_data.custom_meta_data:
                        metadata_list.append(metadata_item.as_dict())
-                    vdur_dict['custom_boot_data']['custom_meta_data'] = metadata_list
-                if self._vm_resp.custom_boot_data.has_field('custom_config_files'):
+                    vdur_dict['supplemental_boot_data']['custom_meta_data'] = metadata_list
+                if self._vm_resp.supplemental_boot_data.has_field('config_file'):
                     file_list = list()
-                    for file_item in self._vm_resp.custom_boot_data.custom_config_files:
+                    for file_item in self._vm_resp.supplemental_boot_data.config_file:
                        file_list.append(file_item.as_dict())
-                    vdur_dict['custom_boot_data']['custom_config_files'] = file_list
+                    vdur_dict['supplemental_boot_data']['config_file'] = file_list
 
         icp_list = []
         ii_list = []
@@ -590,24 +588,24 @@ ssh_authorized_keys:
 
     def process_custom_bootdata(self, vm_create_msg_dict):
         """Process the custom boot data"""
-        if 'custom_config_files' not in vm_create_msg_dict['custom_boot_data']:
+        if 'config_file' not in vm_create_msg_dict['supplemental_boot_data']:
             return
 
+        self._vnfd_package_store.refresh()
         stored_package = self._vnfd_package_store.get_package(self._vnfr.vnfd_id)
-        script_extractor = rift.package.script.PackageScriptExtractor(self._log)
-        for custom_file_item in vm_create_msg_dict['custom_boot_data']['custom_config_files']:
-            if 'source' not in custom_file_item or 'dest' not in custom_file_item:
+        cloud_init_extractor = rift.package.cloud_init.PackageCloudInitExtractor(self._log)
+        for file_item in vm_create_msg_dict['supplemental_boot_data']['config_file']:
+            if 'source' not in file_item or 'dest' not in file_item:
                 continue
-            source = custom_file_item['source']
+            source = file_item['source']
             # Find source file in scripts dir of VNFD
-            self._vnfd_package_store.refresh()
             self._log.debug("Checking for source config file at %s", source)
             try:
-               source_file_str = script_extractor.read_script(stored_package, source)
-            except rift.package.script.ScriptExtractionError as e:
+               source_file_str = cloud_init_extractor.read_script(stored_package, source)
+            except rift.package.cloud_init.CloudInitExtractionError as e:
                raise  VirtualDeploymentUnitRecordError(e)
             # Update source file location with file contents
-            custom_file_item['source'] = source_file_str
+            file_item['source'] = source_file_str
 
         return
 
@@ -618,7 +616,7 @@ ssh_authorized_keys:
                       "hypervisor_epa",
                       "host_epa",
                       "volumes",
-                      "custom_boot_data"]
+                      "supplemental_boot_data"]
 
         self._log.debug("Creating params based on VDUD: %s", self._vdud)
         vdu_copy_dict = {k: v for k, v in self._vdud.as_dict().items() if k in vdu_fields}
@@ -677,7 +675,7 @@ ssh_authorized_keys:
         vm_create_msg_dict.update(vdu_copy_dict)
 
         self.process_placement_groups(vm_create_msg_dict)
-        if 'custom_boot_data' in vm_create_msg_dict:
+        if 'supplemental_boot_data' in vm_create_msg_dict:
              self.process_custom_bootdata(vm_create_msg_dict) 
 
         msg = RwResourceMgrYang.VDUEventData()
@@ -1001,13 +999,14 @@ class VlRecordState(enum.Enum):
 
 class InternalVirtualLinkRecord(object):
     """ Internal Virtual Link record """
-    def __init__(self, dts, log, loop, ivld_msg, vnfr_name, cloud_account_name):
+    def __init__(self, dts, log, loop, ivld_msg, vnfr_name, cloud_account_name, ip_profile=None):
         self._dts = dts
         self._log = log
         self._loop = loop
         self._ivld_msg = ivld_msg
         self._vnfr_name = vnfr_name
         self._cloud_account_name = cloud_account_name
+        self._ip_profile = ip_profile
 
         self._vlr_req = self.create_vlr()
         self._vlr = None
@@ -1021,7 +1020,10 @@ class InternalVirtualLinkRecord(object):
     @property
     def name(self):
         """ Name of this VL """
-        return self._vnfr_name + "." + self._ivld_msg.name
+        if self._ivld_msg.vim_network_name:
+            return self._ivld_msg.vim_network_name
+        else:
+            return self._vnfr_name + "." + self._ivld_msg.name
 
     @property
     def network_id(self):
@@ -1040,6 +1042,7 @@ class InternalVirtualLinkRecord(object):
                       "description",
                       "version",
                       "type_yang",
+                      "vim_network_name",
                       "provider_network"]
 
         vld_copy_dict = {k: v for k, v in self._ivld_msg.as_dict().items() if k in vld_fields}
@@ -1048,6 +1051,10 @@ class InternalVirtualLinkRecord(object):
                     "name": self.name,
                     "cloud_account": self._cloud_account_name,
                     }
+
+        if self._ip_profile and self._ip_profile.has_field('ip_profile_params'):
+            vlr_dict['ip_profile_params' ] = self._ip_profile.ip_profile_params.as_dict()
+
         vlr_dict.update(vld_copy_dict)
 
         vlr = RwVlrYang.YangData_Vlr_VlrCatalog_Vlr.from_dict(vlr_dict)
@@ -1469,6 +1476,13 @@ class VirtualNetworkFunctionRecord(object):
         self._log.debug("Published VNFR path = [%s], record = [%s]",
                         self.xpath, self.msg)
 
+    def resolve_vld_ip_profile(self, vnfd_msg, vld):
+        self._log.debug("Receieved ip profile ref is %s",vld.ip_profile_ref)
+        if not vld.has_field('ip_profile_ref'):
+            return None
+        profile = [profile for profile in vnfd_msg.ip_profiles if profile.name == vld.ip_profile_ref]
+        return profile[0] if profile else None
+
     @asyncio.coroutine
     def create_vls(self):
         """ Publish The VLs associated with this VNF """
@@ -1484,7 +1498,8 @@ class VirtualNetworkFunctionRecord(object):
                                             loop=self._loop,
                                             ivld_msg=ivld_msg,
                                             vnfr_name=self.name,
-                                            cloud_account_name=self.cloud_account_name
+                                            cloud_account_name=self.cloud_account_name,
+                                            ip_profile=self.resolve_vld_ip_profile(self.vnfd, ivld_msg)
                                             )
             self._vlrs.append(vlr)
 

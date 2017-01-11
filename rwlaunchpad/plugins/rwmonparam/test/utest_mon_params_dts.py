@@ -326,7 +326,7 @@ class MonParamsDtsTestCase(rift.test.dts.AbstractDTSTest):
         yield from self._test_publish("COUNT", 2)
 
     @rift.test.dts.async_test
-    def _test_legacy_nsr_monitor_publish_avg(self):
+    def test_legacy_nsr_monitor_publish_avg(self):
         yield from self._test_publish("AVERAGE", 1, legacy=True)
 
 

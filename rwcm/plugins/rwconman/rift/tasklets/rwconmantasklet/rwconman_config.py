@@ -1013,14 +1013,18 @@ class ConfigManagerConfig(object):
             self._log.info("NSR(%s/%s) is deleted", nsr_obj.nsr_name, id)
 
     @asyncio.coroutine
-    def process_ns_initial_config(self, nsr_obj):
-        '''Apply the initial-config-primitives specified in NSD'''
+    def process_initial_config(self, nsr_obj, conf, script, vnfr_name=None):
+        '''Apply the initial-config-primitives specified in NSD or VNFD'''
 
         def get_input_file(parameters):
             inp = {}
 
             # Add NSR name to file
             inp['nsr_name'] = nsr_obj.nsr_name
+
+            # Add VNFR name if available
+            if vnfr_name:
+                inp['vnfr_name'] = vnfr_name
 
             # TODO (pjoseph): Add config agents, we need to identify which all
             # config agents are required from this NS and provide only those
@@ -1032,8 +1036,12 @@ class ConfigManagerConfig(object):
                 try:
                     inp['parameter'][parameter['name']] = parameter['value']
                 except KeyError as e:
-                    self._log.info("NSR {} initial config parameter {} with no value: {}".
-                                    format(nsr_obj.nsr_name, parameter, e))
+                    if vnfr_name:
+                        self._log.info("VNFR {} initial config parameter {} with no value: {}".
+                                       format(vnfr_name, parameter, e))
+                    else:
+                        self._log.info("NSR {} initial config parameter {} with no value: {}".
+                                       format(nsr_obj.nsr_name, parameter, e))
 
 
             # Add vnfrs specific data
@@ -1071,8 +1079,9 @@ class ConfigManagerConfig(object):
 
                 inp['vnfr'][vnfr['member_vnf_index_ref']] = v
 
-            self._log.debug("Input data for NSR {}: {}".
-                            format(nsr_obj.nsr_name, inp))
+            self._log.debug("Input data for {}: {}".
+                            format((vnfr_name if vnfr_name else nsr_obj.nsr_name),
+                                   inp))
 
             # Convert to YAML string
             yaml_string = yaml.dump(inp, default_flow_style=False)
@@ -1081,97 +1090,125 @@ class ConfigManagerConfig(object):
             tmp_file = None
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
                 tmp_file.write(yaml_string.encode("UTF-8"))
-            self._log.debug("Input file created for NSR {}: {}".
-                            format(nsr_obj.nsr_name, tmp_file.name))
+            self._log.debug("Input file created for {}: {}".
+                            format((vnfr_name if vnfr_name \
+                                    else nsr_obj.nsr_name),
+                                   tmp_file.name))
 
             return tmp_file.name
 
-        def get_script_file(script_name, nsd_name, nsd_id):
-            # Get the full path to the script
-            script = ''
-            # If script name starts with /, assume it is full path
-            if script_name[0] == '/':
-                # The script has full path, use as is
-                script = script_name
-            else:
-                script = os.path.join(os.environ['RIFT_ARTIFACTS'],
-                                      'launchpad/packages/nsd',
-                                      nsd_id,
-                                      nsd_name,
-                                      'scripts',
-                                      script_name)
-                self._log.debug("Checking for script at %s", script)
-                if not os.path.exists(script):
-                    self._log.debug("Did not find script %s", script)
-                    script = os.path.join(os.environ['RIFT_INSTALL'],
-                                          'usr/bin',
-                                          script_name)
+        parameters = []
+        try:
+            parameters = conf['parameter']
+        except Exception as e:
+            self._log.debug("Parameter conf: {}, e: {}".
+                            format(conf, e))
 
-                # Seen cases in jenkins, where the script execution fails
-                # with permission denied. Setting the permission on script
-                # to make sure it has execute permission
-                perm = os.stat(script).st_mode
-                if not (perm  &  stat.S_IXUSR):
-                    self._log.warn("NSR {} initial config script {} " \
-                                  "without execute permission: {}".
-                                  format(nsr_id, script, perm))
-                    os.chmod(script, perm | stat.S_IXUSR)
-                return script
+        inp_file = get_input_file(parameters)
 
-        nsr_id = nsr_obj.nsr_id
-        nsr_name = nsr_obj.nsr_name
-        self._log.debug("Apply initial config for NSR {}({})".
-                        format(nsr_name, nsr_id))
+        cmd = "{0} {1}".format(script, inp_file)
+        self._log.debug("Running the CMD: {}".format(cmd))
 
-        # Fetch NSR
-        nsr = yield from self.cmdts_obj.get_nsr(nsr_id)
+        process = yield from asyncio.create_subprocess_shell(cmd,
+                                                             loop=self._loop)
+        yield from process.wait()
+
+        if process.returncode:
+            msg = "NSR/VNFR {} initial config using {} failed with {}". \
+                  format(vnfr_name if vnfr_name else nsr_obj.nsr_name,
+                         script, process.returncode)
+            self._log.error(msg)
+            raise InitialConfigError(msg)
+        else:
+            # os.remove(inp_file)
+            pass
+
+    def get_script_file(self, script_name, d_name, d_id, d_type):
+          # Get the full path to the script
+          script = ''
+          # If script name starts with /, assume it is full path
+          if script_name[0] == '/':
+              # The script has full path, use as is
+              script = script_name
+          else:
+              script = os.path.join(os.environ['RIFT_ARTIFACTS'],
+                                    'launchpad/packages',
+                                    d_type,
+                                    d_id,
+                                    d_name,
+                                    'scripts',
+                                    script_name)
+              self._log.debug("Checking for script at %s", script)
+              if not os.path.exists(script):
+                  self._log.debug("Did not find script %s", script)
+                  script = os.path.join(os.environ['RIFT_INSTALL'],
+                                        'usr/bin',
+                                        script_name)
+
+              # Seen cases in jenkins, where the script execution fails
+              # with permission denied. Setting the permission on script
+              # to make sure it has execute permission
+              perm = os.stat(script).st_mode
+              if not (perm  &  stat.S_IXUSR):
+                  self._log.warn("NSR/VNFR {} initial config script {} " \
+                                "without execute permission: {}".
+                                format(d_name, script, perm))
+                  os.chmod(script, perm | stat.S_IXUSR)
+              return script
+
+    @asyncio.coroutine
+    def process_ns_initial_config(self, nsr_obj):
+        '''Apply the initial-config-primitives specified in NSD'''
+
+        nsr = yield from self.cmdts_obj.get_nsr(nsr_obj.nsr_id)
+        if 'initial_config_primitive' not in nsr:
+            return
+
         if nsr is not None:
-            nsd = yield from self.cmdts_obj.get_nsd(nsr_id)
+            nsd = yield from self.cmdts_obj.get_nsd(nsr_obj.nsr_id)
+            for conf in nsr['initial_config_primitive']:
+                self._log.debug("NSR {} initial config: {}".
+                                format(nsr_obj.nsr_name, conf))
+                script = self.get_script_file(conf['user_defined_script'],
+                                              nsd.name,
+                                              nsd.id,
+                                              'nsd')
 
-            try:
-                # Check if initial config is present
-                # TODO (pjoseph): Sort based on seq
-                for conf in nsr['initial_config_primitive']:
-                    self._log.debug("Parameter conf: {}".
-                                    format(conf))
+                yield from self.process_initial_config(nsr_obj, conf, script)
 
-                    parameters = []
-                    try:
-                        parameters = conf['parameter']
-                    except Exception as e:
-                        self._log.debug("Parameter conf: {}, e: {}".
-                                        format(conf, e))
-                        pass
+    @asyncio.coroutine
+    def process_vnf_initial_config(self, nsr_obj, vnfr):
+        '''Apply the initial-config-primitives specified in VNFD'''
 
-                    inp_file = get_input_file(parameters)
+        vnfr_name = vnfr.name
 
-                    script = get_script_file(conf['user_defined_script'],
-                                             nsd.name,
-                                             nsd.id)
+        vnfd = yield from self.cmdts_obj.get_vnfd(vnfr.vnfd_ref)
+        if vnfd is None:
+            msg = "VNFR {}, unable to get VNFD {}". \
+                  format(vnfr_name, vnfr.vnfd_ref)
+            self._log.error(msg)
+            raise InitialConfigError(msg)
 
-                    cmd = "{0} {1}".format(script, inp_file)
-                    self._log.debug("Running the CMD: {}".format(cmd))
+        vnf_cfg = vnfd.vnf_configuration
 
-                    process = yield from asyncio. \
-                              create_subprocess_shell(
-                                  cmd, loop=self._loop,
-                                  stdout=asyncio.subprocess.PIPE,
-                                  stderr=asyncio.subprocess.PIPE)
-                    yield from process.wait()
-                    if process.returncode:
-                        script_out, script_err = yield from process.communicate()
-                        msg = "NSR {} initial config using {} failed with {}". \
-                              format(nsr_name, script, process.returncode)
-                        self._log.error(msg)
-                        self._log.error("Script {} stderr: {}".
-                                        format(script, script_err))
-                        raise InitialConfigError(msg)
-                    else:
-                        os.remove(inp_file)
+        for conf in vnf_cfg.initial_config_primitive:
+                self._log.debug("VNFR {} initial config: {}".
+                                format(vnfr_name, conf))
 
-            except KeyError as e:
-                self._log.debug("Did not find initial config: {}".
-                                format(e))
+                if not conf.user_defined_script:
+                    self._log.debug("VNFR {} did not fine user defined script: {}".
+                                    format(vnfr_name, conf))
+                    continue
+
+                script = self.get_script_file(conf.user_defined_script,
+                                              vnfd.id,
+                                              vnfd.name,
+                                              'vnfd')
+
+                yield from self.process_initial_config(nsr_obj,
+                                                       conf.as_dict(),
+                                                       script,
+                                                       vnfr_name=vnfr_name)
 
 
 class ConfigManagerNSR(object):

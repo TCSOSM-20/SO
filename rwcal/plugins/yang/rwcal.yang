@@ -1014,7 +1014,7 @@ module rwcal
       }
     }
  
-    uses manotypes:custom-boot-data;
+    uses manotypes:supplemental-boot-data;
 
     list volumes {
       key "name";
@@ -1252,7 +1252,7 @@ module rwcal
       description "Console URL from the VIM, if available";
     }
 
-    uses manotypes:custom-boot-data;
+    uses manotypes:supplemental-boot-data;
 
     list volumes {
       key "name";

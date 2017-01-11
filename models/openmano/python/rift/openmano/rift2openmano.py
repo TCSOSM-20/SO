@@ -314,7 +314,7 @@ def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids):
     return openmano
 
 def cloud_init(rift_vnfd_id, vdu):
-    """ Populate cloud_init with cloud-config script from
+    """ Populate cloud_init with script from
          either the inline contents or from the file provided
     """
     vnfd_package_store = rift.package.store.VnfdPackageFilesystemStore(logger)
@@ -339,20 +339,7 @@ def cloud_init(rift_vnfd_id, vdu):
         return
 
     logger.debug("Current cloud init msg is {}".format(cloud_init_msg))
-    if cloud_init_msg:
-        try:
-            cloud_init_dict = yaml.load(cloud_init_msg)
-        except Exception as e:
-            logger.exception(e)
-            logger.error("Error loading cloud init Yaml file with exception %s", str(e))
-            return cloud_init_msg
-
-    logger.debug("Current cloud init dict is {}".format(cloud_init_dict))
-
-    cloud_msg = yaml.safe_dump(cloud_init_dict,width=1000,default_flow_style=False)
-    cloud_init = "#cloud-config\n"+cloud_msg
-    logger.debug("Cloud init msg is {}".format(cloud_init))
-    return cloud_init
+    return cloud_init_msg
 
 def rift2openmano_vnfd(rift_vnfd, rift_nsd):
     openmano_vnf = {"vnf":{}}
@@ -535,33 +522,23 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                 else:
                     # Add Openmano devices
                     device = {}
-                    device["type"] = volume.guest_params.device_type
+                    device["type"] = volume.device_type
                     device["image"] = volume.image
                     vnfc["devices"].append(device)   
 
-        vnfc_cloud_config_init = False
+        vnfc_boot_data_init = False
         if vdu.has_field("cloud_init") or vdu.has_field("cloud_init_file"):
-            vnfc['cloud-config'] = dict()
-            vnfc_cloud_config_init = True
-            vnfc['cloud-config']['user-data'] = cloud_init(rift_vnfd.id, vdu)
+            vnfc['boot-data'] = dict()
+            vnfc_boot_data_init = True
+            vnfc['boot-data']['user-data'] = cloud_init(rift_vnfd.id, vdu)
 
-        if vdu.has_field("custom_boot_data"):
-            if vdu.custom_boot_data.has_field('custom_drive'):
-                if vdu.custom_boot_data.custom_drive is True:
-                    if vnfc_cloud_config_init is False:
-                        vnfc['cloud-config'] = dict()
-                        vnfc_cloud_config_init = True
-                    vnfc['cloud-config']['config-drive'] = vdu.custom_boot_data.custom_drive
-            if vdu.custom_boot_data.has_field('custom_meta_data'):
-                if vnfc_cloud_config_init is False:
-                    vnfc['cloud-config'] = dict()
-                    vnfc_cloud_config_init = True
-                vnfc['cloud-config']['meta-data'] = list()
-                for metaitem in vdu.custom_boot_data.custom_meta_data:
-                    openmano_metaitem = dict()
-                    openmano_metaitem['key'] = metaitem.name
-                    openmano_metaitem['value'] = metaitem.value
-                    vnfc['cloud-config']['meta-data'].append(openmano_metaitem)
+        if vdu.has_field("supplemental_boot_data"):
+            if vdu.supplemental_boot_data.has_field('boot_data_drive'):
+                if vdu.supplemental_boot_data.boot_data_drive is True:
+                    if vnfc_boot_data_init is False:
+                        vnfc['boot-data'] = dict()
+                        vnfc_boot_data_init = True
+                    vnfc['boot-data']['boot-data-drive'] = vdu.supplemental_boot_data.boot_data_drive
 
         vnf["VNFC"].append(vnfc)
 

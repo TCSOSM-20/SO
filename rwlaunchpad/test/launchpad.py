@@ -282,6 +282,32 @@ class AutoscalerTasklet(rift.vcs.core.Tasklet):
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwautoscaler')
     plugin_name = ClassProperty('rwautoscaler')
 
+class StagingManagerTasklet(rift.vcs.core.Tasklet):
+    """
+    A class that provide a simple staging area for all tasklets
+    """
+
+    def __init__(self, name='StagingManager', uid=None,
+                 config_ready=True,
+                 recovery_action=core.RecoveryType.FAILCRITICAL.value,
+                 data_storetype=core.DataStore.NOSTORE.value,
+                 ):
+        """
+        Creates a StagingMangerTasklet object.
+
+        Arguments:
+            name  - the name of the tasklet
+            uid   - a unique identifier
+
+        """
+        super(StagingManagerTasklet, self).__init__(name=name, uid=uid,
+                                             config_ready=config_ready,
+                                             recovery_action=recovery_action,
+                                             data_storetype=data_storetype,
+                                            )
+
+    plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwstagingmgr')
+    plugin_name = ClassProperty('rwstagingmgr')
 
 def get_ui_ssl_args():
     """Returns the SSL parameter string for launchpad UI processes"""
@@ -343,6 +369,32 @@ class ConfigManagerTasklet(rift.vcs.core.Tasklet):
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwconmantasklet')
     plugin_name = ClassProperty('rwconmantasklet')
 
+class PackageManagerTasklet(rift.vcs.core.Tasklet):
+    """
+    This class represents a Resource Manager tasklet.
+    """
+
+    def __init__(self, name='Package-Manager', uid=None,
+                 config_ready=True,
+                 recovery_action=core.RecoveryType.FAILCRITICAL.value,
+                 data_storetype=core.DataStore.NOSTORE.value,
+                 ):
+        """
+        Creates a PackageManager object.
+
+        Arguments:
+            name  - the name of the tasklet
+            uid   - a unique identifier
+        """
+        super(PackageManagerTasklet, self).__init__(name=name, uid=uid,
+                                                   config_ready=config_ready,
+                                                   recovery_action=recovery_action,
+                                                   data_storetype=data_storetype,
+                                                  )
+
+    plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwpkgmgr')
+    plugin_name = ClassProperty('rwpkgmgr')
+
 class GlanceServer(rift.vcs.NativeProcess):
     def __init__(self, name="glance-image-catalog",
                  config_ready=True,
@@ -399,6 +451,8 @@ class Demo(rift.vcs.demo.Demo):
               ResMgrTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               ImageMgrTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               AutoscalerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
+              PackageManagerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
+              StagingManagerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
             ]
 
         if not mgmt_ip_list or len(mgmt_ip_list) == 0:
@@ -470,7 +524,6 @@ def main(argv=sys.argv[1:]):
     # since it doesn't need it and it will fail within containers
     os.environ["NO_KERNEL_MODS"] = "1"
 
-
     cleanup_dir_name = None
     if os.environ["INSTALLDIR"] in ["/", "/home/rift", "/home/rift/.install",
         "/usr/rift/build/fc20_debug/install/usr/rift", "/usr/rift"]:
@@ -495,8 +548,8 @@ def main(argv=sys.argv[1:]):
         for f in os.listdir(cleanup_dir_name):
             if f.endswith(".aof") or f.endswith(".rdb"):
                 os.remove(os.path.join(cleanup_dir_name, f))
-
-        # Remove the persistant DTS recovery files
+    
+        # Remove the persistant DTS recovery files 
         for f in os.listdir(cleanup_dir_name):
             if f.endswith(".db"):
                 os.remove(os.path.join(cleanup_dir_name, f))

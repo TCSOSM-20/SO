@@ -352,7 +352,7 @@ module vnfr
         uses manotypes:hypervisor-epa;
         uses manotypes:host-epa;
 
-        uses manotypes:custom-boot-data;
+        uses manotypes:supplemental-boot-data;
 
         list volumes {
           key "name";

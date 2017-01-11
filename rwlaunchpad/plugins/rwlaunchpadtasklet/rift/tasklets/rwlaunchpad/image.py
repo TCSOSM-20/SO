@@ -44,7 +44,7 @@ class ImageUploader(object):
         self._client = client.UploadJobClient(self._log, self._loop, self._dts)
 
     def upload_image(self, image_name, image_checksum, image_hdl):
-        endpoint = "http://127.0.0.1:9999"
+        endpoint = "http://127.0.0.1:9292"
         glance_client = glanceclient.Client('1', endpoint, token="asdf")
 
         try:

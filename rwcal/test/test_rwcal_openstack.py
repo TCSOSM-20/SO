@@ -932,19 +932,19 @@ class OpenStackTest(unittest.TestCase):
         vdu.flavor_id = self._flavor.id
         vdu.vdu_init.userdata = PING_USERDATA
         vdu.allocate_public_address = True
-        meta1 = vdu.custom_boot_data.custom_meta_data.add()
+        meta1 = vdu.supplemental_boot_data.custom_meta_data.add()
         meta1.name = "EMS_IP"
         meta1.data_type = "STRING"
         meta1.value = "10.5.6.6"
-        #meta2 = vdu.custom_boot_data.custom_meta_data.add()
+        #meta2 = vdu.supplemental_boot_data.custom_meta_data.add()
         #meta2.name = "Cluster_data"
         #meta2.data_type = "JSON"
         #meta2.value = '''{ "cluster_id": "12" , "vnfc_id": "112" }'''
-        #vdu.custom_boot_data.custom_drive = True
-        customfile1 = vdu.custom_boot_data.custom_config_files.add()
+        #vdu.supplemental_boot_data.boot_data_drive = True
+        customfile1 = vdu.supplemental_boot_data.config_file.add()
         customfile1.source = "abcdef124"
         customfile1.dest = "/tmp/tempfile.txt"
-        customfile2 = vdu.custom_boot_data.custom_config_files.add()
+        customfile2 = vdu.supplemental_boot_data.config_file.add()
         customfile2.source = "123456"
         customfile2.dest = "/tmp/tempfile2.txt"
         c1 = vdu.connection_points.add()
@@ -965,7 +965,7 @@ class OpenStackTest(unittest.TestCase):
 
         return vdu
 
-    #@unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
+    @unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
     def test_create_delete_virtual_link_and_vdu(self):
         """
         Test to create VDU
@@ -1047,6 +1047,115 @@ class OpenStackTest(unittest.TestCase):
             self.assertNotEqual(virtual_link.virtual_link_id, vlink_id)
 
         logger.info("Openstack-CAL-Test: VDU/Virtual Link create-delete test successfully completed")
+
+    def _get_vol_vdu_request_info(self, vlink_list):
+          """
+          Returns object of type RwcalYang.VDUInitParams
+          """
+          vdu = RwcalYang.VDUInitParams()
+          vdu.name = "cal_vdu"
+          vdu.flavor_id = self._flavor.id
+          vdu.allocate_public_address = True
+          ctr = 0
+          for vl in vlink_list:
+             c1 = vdu.connection_points.add()
+             c1.name = "c_point" + str(ctr)
+             ctr += 1
+             c1.virtual_link_id = vl
+             c1.type_yang = 'VIRTIO'
+
+          vol0 = vdu.volumes.add()
+          vol0.name = "vda"
+          vol0.image = openstack_info['reserved_image']
+          vol0.size = 10
+          vol0.boot_priority = 0
+          vol0.device_type = "disk"
+          meta1 = vol0.custom_meta_data.add()
+          meta1.name = "fs_type"
+          meta1.data_type = "STRING"
+          meta1.value = "ext4"
+
+          return vdu
+
+    #@unittest.skip("Skipping test_create_vol_vdu")
+    def test_create_vol_vdu(self):
+          """
+          Test to create VDU with mgmt port using Volumes
+          """
+          logger.info("Openstack-CAL-Test: Test Create Virtual Link API")
+          vlink_list = []
+          vlink = RwcalYang.VirtualLinkReqParams()
+          vlink.name = 'rift.cal.virtual_link' 
+          vlink.subnet = '11.0.1.0/24'
+
+          rc, rsp = self.cal.create_virtual_link(self._acct, vlink)
+          self.assertEqual(rc.status, RwStatus.SUCCESS)
+          logger.info("Openstack-CAL-Test: Created virtual_link with Id: %s" %rsp)
+          vlink_id = rsp
+
+          #Check if virtual_link create is successful
+          rc, rsp = self.cal.get_virtual_link(self._acct, rsp)
+          self.assertEqual(rc, RwStatus.SUCCESS)
+          self.assertEqual(rsp.virtual_link_id, vlink_id)
+          vlink_list.append(vlink_id)
+
+          # Now create VDU
+          vdu_req = self._get_vol_vdu_request_info(vlink_list)
+          logger.info("################################### ")
+          logger.info("Openstack-CAL-Test: Test Create VDU API (w/ volumes) ")
+
+          rc, rsp = self.cal.create_vdu(self._acct, vdu_req)
+          logger.debug("Openstack-CAL-Test: rc %s rsp %s" % (rc, rsp))
+          self.assertEqual(rc.status, RwStatus.SUCCESS)
+          logger.info("Openstack-CAL-Test: Created vdu with Id: %s" %rsp)
+
+          test_vdu_id = rsp
+
+          ## Check if VDU get is successful
+          rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id)
+          logger.debug("Get VDU response %s", rsp)
+          self.assertEqual(rsp.vdu_id, test_vdu_id)
+
+          ### Wait until vdu_state is active
+          logger.debug("Waiting 10 secs")
+          time.sleep(10)
+          #{'name': 'dp0vhost7', 'connection_point_id': 'dp0vhost7', 'state': 'active', 'virtual_link_id': 'rift.cal.virtual_link', 'ip_address': '192.168.100.6'}
+          vdu_state = 'inactive'
+          cp_state = 'inactive'
+          for i in range(5):
+              rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id)
+              self.assertEqual(rc, RwStatus.SUCCESS)
+              logger.info("Openstack-CAL-Test: VDU with id : %s. Reached State :  %s, mgmt ip %s" %(test_vdu_id, rsp.state, rsp.management_ip))
+              if (rsp.state == 'active') and ('management_ip' in rsp) and ('public_ip' in rsp):
+                  vdu_state = 'active'
+                  #'connection_points': [{'name': 'dp0vhost7', 'connection_point_id': 'dp0vhost7', 'state': 'active', 'virtual_link_id': 'rift.cal.virtual_link', 'ip_address': '192.168.100.6'}]
+                  for cp in rsp.connection_points:
+                      logger.info("Openstack-CAL-Test: VDU with id : %s. Reached State :  %s CP state %s" %(test_vdu_id, rsp.state, cp))
+                      if vdu_state == 'active' and cp.ip_address is not None :
+                          cp_state = 'active'
+                          break
+              logger.debug("Waiting another 5 secs")
+              time.sleep(5) 
+
+          self.assertEqual(rc, RwStatus.SUCCESS)
+          self.assertEqual(rsp.state, 'active')
+          self.assertEqual(vdu_state, 'active')
+          self.assertEqual(cp_state, 'active')
+          logger.info("Openstack-CAL-Test: VDU with id : %s reached expected state  : %s IP: %s" %(test_vdu_id, rsp.state, rsp.management_ip))
+          logger.info("Openstack-CAL-Test: VDUInfo: %s" %(rsp))
+          logger.info("Waiting for 30 secs before deletion")
+          time.sleep(30)
+
+          ### Check vdu list as well
+          rc, rsp = self.cal.get_vdu_list(self._acct)
+          self.assertEqual(rc, RwStatus.SUCCESS)
+          found = False
+          logger.debug("Get VDU response %s", rsp)
+          for vdu in rsp.vdu_info_list:
+              if vdu.vdu_id == test_vdu_id:
+                 found = True
+          self.assertEqual(found, True)
+          logger.info("Openstack-CAL-Test: Passed VDU list" )
 
 class VmData(object):
     """A convenience class that provides all the stats and EPA Attributes
@@ -1174,5 +1283,6 @@ class VmData(object):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    #logging.basicConfig(level=logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
     unittest.main()

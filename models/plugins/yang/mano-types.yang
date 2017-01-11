@@ -46,6 +46,13 @@ module mano-types
       enum JSON;
     }
   }
+  typedef package-type {
+      description "Type of descriptor being on-boarded";
+      type enumeration {
+        enum NSD;
+        enum VNFD;
+      }
+    }
 
   typedef parameter-data-type {
     type enumeration {
@@ -124,22 +131,6 @@ module mano-types
       type boolean;
       default false;
     }
-    leaf parameter-type {
-      description "Type of this parameter, whether this in IN or OUT";
-      type enumeration {
-	enum OUT;
-	enum IN;
-      }
-      default "IN";
-    }
-    leaf parameter-path {
-      description "A Leafref to the parameter path with the attribute selection.
-                   At present only attribute ip-address() is supported.
-                   For example, to get the ip address of VNF connection point
-                   the xpath would look something along the following lines,
-                   /vnfd-catalog/vnfd[id='x']/connection-point[name='cp']/ip-address()";
-      type string;
-    }
   }
   
 
@@ -163,6 +154,37 @@ module mano-types
             ";
       type string;
     } 
+  }
+  grouping initial-config {
+    leaf seq {
+      description
+          "Sequence number for the configuration primitive.";
+      type uint64;
+    }
+
+    leaf name {
+      description
+          "Name of the configuration primitive.";
+      type string;
+      mandatory "true";
+    }
+
+    leaf user-defined-script {
+      description
+          "A user defined script.";
+      type string;
+    }
+
+    list parameter {
+      key "name";
+      leaf name {
+        type string;
+      }
+
+      leaf value {
+        type string;
+      }
+    }
   }
 
   grouping vnf-configuration {
@@ -320,7 +342,7 @@ module mano-types
       list initial-config-primitive {
         rwpb:msg-new InitialConfigPrimitive;
         description
-            "Initial set of configuration primitives.";
+          "Initial set of configuration primitives.";
         key "seq";
         leaf seq {
           description
@@ -337,6 +359,12 @@ module mano-types
             }
 
             uses primitive-parameter-value;
+
+            leaf user-defined-script {
+              description
+                "A user defined script.";
+              type string;
+            }
           }
 
           case primitive-ref {
@@ -2071,9 +2099,9 @@ module mano-types
     }
   }
 
-  grouping custom-config-files {
+  grouping config-file {
     description "Grouping for files needed to be mounted into an additional drive";
-    list custom-config-files {
+    list config-file {
       description
           "List of configuration files to be written on an additional drive";
       key "source";
@@ -2112,13 +2140,13 @@ module mano-types
     }
   }
 
-  grouping custom-boot-data {
+  grouping supplemental-boot-data {
     description "Grouping for custom vim data";
-    container custom-boot-data {
-      uses manotypes:custom-config-files;
+    container supplemental-boot-data {
+      uses manotypes:config-file;
       uses manotypes:custom-meta-data;
-      leaf custom-drive {
-        description "Some VIMs implement custom drives to host custom-files or meta-data";
+      leaf boot-data-drive {
+        description "Some VIMs implement additional drives to host config-files or meta-data";
         type boolean;
         default false;
       } 
@@ -2164,41 +2192,37 @@ module mano-types
       }
     }
 
-    container boot-params {
-      leaf boot-volume {
-        description "This flag indicates if this is boot volume or not";
-        type boolean;
-      }
-      leaf boot-priority {
-        description "Boot priority associated with volume";
-        type int32;
+    leaf boot-volume {
+      description "This flag indicates if this is boot volume or not";
+      type boolean;
+    }
+
+    leaf boot-priority {
+      description "Boot priority associated with volume";
+      type int32;
+    }
+
+
+    leaf device_bus {
+      description "Type of disk-bus on which this disk is exposed to guest";
+      type enumeration {
+        enum ide;
+        enum usb;
+        enum virtio;
+        enum scsi;
       }
     }
 
-    container guest-params {
-      description "Guest virtualization parameter associated with volume";
-
-      leaf device_bus {
-        description "Type of disk-bus on which this disk is exposed to guest";
-        type enumeration {
-          enum ide;
-          enum usb;
-          enum virtio;
-          enum scsi;
-        }
-      }
-
-      leaf device_type {
-        description "The type of device as exposed to guest";
-        type enumeration {
+    leaf device_type {
+      description "The type of device as exposed to guest";
+      type enumeration {
           enum disk;
           enum cdrom;
           enum floppy;
           enum lun;
-        }
       }
-
-      uses custom-meta-data;
     }
+
+    uses custom-meta-data;
   }
 }

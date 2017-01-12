@@ -342,13 +342,6 @@ module vnfd
           type inet:port-number;
         }
 
-        leaf ssh-key {
-          description
-            "Whether SSH keys need to be generated and passed
-             to the RO and VCA during instantiation.";
-          type boolean;
-        }
-
         container dashboard-params {
           description "Parameters for the VNF dashboard";
 

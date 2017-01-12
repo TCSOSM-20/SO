@@ -1193,39 +1193,28 @@ class ConfigManagerConfig(object):
 
                 yield from self.process_initial_config(nsr_obj, conf, script)
 
-                    parameters = []
-                    try:
-                        parameters = conf['parameter']
-                    except Exception as e:
-                        self._log.debug("Parameter conf: {}, e: {}".
-                                        format(conf, e))
-                        pass
+    @asyncio.coroutine
+    def process_vnf_initial_config(self, nsr_obj, vnfr):
+        '''Apply the initial-config-primitives specified in VNFD'''
 
-                    inp_file = get_input_file(parameters)
+        vnfr_name = vnfr.name
 
-                    script = get_script_file(conf['user_defined_script'],
-                                             nsd.name,
-                                             nsd.id)
+        vnfd = vnfr.vnfd
+        vnf_cfg = vnfd.vnf_configuration
 
-                    cmd = "{0} {1}".format(script, inp_file)
-                    self._log.debug("Running the CMD: {}".format(cmd))
+        for conf in vnf_cfg.initial_config_primitive:
+                self._log.debug("VNFR {} initial config: {}".
+                                format(vnfr_name, conf))
 
-                    process = yield from asyncio. \
-                              create_subprocess_shell(
-                                  cmd, loop=self._loop,
-                                  stdout=asyncio.subprocess.PIPE,
-                                  stderr=asyncio.subprocess.PIPE)
-                    yield from process.wait()
-                    if process.returncode:
-                        script_out, script_err = yield from process.communicate()
-                        msg = "NSR {} initial config using {} failed with {}". \
-                              format(nsr_name, script, process.returncode)
-                        self._log.error(msg)
-                        self._log.error("Script {} stderr: {}".
-                                        format(script, script_err))
-                        raise InitialConfigError(msg)
-                    else:
-                        os.remove(inp_file)
+                if not conf.user_defined_script:
+                    self._log.debug("VNFR {} did not fine user defined script: {}".
+                                    format(vnfr_name, conf))
+                    continue
+
+                script = self.get_script_file(conf.user_defined_script,
+                                              vnfd.id,
+                                              vnfd.name,
+                                              'vnfd')
 
             except KeyError as e:
                 self._log.debug("Did not find initial config: {}".

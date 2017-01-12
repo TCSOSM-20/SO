@@ -323,7 +323,7 @@ class OpenmanoNsr(object):
             self._log.debug("Key pair  NSD  is %s",authorized_key)
             key_pairs.append(authorized_key.key)
 
-        if self._ssh_key:
+        if self._ssh_key['public_key']:
             self._log.debug("Pub key  NSD  is %s", self._ssh_key['public_key'])
             key_pairs.append(self._ssh_key['public_key'])
 

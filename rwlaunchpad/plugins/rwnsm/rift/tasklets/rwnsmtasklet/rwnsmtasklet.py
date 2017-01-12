@@ -964,9 +964,9 @@ class VirtualNetworkFunctionRecord(object):
 
         vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
 
-        vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(
-            self.vnfd.as_dict(),
-            ignore_missing_keys=True)
+        vnfr.vnfd = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(
+            self.vnfd.as_dict())
+
         vnfr.member_vnf_index_ref = self.member_vnf_index
         vnfr.vnf_configuration.from_dict(self._vnfd.vnf_configuration.as_dict())
 
@@ -3972,8 +3972,11 @@ class NsManager(object):
                                    )
         self._nsrs[nsr_msg.id] = nsr
 
-        # Generate ssh key pair if required
-        yield from nsr.generate_ssh_key_pair(config_xact)
+        try:
+            # Generate ssh key pair if required
+            yield from nsr.generate_ssh_key_pair(config_xact)
+        except Exception as e:
+            self._log.exception("SSH key: {}".format(e))
 
         self._log.debug("NSR {}: SSh key generated: {}".format(nsr_msg.name,
                                                                nsr.public_key))
@@ -4002,7 +4005,11 @@ class NsManager(object):
             raise NetworkServiceRecordError(err)
 
         nsr = self._nsrs[nsr_id]
-        yield from nsr.nsm_plugin.instantiate_ns(nsr, config_xact)
+        try:
+            yield from nsr.nsm_plugin.instantiate_ns(nsr, config_xact)
+        except Exception as e:
+            self._log.exception("NS instantiate: {}".format(e))
+            raise e
 
     @asyncio.coroutine
     def update_vnfr(self, vnfr):

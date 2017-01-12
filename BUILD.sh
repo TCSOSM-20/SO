@@ -172,7 +172,11 @@ fi
 # and install of the packages required to build and run
 # this module
 if $runMkcontainer; then
-    sudo apt-get install -y libxml2-dev libxslt-dev
+    if [[ $PLATFORM == ub16 ]]; then
+        sudo apt-get install -y libxml2-dev libxslt-dev python3-crypto
+    elif [[ $PLATFORM == fc20 ]]; then
+        sudo yum-install --assumeyes libxml2-devel libxslt-devel python3-crypto
+    fi
     sudo /usr/rift/container_tools/mkcontainer --modes build --modes ext --repo ${PLATFORM_REPOSITORY}
     sudo pip3 install lxml==3.4.0
 fi

@@ -1182,13 +1182,7 @@ class ConfigManagerConfig(object):
 
         vnfr_name = vnfr.name
 
-        vnfd = yield from self.cmdts_obj.get_vnfd(vnfr.vnfd_ref)
-        if vnfd is None:
-            msg = "VNFR {}, unable to get VNFD {}". \
-                  format(vnfr_name, vnfr.vnfd_ref)
-            self._log.error(msg)
-            raise InitialConfigError(msg)
-
+        vnfd = vnfr.vnfd
         vnf_cfg = vnfd.vnf_configuration
 
         for conf in vnf_cfg.initial_config_primitive:

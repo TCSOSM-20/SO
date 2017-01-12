@@ -1520,6 +1520,13 @@ def generate_ping_pong_descriptors(fmt="json",
     for i in range(external_vlr_count):
         cpgroup_list.append([])
 
+    if use_charm:
+        use_vca_conf = True
+
+    if use_vca_conf:
+        use_ns_init_conf = True
+        use_vnf_init_conf = False
+
     suffix = ''
     ping = VirtualNetworkFunction("ping_vnfd%s" % (suffix), pingcount)
     ping.use_vnf_init_conf = use_vnf_init_conf

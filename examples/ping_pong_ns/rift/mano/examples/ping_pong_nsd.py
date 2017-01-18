@@ -1208,21 +1208,30 @@ exit 0
                 self.nsd.monitoring_param.append(nsd_monp)
                 param_id += 1
 
+    def get_vnfd_id(self, index):
+        for cv in self.nsd.constituent_vnfd:
+            if cv.member_vnf_index == index:
+                return cv.vnfd_id_ref
+
     def add_conf_param_map(self):
         nsd = self.nsd
 
         confparam_map = nsd.config_parameter_map.add()
         confparam_map.id = '1'
         confparam_map.config_parameter_source.member_vnf_index_ref = 2
+        confparam_map.config_parameter_source.vnfd_id_ref = self.get_vnfd_id(2)
         confparam_map.config_parameter_source.config_parameter_source_ref = 'service_ip'
         confparam_map.config_parameter_request.member_vnf_index_ref = 1
+        confparam_map.config_parameter_request.vnfd_id_ref = self.get_vnfd_id(1)
         confparam_map.config_parameter_request.config_parameter_request_ref = 'pong_ip'
 
         confparam_map = nsd.config_parameter_map.add()
         confparam_map.id = '2'
         confparam_map.config_parameter_source.member_vnf_index_ref = 2
+        confparam_map.config_parameter_source.vnfd_id_ref = self.get_vnfd_id(2)
         confparam_map.config_parameter_source.config_parameter_source_ref = 'service_port'
         confparam_map.config_parameter_request.member_vnf_index_ref = 1
+        confparam_map.config_parameter_request.vnfd_id_ref = self.get_vnfd_id(1)
         confparam_map.config_parameter_request.config_parameter_request_ref = 'pong_port'
 
     def compose(self, vnfd_list, cpgroup_list, mano_ut,

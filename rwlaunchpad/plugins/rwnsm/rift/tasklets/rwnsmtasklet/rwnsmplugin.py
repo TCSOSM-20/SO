@@ -48,6 +48,11 @@ class NsmPluginBase(object):
     def nsm(self):
         return self._nsm
 
+    @abc.abstractmethod
+    def set_state(self, nsr_id, state):
+        pass
+
+    @abc.abstractmethod
     def create_nsr(self, nsr):
         """ Create an NSR """
         pass

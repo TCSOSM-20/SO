@@ -1296,6 +1296,7 @@ class NetworkServiceRecord(object):
             self._vnf_phase_completed = True
 
         self._op_status.set_state(state)
+        self._nsm_plugin.set_state(self.id, state)
 
     @property
     def id(self):

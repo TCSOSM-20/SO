@@ -141,19 +141,23 @@ class RiftCMConfigAgent(object):
                        .format(vnfr.name, method, rc))
         return rc
 
-    def is_vnfr_config_agent_managed(self, vnfr):
-        if (not vnfr.has_field('netconf') and
-            not vnfr.has_field('juju') and
-            not vnfr.has_field('script')):
-            return False
+    def get_vnfr_config_agent(self, vnfr):
+        # if (not vnfr.has_field('netconf') and
+        #     not vnfr.has_field('juju') and
+        #     not vnfr.has_field('script')):
+        #     return False
 
         for agent in self._plugin_instances.values():
             try:
                 if agent.is_vnfr_managed(vnfr.id):
-                    return True
+                    return agent
             except Exception as e:
                 self._log.debug("Check if VNFR {} is config agent managed: {}".
                                 format(vnfr.name, e))
+
+    def is_vnfr_config_agent_managed(self, vnfr):
+        if self.get_vnfr_config_agent(vnfr):
+            return True
         return False
 
     def _on_config_agent(self, config_agent):

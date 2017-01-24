@@ -1026,10 +1026,6 @@ class ConfigManagerConfig(object):
             if vnfr_name:
                 inp['vnfr_name'] = vnfr_name
 
-            # TODO (pjoseph): Add config agents, we need to identify which all
-            # config agents are required from this NS and provide only those
-            inp['config-agent'] = {}
-
             # Add parameters for initial config
             inp['parameter'] = {}
             for parameter in parameters:
@@ -1043,6 +1039,20 @@ class ConfigManagerConfig(object):
                         self._log.info("NSR {} initial config parameter {} with no value: {}".
                                        format(nsr_obj.nsr_name, parameter, e))
 
+
+            # Add config agents specific to each VNFR
+            inp['config-agent'] = {}
+            for vnfr in nsr_obj.agent_nsr.vnfrs:
+                # Get the config agent for the VNFR
+                # If vnfr name is specified, add only CA specific to that
+                if (vnfr_name is None) or \
+                   (vnfr_name == vnfr.name):
+                    agent = self._config_agent_mgr.get_vnfr_config_agent(vnfr.vnfr_msg)
+                    if agent:
+                        if agent.agent_type != riftcm_config_plugin.DEFAULT_CAP_TYPE:
+                            inp['config-agent'][vnfr.member_vnf_index] = agent.agent_data
+                            inp['config-agent'][vnfr.member_vnf_index] \
+                                ['service-name'] = agent.get_service_name(vnfr.id)
 
             # Add vnfrs specific data
             inp['vnfr'] = {}
@@ -1077,6 +1087,7 @@ class ConfigManagerConfig(object):
                 v['vdur'].append(vdu_data)
 
                 inp['vnfr'][vnfr['member_vnf_index_ref']] = v
+
 
             self._log.debug("Input data for {}: {}".
                             format((vnfr_name if vnfr_name else nsr_obj.nsr_name),

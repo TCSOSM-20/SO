@@ -22,6 +22,9 @@ import argparse
 import sys, os, time
 import rwlogger
 import yaml
+import random
+import fcntl
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
@@ -31,29 +34,93 @@ rwlog_handler = rwlogger.RwLogger(category="rw-cal-log",
 logger.addHandler(rwlog_handler)
 #logger.setLevel(logging.DEBUG)
 
+class FileLock:
+    FILE_LOCK = '/tmp/_openstack_prepare_vm.lock'
+    def __init__(self):
+        # This will create it if it does not exist already
+        self.filename = FileLock.FILE_LOCK
+        self.handle = None
+        
+    # Bitwise OR fcntl.LOCK_NB if you need a non-blocking lock
+    def acquire(self):
+        logger.info("<PID: %d> Attempting to acquire log." %os.getpid())
+        self.handle = open(self.filename, 'w')
+        fcntl.flock(self.handle, fcntl.LOCK_EX)
+        logger.info("<PID: %d> Lock successfully acquired." %os.getpid())
+        
+    def release(self):
+        fcntl.flock(self.handle, fcntl.LOCK_UN)
+        self.handle.close()
+        logger.info("<PID: %d> Released lock." %os.getpid())
+        
+    def __del__(self):
+        if self.handle and self.handle.closed == False:
+            self.handle.close()
+                                                                                        
+    
+def allocate_floating_ip(drv, argument):
+    #### Allocate a floating_ip
+    available_ip = [ ip for ip in drv.nova_floating_ip_list() if ip.instance_id == None ]
 
+    if argument.pool_name:
+        ### Filter further based on IP address
+        available_ip = [ ip for ip in available_ip if ip.pool == argument.pool_name ]
+        
+    if not available_ip:
+        logger.info("<PID: %d> No free floating_ips available. Allocating fresh from pool: %s" %(os.getpid(), argument.pool_name))
+        pool_name = argument.pool_name if argument.pool_name is not None else None
+        floating_ip = drv.nova_floating_ip_create(pool_name)
+    else:
+        floating_ip = random.choice(available_ip)
+        logger.info("<PID: %d> Selected floating_ip: %s from available free pool" %(os.getpid(), floating_ip))
+
+    return floating_ip
+
+
+def handle_floating_ip_assignment(drv, server, argument, management_ip):
+    lock = FileLock()
+    ### Try 3 time (<<<magic number>>>)
+    RETRY = 3
+    for attempt in range(RETRY):
+        try:
+            lock.acquire()
+            floating_ip = allocate_floating_ip(drv, argument)
+            logger.info("Assigning the floating_ip: %s to VM: %s" %(floating_ip, server['name']))
+            drv.nova_floating_ip_assign(argument.server_id,
+                                        floating_ip,
+                                        management_ip)
+            logger.info("Assigned floating_ip: %s to management_ip: %s" %(floating_ip, management_ip))
+        except Exception as e:
+            logger.error("Could not assign floating_ip: %s to VM: %s. Exception: %s" %(floating_ip, server['name'], str(e)))
+            lock.release()
+            if attempt == (RETRY -1):
+                logger.error("Max attempts %d reached for floating_ip allocation. Giving up" %attempt)
+                raise
+            else:
+                logger.error("Retrying floating ip allocation. Current retry count: %d" %attempt)
+        else:
+            lock.release()
+            return
+    
+        
 def assign_floating_ip_address(drv, argument):
     if not argument.floating_ip:
         return
 
     server = drv.nova_server_get(argument.server_id)
-    logger.info("Assigning the floating_ip: %s to VM: %s" %(argument.floating_ip, server['name']))
-    
+
     for i in range(120):
         server = drv.nova_server_get(argument.server_id)
         for network_name,network_info in server['addresses'].items():
-            if network_info:
-                if network_name == argument.mgmt_network:
-                    for n_info in network_info:
-                        if 'OS-EXT-IPS:type' in n_info and n_info['OS-EXT-IPS:type'] == 'fixed':
-                            management_ip = n_info['addr']
-                            drv.nova_floating_ip_assign(argument.server_id,
-                                                        argument.floating_ip,
-                                                        management_ip)
-                            logger.info("Assigned floating_ip: %s to management_ip: %s" %(argument.floating_ip, management_ip))
+            if network_info and  network_name == argument.mgmt_network:
+                for n_info in network_info:
+                    if 'OS-EXT-IPS:type' in n_info and n_info['OS-EXT-IPS:type'] == 'fixed':
+                        management_ip = n_info['addr']
+                        handle_floating_ip_assignment(drv, server, argument, management_ip)
                         return
-        logger.info("Waiting for management_ip to be assigned to server: %s" %(server['name']))
-        time.sleep(1)
+        else:
+            logger.info("Waiting for management_ip to be assigned to server: %s" %(server['name']))
+            time.sleep(1)
     else:
         logger.info("No management_ip IP available to associate floating_ip for server: %s" %(server['name']))
     return
@@ -186,6 +253,27 @@ def main():
                         type = str,
                         help = "Tenant name openstack installation")
 
+    parser.add_argument('--user_domain',
+                        action = "store",
+                        dest = "user_domain",
+                        default = None,
+                        type = str,
+                        help = "User domain name for openstack installation")
+
+    parser.add_argument('--project_domain',
+                        action = "store",
+                        dest = "project_domain",
+                        default = None,
+                        type = str,
+                        help = "Project domain name for openstack installation")
+
+    parser.add_argument('--region',
+                        action = "store",
+                        dest = "region",
+                        default = "RegionOne",
+                        type = str,
+                        help = "Region name for openstack installation")
+    
     parser.add_argument('--mgmt_network',
                         action = "store",
                         dest = "mgmt_network",
@@ -199,10 +287,17 @@ def main():
                         help = "Server ID on which boot operations needs to be performed")
     
     parser.add_argument('--floating_ip',
-                        action = "store",
+                        action = "store_true",
                         dest = "floating_ip",
+                        default = False,
+                        help = "Floating IP assignment required")
+
+    parser.add_argument('--pool_name',
+                        action = "store",
+                        dest = "pool_name",
                         type = str,
-                        help = "Floating IP to be assigned")
+                        help = "Floating IP pool name")
+
 
     parser.add_argument('--port_metadata',
                         action = "store_true",
@@ -250,7 +345,6 @@ def main():
     else:
         logger.info("Using Server ID : %s" %(argument.server_id))
         
-        
     try:
         pid = os.fork()
         if pid > 0:
@@ -259,12 +353,17 @@ def main():
     except OSError as e:
         logger.error("fork failed: %d (%s)\n" % (e.errno, e.strerror))
         sys.exit(2)
-        
-    drv = openstack_drv.OpenstackDriver(username = argument.username,
-                                        password = argument.password,
-                                        auth_url = argument.auth_url,
-                                        tenant_name = argument.tenant_name,
-                                        mgmt_network = argument.mgmt_network)
+
+
+    drv = openstack_drv.OpenstackDriver(username            = argument.username,
+                                        password            = argument.password,
+                                        auth_url            = argument.auth_url,
+                                        tenant_name         = argument.tenant_name,
+                                        mgmt_network        = argument.mgmt_network,
+                                        user_domain_name    = argument.user_domain,
+                                        project_domain_name = argument.project_domain,
+                                        region              = argument.region)
+    
     prepare_vm_after_boot(drv, argument)
     sys.exit(0)
     

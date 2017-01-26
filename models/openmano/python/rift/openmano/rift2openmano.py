@@ -417,7 +417,7 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
         connection = {
             "name": vld.name,
             "description": vld.description,
-            "type": "data",
+            "type": "bridge",
             "elements": [],
             }
 
@@ -579,6 +579,9 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                         if bps/x[1] >= 1:
                             intf["bandwidth"] = "{} {}bps".format(math.ceil(bps/x[1]), x[0])
 
+        # Sort bridge-ifaces-list TODO sort others
+        newlist = sorted(vnfc["bridge-ifaces"], key=lambda k: k['name'])
+        vnfc["bridge-ifaces"] = newlist
 
     return openmano_vnf
 

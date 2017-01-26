@@ -219,7 +219,7 @@ class KeystoneDriverV2(KeystoneDriver):
     """
     Driver class for keystoneclient V2 APIs
     """
-    def __init__(self, username, password, auth_url,tenant_name, insecure):
+    def __init__(self, username, password, auth_url,tenant_name, insecure, region):
         """
         Constructor for KeystoneDriverV3 class
         Arguments:
@@ -227,7 +227,7 @@ class KeystoneDriverV2(KeystoneDriver):
         password (string)  : Password
         auth_url (string)  : Authentication URL
         tenant_name(string): Tenant Name
-
+        region (string)    : Region name
         Returns: None
         """
         self._username    = username
@@ -235,6 +235,7 @@ class KeystoneDriverV2(KeystoneDriver):
         self._auth_url    = auth_url
         self._tenant_name = tenant_name
         self._insecure    = insecure
+        self._region      = region
         super(KeystoneDriverV2, self).__init__(ksclientv2.Client)
 
     def _get_keystone_credentials(self):
@@ -248,6 +249,7 @@ class KeystoneDriverV2(KeystoneDriver):
         creds['auth_url']     = self._auth_url
         creds['tenant_name']  = self._tenant_name
         creds['insecure']     = self.get_security_mode()
+        creds['region_name']  = self._region
         return creds
 
     def get_auth_token(self):
@@ -277,7 +279,14 @@ class KeystoneDriverV3(KeystoneDriver):
     """
     Driver class for keystoneclient V3 APIs
     """
-    def __init__(self, username, password, auth_url,tenant_name, insecure, user_domain_name = None, project_domain_name = None):
+    def __init__(self, username,
+                 password,
+                 auth_url,
+                 tenant_name,
+                 insecure,
+                 user_domain_name = None,
+                 project_domain_name = None,
+                 region = None):
         """
         Constructor for KeystoneDriverV3 class
         Arguments:
@@ -285,7 +294,9 @@ class KeystoneDriverV3(KeystoneDriver):
         password (string)  : Password
         auth_url (string)  : Authentication URL
         tenant_name(string): Tenant Name
-
+        user_domain_name (string) : User domain name
+        project_domain_name (string): Project domain name
+        region (string)    : Region name
         Returns: None
         """
         self._username             = username
@@ -295,6 +306,7 @@ class KeystoneDriverV3(KeystoneDriver):
         self._insecure             = insecure
         self._user_domain_name     = user_domain_name
         self._project_domain_name  = project_domain_name
+        self._region               = region
         super(KeystoneDriverV3, self).__init__(ksclientv3.Client)
 
     def _get_keystone_credentials(self):
@@ -309,6 +321,7 @@ class KeystoneDriverV3(KeystoneDriver):
         creds['insecure']            = self._insecure
         creds['user_domain_name']    = self._user_domain_name
         creds['project_domain_name'] = self._project_domain_name
+        creds['region_name']         = self._region
         return creds
 
     def get_user_domain_name(self):
@@ -369,8 +382,8 @@ class NovaDriver(object):
         creds['project_id'] = self.ks_drv.get_tenant_name()
         creds['auth_token'] = self.ks_drv.get_auth_token()
         creds['insecure']   = self.ks_drv.get_security_mode()
-        creds['user_domain_name'] = self.ks_drv.get_user_domain_name()
-        creds['project_domain_name'] = self.ks_drv.get_project_domain_name()
+        #creds['user_domain_name'] = self.ks_drv.get_user_domain_name()
+        #creds['project_domain_name'] = self.ks_drv.get_project_domain_name()
 
         return creds
 
@@ -1673,7 +1686,15 @@ class OpenstackDriver(object):
     """
     Driver for openstack nova, neutron, glance, keystone, swift, cinder services
     """
-    def __init__(self, username, password, auth_url, tenant_name, mgmt_network = None, cert_validate = False, user_domain_name = None, project_domain_name = None):
+    def __init__(self, username,
+                 password,
+                 auth_url,
+                 tenant_name,
+                 mgmt_network = None,
+                 cert_validate = False,
+                 user_domain_name = None,
+                 project_domain_name = None,
+                 region = None):
         """
         OpenstackDriver Driver constructor
         Arguments:
@@ -1684,18 +1705,33 @@ class OpenstackDriver(object):
           mgmt_network(string, optional)      : Management network name. Each VM created with this cloud-account will
                                                 have a default interface into management network.
           cert_validate (boolean, optional)   : In case of SSL/TLS connection if certificate validation is required or not.
-
+          user_domain_name                    : Domain name for user
+          project_domain_name                 : Domain name for project
+          region                              : Region name
         """
         insecure = not cert_validate
         if auth_url.find('/v3') != -1:
-            self.ks_drv        = KeystoneDriverV3(username, password, auth_url, tenant_name, insecure, user_domain_name, project_domain_name)
+            self.ks_drv        = KeystoneDriverV3(username,
+                                                  password,
+                                                  auth_url,
+                                                  tenant_name,
+                                                  insecure,
+                                                  user_domain_name,
+                                                  project_domain_name,
+                                                  region)
             self.glance_drv    = GlanceDriverV2(self.ks_drv)
             self.nova_drv      = NovaDriverV21(self.ks_drv)
             self.neutron_drv   = NeutronDriverV2(self.ks_drv)
             self.ceilo_drv     = CeilometerDriverV2(self.ks_drv)
             self.cinder_drv     = CinderDriverV2(self.ks_drv)
         elif auth_url.find('/v2') != -1:
-            self.ks_drv        = KeystoneDriverV2(username, password, auth_url, tenant_name, insecure)
+            
+            self.ks_drv        = KeystoneDriverV2(username,
+                                                  password,
+                                                  auth_url,
+                                                  tenant_name,
+                                                  insecure,
+                                                  region)
             self.glance_drv    = GlanceDriverV2(self.ks_drv)
             self.nova_drv      = NovaDriverV2(self.ks_drv)
             self.neutron_drv   = NeutronDriverV2(self.ks_drv)

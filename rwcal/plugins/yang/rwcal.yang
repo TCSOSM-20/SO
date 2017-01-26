@@ -247,6 +247,11 @@ module rwcal
           mandatory true;
         }
 
+        leaf region {
+          type string;
+          default "RegionOne";
+        }
+        
         leaf admin {
           type boolean;
           default false;

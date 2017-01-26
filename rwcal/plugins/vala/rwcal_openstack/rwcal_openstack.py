@@ -40,7 +40,7 @@ from gi.repository import (
     RwTypes,
     RwcalYang)
 
-PREPARE_VM_CMD = "prepare_vm.py --auth_url {auth_url} --username {username} --password {password} --tenant_name {tenant_name} --mgmt_network {mgmt_network} --server_id {server_id} --port_metadata"
+PREPARE_VM_CMD = "prepare_vm.py --auth_url {auth_url} --username {username} --password {password} --tenant_name {tenant_name} --region {region} --user_domain {user_domain} --project_domain {project_domain} --mgmt_network {mgmt_network} --server_id {server_id} --port_metadata "
 
 rwstatus_exception_map = { IndexError: RwTypes.RwStatus.NOTFOUND,
                            KeyError: RwTypes.RwStatus.NOTFOUND,
@@ -95,7 +95,8 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                                          mgmt_network        = account.openstack.mgmt_network,
                                          cert_validate       = account.openstack.cert_validate,
                                          user_domain_name    = account.openstack.user_domain,
-                                         project_domain_name = account.openstack.project_domain)
+                                         project_domain_name = account.openstack.project_domain,
+                                         region              = account.openstack.region)
             except (KeystoneExceptions.Unauthorized, KeystoneExceptions.AuthorizationFailure,
                         NeutronException.NotFound) as e:
                 raise
@@ -389,14 +390,12 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
 
         with self._use_driver(account) as drv:
             ### If floating_ip is required and we don't have one, better fail before any further allocation
+            pool_name = None
+            floating_ip = False
             if vminfo.has_field('allocate_public_address') and vminfo.allocate_public_address:
                 if account.openstack.has_field('floating_ip_pool'):
                     pool_name = account.openstack.floating_ip_pool
-                else:
-                    pool_name = None
-                floating_ip = self._allocate_floating_ip(drv, pool_name)
-            else:
-                floating_ip = None
+                floating_ip = True
 
         if vminfo.has_field('cloud_init') and vminfo.cloud_init.has_field('userdata'):
             kwargs['userdata']  = vminfo.cloud_init.userdata
@@ -1266,13 +1265,13 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                             vdu.public_ip = interface['addr']
 
         # Look for any metadata
-        for key, value in vm_info['metadata'].items():
-            if key == 'node_id':
-                vdu.node_id = value
-            else:
-                custommetadata = vdu.supplemental_boot_data.custom_meta_data.add()
-                custommetadata.name = key
-                custommetadata.value = str(value)
+#        for key, value in vm_info['metadata'].items():
+#            if key == 'node_id':
+#                vdu.node_id = value
+#            else:
+#                custommetadata = vdu.supplemental_boot_data.custom_meta_data.add()
+#                custommetadata.name = key
+#                custommetadata.value = str(value)
 
         # Look for config_drive
         if ('config_drive' in vm_info):
@@ -1920,14 +1919,12 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
 
         with self._use_driver(account) as drv:
             ### If floating_ip is required and we don't have one, better fail before any further allocation
+            floating_ip = False
+            pool_name = None
             if vduinfo.has_field('allocate_public_address') and vduinfo.allocate_public_address:
                 if account.openstack.has_field('floating_ip_pool'):
                     pool_name = account.openstack.floating_ip_pool
-                else:
-                    pool_name = None
-                floating_ip = self._allocate_floating_ip(drv, pool_name)
-            else:
-                floating_ip = None
+                floating_ip = True
 
         if vduinfo.has_field('vdu_init') and vduinfo.vdu_init.has_field('userdata'):
             kwargs['userdata'] = vduinfo.vdu_init.userdata
@@ -2017,7 +2014,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         with self._use_driver(account) as drv:
             vm_id = drv.nova_server_create(**kwargs)
             if floating_ip:
-                self.prepare_vdu_on_boot(account, vm_id, floating_ip, vduinfo.volumes)
+                self.prepare_vdu_on_boot(account, vm_id, floating_ip, pool_name, vduinfo.volumes)
 
         return vm_id
 
@@ -2068,15 +2065,6 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         mgmt_network_id = None
         with self._use_driver(account) as drv:
             mgmt_network_id = drv._mgmt_network_id
-            ### If floating_ip is required and we don't have one, better fail before any further allocation
-            if vdu_init.has_field('allocate_public_address') and vdu_init.allocate_public_address:
-                if account.openstack.has_field('floating_ip_pool'):
-                    pool_name = account.openstack.floating_ip_pool
-                else:
-                    pool_name = None
-                floating_ip = self._allocate_floating_ip(drv, pool_name)
-            else:
-                floating_ip = None
 
         port_list = []
         network_list = []
@@ -2227,16 +2215,20 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
 
 
 
-    def prepare_vdu_on_boot(self, account, server_id, floating_ip,  volumes=None):
-        cmd = PREPARE_VM_CMD.format(auth_url     = account.openstack.auth_url,
-                                    username     = account.openstack.key,
-                                    password     = account.openstack.secret,
-                                    tenant_name  = account.openstack.tenant,
-                                    mgmt_network = account.openstack.mgmt_network,
-                                    server_id    = server_id)
-
-        if floating_ip is not None:
-            cmd += (" --floating_ip "+ floating_ip.ip)
+    def prepare_vdu_on_boot(self, account, server_id, floating_ip,  pool_name, volumes=None):
+        cmd = PREPARE_VM_CMD.format(auth_url       = account.openstack.auth_url,
+                                    username       = account.openstack.key,
+                                    password       = account.openstack.secret,
+                                    tenant_name    = account.openstack.tenant,
+                                    region         = account.openstack.region,
+                                    user_domain    = account.openstack.user_domain,
+                                    project_domain = account.openstack.project_domain,
+                                    mgmt_network   = account.openstack.mgmt_network,
+                                    server_id      = server_id)
+        if floating_ip:
+            cmd += " --floating_ip"
+        if pool_name:
+            cmd += (" --pool_name " + pool_name)
 
         vol_metadata = False
         if volumes is not None:

@@ -326,15 +326,20 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                         if parameter.value:
                             val = self.xlate(parameter.value, vnfr['tags'])
                             # TBD do validation of the parameters
-                            data_type = 'string'
+                            data_type = 'STRING'
                             found = False
                             for ca_param in config.parameter:
                                 if ca_param.name == parameter.name:
                                     data_type = ca_param.data_type
                                     found = True
                                     break
-                                if data_type == 'integer':
-                                    val = int(parameter.value)
+                            try:
+                                if data_type == 'INTEGER':
+                                    tmp = int(val)
+                                    val = tmp
+                            except Exception as e:
+                                pass
+
                             if not found:
                                 self._log.warn("jujuCA: Did not find parameter {} for {}".
                                                format(parameter, config.name))

@@ -630,6 +630,13 @@ class OpenmanoNsr(object):
                         yield from self._publisher.publish_vnfr(None, vnfr_msg)
                         return
 
+                    if (time.time() - start_time) > OpenmanoNsr.TIMEOUT_SECS:
+                        self._log.error("NSR timed out before reaching running state")
+                        self._state = OpenmanoNSRecordState.FAILED
+                        vnfr_msg.operational_status = "failed"
+                        yield from self._publisher.publish_vnfr(None, vnfr_msg)
+                        return
+
                     if all_vms_active(vnf_status):
                         vnf_ip_address = get_vnf_ip_address(vnf_status)
                         vnf_mac_address = get_vnf_mac_address(vnf_status)
@@ -671,12 +678,6 @@ class OpenmanoNsr(object):
                         yield from self._publisher.publish_vnfr(None, vnfr_msg)
                         active_vnfs.append(vnfr)
 
-                    if (time.time() - start_time) > OpenmanoNsr.TIMEOUT_SECS:
-                        self._log.error("NSR timed out before reaching running state")
-                        self._state = OpenmanoNSRecordState.FAILED
-                        vnfr_msg.operational_status = "failed"
-                        yield from self._publisher.publish_vnfr(None, vnfr_msg)
-                        return
 
                 except Exception as e:
                     vnfr_msg.operational_status = "failed"
@@ -901,6 +902,7 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         openmano_nsr = self._openmano_nsrs[nsr.id]
         if openmano_nsr._state == OpenmanoNSRecordState.RUNNING:
             yield from openmano_nsr.create_vlr(vlr)
+            yield from self._publisher.publish_vlr(None, vlr.vlr_msg)
         else: 
             yield from openmano_nsr.add_vlr(vlr)
 

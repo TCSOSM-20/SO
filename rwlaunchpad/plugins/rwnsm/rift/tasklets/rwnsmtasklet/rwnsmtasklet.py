@@ -1123,7 +1123,9 @@ class VirtualNetworkFunctionRecord(object):
             cpr = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_ConnectionPoint()
             cpr.name = conn_p.name
             cpr.type_yang = conn_p.type_yang
-            cpr.port_security_enabled = conn_p.port_security_enabled
+            if conn_p.has_field('port_security_enabled'):
+              cpr.port_security_enabled = conn_p.port_security_enabled
+
             vlr_ref = find_vlr_for_cp(conn_p)
             if vlr_ref is None:
                 msg = "Failed to find VLR for cp = %s" % conn_p.name
@@ -1347,6 +1349,7 @@ class NetworkServiceRecord(object):
             self._vnf_phase_completed = True
 
         self._op_status.set_state(state)
+        self._nsm_plugin.set_state(self.id, state)
 
     @property
     def id(self):

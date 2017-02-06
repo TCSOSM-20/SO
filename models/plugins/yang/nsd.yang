@@ -251,7 +251,7 @@ module nsd
       list vnfd-connection-point-ref {
         description
             "A list of references to connection points.";
-        key "member-vnf-index-ref";
+        key "member-vnf-index-ref vnfd-connection-point-ref";
 
         leaf member-vnf-index-ref {
           description "Reference to member-vnf within constituent-vnfds";

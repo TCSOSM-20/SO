@@ -534,6 +534,7 @@ ssh_authorized_keys:
             try:
                 return cloud_init_extractor.read_script(stored_package, filename)
             except rift.package.cloud_init.CloudInitExtractionError as e:
+                self.instantiation_failed(str(e))
                 raise VirtualDeploymentUnitRecordError(e)
         else:
             self._log.debug("VDU Instantiation: cloud-init script not provided")
@@ -644,10 +645,12 @@ ssh_authorized_keys:
 
         cp_list = []
         for intf, cp, vlr in self._ext_intf:
-            cp_info = {"name": cp.name,
-                       "virtual_link_id": vlr.network_id,
-                       "type_yang": intf.virtual_interface.type_yang,
-                       "port_security_enabled": cp.port_security_enabled}
+            cp_info = { "name": cp.name,
+                        "virtual_link_id": vlr.network_id,
+                        "type_yang": intf.virtual_interface.type_yang }
+
+            if cp.has_field('port_security_enabled'):
+                cp_info["port_security_enabled"] = cp.port_security_enabled
 
             if (intf.virtual_interface.has_field('vpci') and
                     intf.virtual_interface.vpci is not None):
@@ -666,10 +669,16 @@ ssh_authorized_keys:
                                 "type_yang": intf.virtual_interface.type_yang,
                                 "vpci": intf.virtual_interface.vpci})
             else:
-                cp_list.append({"name": cp,
-                                "virtual_link_id": vlr.network_id,
-                                "type_yang": intf.virtual_interface.type_yang,
-                                "port_security_enabled": cp.port_security_enabled})
+                if cp.has_field('port_security_enabled'):
+                    cp_list.append({"name": cp,
+                                    "virtual_link_id": vlr.network_id,
+                                    "type_yang": intf.virtual_interface.type_yang,
+                                    "port_security_enabled": cp.port_security_enabled})
+                else:
+                    cp_list.append({"name": cp,
+                                    "virtual_link_id": vlr.network_id,
+                                    "type_yang": intf.virtual_interface.type_yang})
+
 
         vm_create_msg_dict["connection_points"] = cp_list
         vm_create_msg_dict.update(vdu_copy_dict)
@@ -955,8 +964,8 @@ ssh_authorized_keys:
 
             vm_resp = yield from self.create_resource(xact, vnfr, config)
             self._vm_resp = vm_resp
-
             self._state = VDURecordState.RESOURCE_ALLOC_PENDING
+
             self._log.debug("Requested VM from resource manager response %s",
                             vm_resp)
             if vm_resp.resource_state == "active":
@@ -1579,6 +1588,10 @@ class VirtualNetworkFunctionRecord(object):
         return placement_groups
 
     @asyncio.coroutine
+    def vdu_cloud_init_instantiation(self):
+        [vdu.vdud_cloud_init for vdu in self._vdus]
+
+    @asyncio.coroutine
     def create_vdus(self, vnfr, restart_mode=False):
         """ Create the VDUs associated with this VNF """
 
@@ -1642,8 +1655,8 @@ class VirtualNetworkFunctionRecord(object):
         vdu_id_pattern = re.compile(r"\{\{ vdu\[([^]]+)\]\S* \}\}")
 
         for vdu in self._vdus:
-            if vdu.vdud_cloud_init is not None:
-                for vdu_id in vdu_id_pattern.findall(vdu.vdud_cloud_init):
+            if vdu._vdud_cloud_init is not None:
+                for vdu_id in vdu_id_pattern.findall(vdu._vdud_cloud_init):
                     if vdu_id != vdu.vdu_id:
                         # This means that vdu.vdu_id depends upon vdu_id,
                         # i.e. vdu_id must be instantiated before
@@ -1671,7 +1684,6 @@ class VirtualNetworkFunctionRecord(object):
             # wait for the VDUR to enter a terminal state
             while vdu._state not in terminal:
                 yield from asyncio.sleep(1, loop=self._loop)
-
             # update the datastore
             datastore.update(vdu)
 
@@ -1917,6 +1929,7 @@ class VirtualNetworkFunctionRecord(object):
         self._log.debug("VNFR-ID %s: Publish VNFR", self._vnfr_id)
         yield from self.publish(xact)
 
+
         # instantiate VLs
         self._log.debug("VNFR-ID %s: Instantiate VLs", self._vnfr_id)
         try:
@@ -1931,6 +1944,13 @@ class VirtualNetworkFunctionRecord(object):
         # instantiate VDUs
         self._log.debug("VNFR-ID %s: Create VDUs", self._vnfr_id)
         yield from self.create_vdus(self, restart_mode)
+
+        try:
+            yield from self.vdu_cloud_init_instantiation()
+        except Exception as e:
+            self.set_state(VirtualNetworkFunctionRecordState.FAILED)
+            self._state_failed_reason = str(e)
+            yield from self.publish(xact)
 
         # publish the VNFR
         self._log.debug("VNFR-ID %s: Publish VNFR", self._vnfr_id)

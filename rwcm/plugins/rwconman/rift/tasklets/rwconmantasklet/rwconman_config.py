@@ -846,7 +846,7 @@ class ConfigManagerConfig(object):
 
                 # Parse NSR
                 if nsr is not None:
-                    nsr_obj.set_nsr_name(nsr['nsd_name_ref'])
+                    nsr_obj.set_nsr_name(nsr['name_ref'])
                     nsr_dir = os.path.join(self._parent.cfg_dir, nsr_obj.nsr_name)
                     self._log.info("Checking NS config directory: %s", nsr_dir)
                     if not os.path.isdir(nsr_dir):
@@ -1074,7 +1074,6 @@ class ConfigManagerConfig(object):
                         if k in vdu:
                             d[k] = vdu[k]
                     vdu_data.append(d)
-
                 v['vdur'].append(vdu_data)
 
                 inp['vnfr'][vnfr['member_vnf_index_ref']] = v
@@ -1110,18 +1109,24 @@ class ConfigManagerConfig(object):
         self._log.debug("Running the CMD: {}".format(cmd))
 
         process = yield from asyncio.create_subprocess_shell(cmd,
-                                                             loop=self._loop)
-        yield from process.wait()
+                                                             loop=self._loop,
+                                                             stdout=subprocess.PIPE,
+                                                             stderr=subprocess.PIPE)
+        stdout, stderr = yield from process.communicate()
+        rc = yield from process.wait()
 
-        if process.returncode:
-            msg = "NSR/VNFR {} initial config using {} failed with {}". \
+        if rc:
+            msg = "NSR/VNFR {} initial config using {} failed with {}: {}". \
                   format(vnfr_name if vnfr_name else nsr_obj.nsr_name,
-                         script, process.returncode)
+                         script, rc, stderr)
             self._log.error(msg)
             raise InitialConfigError(msg)
-        else:
-            # os.remove(inp_file)
-            pass
+
+        try:
+            os.remove(inp_file)
+        except Exception as e:
+            self._log.debug("Error removing input file {}: {}".
+                            format(inp_file, e))
 
     def get_script_file(self, script_name, d_name, d_id, d_type):
           # Get the full path to the script
@@ -1140,7 +1145,7 @@ class ConfigManagerConfig(object):
                                     script_name)
               self._log.debug("Checking for script at %s", script)
               if not os.path.exists(script):
-                  self._log.debug("Did not find script %s", script)
+                  self._log.warning("Did not find script %s", script)
                   script = os.path.join(os.environ['RIFT_INSTALL'],
                                         'usr/bin',
                                         script_name)
@@ -1150,9 +1155,9 @@ class ConfigManagerConfig(object):
               # to make sure it has execute permission
               perm = os.stat(script).st_mode
               if not (perm  &  stat.S_IXUSR):
-                  self._log.warn("NSR/VNFR {} initial config script {} " \
-                                "without execute permission: {}".
-                                format(d_name, script, perm))
+                  self._log.warning("NSR/VNFR {} initial config script {} " \
+                                    "without execute permission: {}".
+                                    format(d_name, script, perm))
                   os.chmod(script, perm | stat.S_IXUSR)
               return script
 
@@ -1195,8 +1200,8 @@ class ConfigManagerConfig(object):
                     continue
 
                 script = self.get_script_file(conf.user_defined_script,
-                                              vnfd.id,
                                               vnfd.name,
+                                              vnfd.id,
                                               'vnfd')
 
                 yield from self.process_initial_config(nsr_obj,

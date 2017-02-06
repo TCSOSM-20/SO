@@ -251,6 +251,7 @@ class UpdatePackage(downloader.DownloaderProtocol):
             with pkg as temp_package:
                 package_checksums = self.validate_package(temp_package)
                 stored_package = self.update_package(temp_package)
+                self.validate_vnfd_fields(temp_package)
 
                 try:
                     self.extract_charms(temp_package)
@@ -391,6 +392,23 @@ class UpdatePackage(downloader.DownloaderProtocol):
         except rift.package.icon.IconExtractionError as e:
             raise MessageException(UpdateExtractionError()) from e
 
+    def validate_vnfd_fields(self, package):
+        # We can add more VNFD validations here. Currently we are validating only cloud-init
+        if package.descriptor_msg is not None:
+            self.validate_cloud_init_file(package)
+
+    def validate_cloud_init_file(self, package):
+        """ This validation is for VNFDs with associated VDUs. """
+        if 'vdu' in package.descriptor_msg.as_dict():
+            for vdu in package.descriptor_msg.as_dict()['vdu']:
+                if 'cloud_init_file' in vdu:
+                    cloud_init_file = vdu['cloud_init_file']
+                    for file in package.files:
+                        if file.endswith('/' + cloud_init_file) is True:
+                            return
+                    raise MessageException(
+                        OnboardError("Cloud-Init file reference in VNFD does not match with cloud-init file"))
+
     def validate_package(self, package):
         checksum_validator = rift.package.package.PackageChecksumValidator(self.log)
 
@@ -433,6 +451,7 @@ class OnboardPackage(downloader.DownloaderProtocol):
             with pkg as temp_package:
                 package_checksums = self.validate_package(temp_package)
                 stored_package = self.store_package(temp_package)
+                self.validate_vnfd_fields(temp_package)
 
                 try:
                     self.extract_charms(temp_package)
@@ -568,6 +587,23 @@ class OnboardPackage(downloader.DownloaderProtocol):
             icon_extractor.extract_icons(package)
         except rift.package.icon.IconExtractionError as e:
             raise MessageException(OnboardExtractionError()) from e
+
+    def validate_vnfd_fields(self, package):
+        # We can add more VNFD validations here. Currently we are validating only cloud-init
+        if package.descriptor_msg is not None:
+            self.validate_cloud_init_file(package)
+
+    def validate_cloud_init_file(self, package):
+        """ This validation is for VNFDs with associated VDUs. """
+        if 'vdu' in package.descriptor_msg.as_dict():
+            for vdu in package.descriptor_msg.as_dict()['vdu']:
+                if 'cloud_init_file' in vdu:
+                    cloud_init_file = vdu['cloud_init_file']
+                    for file in package.files:
+                        if file.endswith('/' + cloud_init_file) is True:
+                            return
+                    raise MessageException(
+                        OnboardError("Cloud-Init file reference in VNFD does not match with cloud-init file"))
 
     def validate_package(self, package):
         checksum_validator = rift.package.package.PackageChecksumValidator(self.log)

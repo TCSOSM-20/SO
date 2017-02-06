@@ -40,12 +40,6 @@ module mano-types
       "Derived from earlier versions of base YANG files";
   }
 
-  typedef meta-data-type {
-    type enumeration {
-      enum STRING;
-      enum JSON;
-    }
-  }
   typedef package-type {
       description "Type of descriptor being on-boarded";
       type enumeration {
@@ -2116,35 +2110,10 @@ module mano-types
     }
   }
 
-  grouping custom-meta-data {
-    description "Grouping for instance-specific meta data";
-    list custom-meta-data {
-      description
-          "List of meta-data to be associated with the instance";
-      key "name";
-      leaf name {
-        description "Name of the meta-data parameter";
-        type string;
-      }
-
-      leaf data-type {
-        description "Data-type the meta-data parameter";
-        type manotypes:meta-data-type;
-        default "STRING";
-      }
-
-      leaf value {
-        description "Value of the meta-data parameter";
-        type string;
-      }
-    }
-  }
-
   grouping supplemental-boot-data {
     description "Grouping for custom vim data";
     container supplemental-boot-data {
       uses manotypes:config-file;
-      uses manotypes:custom-meta-data;
       leaf boot-data-drive {
         description "Some VIMs implement additional drives to host config-files or meta-data";
         type boolean;
@@ -2184,24 +2153,7 @@ module mano-types
         uses image-properties;
       }
 
-      case volume {
-        leaf volume-ref {
-          description "Reference for pre-existing volume in VIM";
-          type string;
-        }
-      }
     }
-
-    leaf boot-volume {
-      description "This flag indicates if this is boot volume or not";
-      type boolean;
-    }
-
-    leaf boot-priority {
-      description "Boot priority associated with volume";
-      type int32;
-    }
-
 
     leaf device_bus {
       description "Type of disk-bus on which this disk is exposed to guest";
@@ -2223,6 +2175,5 @@ module mano-types
       }
     }
 
-    uses custom-meta-data;
   }
 }

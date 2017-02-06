@@ -245,17 +245,18 @@ class OpenmanoVnfr(object):
 
 class OpenmanoNSRecordState(Enum):
     """ Network Service Record State """
+    # Make sure the values match with NetworkServiceRecordState
     INIT = 101
     INSTANTIATION_PENDING = 102
-    RUNNING = 103
-    SCALING_OUT = 104
-    SCALING_IN = 105
-    TERMINATE = 106
-    TERMINATE_RCVD = 107
-    TERMINATED = 108
-    FAILED = 109
-    VL_INSTANTIATE = 110
-    VL_TERMINATE = 111
+    RUNNING = 106
+    SCALING_OUT = 107
+    SCALING_IN = 108
+    TERMINATE = 109
+    TERMINATE_RCVD = 110
+    TERMINATED = 114
+    FAILED = 115
+    VL_INSTANTIATE = 116
+    VL_TERMINATE = 117
 
 
 class OpenmanoNsr(object):
@@ -428,6 +429,13 @@ class OpenmanoNsr(object):
 
     @asyncio.coroutine
     def remove_vlr(self, vlr):
+        if vlr in self._vlrs:
+            self._vlrs.remove(vlr)
+            yield from self._publisher.unpublish_vlr(None, vlr.vlr_msg)
+        yield from asyncio.sleep(1, loop=self._loop)
+
+    @asyncio.coroutine
+    def delete_vlr(self, vlr):
         if vlr in self._vlrs:
             self._vlrs.remove(vlr)
             if not  vlr.vld_msg.vim_network_name:
@@ -630,6 +638,13 @@ class OpenmanoNsr(object):
                         yield from self._publisher.publish_vnfr(None, vnfr_msg)
                         return
 
+                    if (time.time() - start_time) > OpenmanoNsr.TIMEOUT_SECS:
+                        self._log.error("NSR timed out before reaching running state")
+                        self._state = OpenmanoNSRecordState.FAILED
+                        vnfr_msg.operational_status = "failed"
+                        yield from self._publisher.publish_vnfr(None, vnfr_msg)
+                        return
+
                     if all_vms_active(vnf_status):
                         vnf_ip_address = get_vnf_ip_address(vnf_status)
                         vnf_mac_address = get_vnf_mac_address(vnf_status)
@@ -676,12 +691,6 @@ class OpenmanoNsr(object):
                         yield from self._publisher.publish_vnfr(None, vnfr_msg)
                         active_vnfs.append(vnfr)
 
-                    if (time.time() - start_time) > OpenmanoNsr.TIMEOUT_SECS:
-                        self._log.error("NSR timed out before reaching running state")
-                        self._state = OpenmanoNSRecordState.FAILED
-                        vnfr_msg.operational_status = "failed"
-                        yield from self._publisher.publish_vnfr(None, vnfr_msg)
-                        return
 
                 except Exception as e:
                     vnfr_msg.operational_status = "failed"
@@ -828,7 +837,16 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                 ro_account.openmano.tenant_id,
                 )
 
-    def create_nsr(self, nsr_config_msg, nsd_msg, key_pairs=None, ssh_key=None):
+    def set_state(self, nsr_id, state):
+        # Currently we update only during terminate to
+        # decide how to handle VL terminate
+        if state.value == OpenmanoNSRecordState.TERMINATE.value:
+            self._openmano_nsrs[nsr_id]._state = \
+                [member.value for name, member in \
+                 OpenmanoNSRecordState.__members__.items() \
+                 if member.value == state.value]
+
+    def create_nsr(self, nsr_config_msg, nsd_msg, key_pairs=None):
         """
         Create Network service record
         """
@@ -904,6 +922,7 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         openmano_nsr = self._openmano_nsrs[nsr.id]
         if openmano_nsr._state == OpenmanoNSRecordState.RUNNING:
             yield from openmano_nsr.create_vlr(vlr)
+            yield from self._publisher.publish_vlr(None, vlr.vlr_msg)
         else: 
             yield from openmano_nsr.add_vlr(vlr)
 
@@ -940,6 +959,7 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         """
         self._log.debug("Received terminate VL for VLR {}".format(vlr))
         openmano_nsr = self._openmano_nsrs[vlr._nsr_id]
-        yield from openmano_nsr.remove_vlr(vlr)
-
-
+        if openmano_nsr._state == OpenmanoNSRecordState.RUNNING:
+            yield from openmano_nsr.delete_vlr(vlr)
+        else:
+            yield from openmano_nsr.remove_vlr(vlr)

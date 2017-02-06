@@ -846,7 +846,7 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                  OpenmanoNSRecordState.__members__.items() \
                  if member.value == state.value]
 
-    def create_nsr(self, nsr_config_msg, nsd_msg, key_pairs=None):
+    def create_nsr(self, nsr_config_msg, nsd_msg, key_pairs=None, ssh_key=None):
         """
         Create Network service record
         """

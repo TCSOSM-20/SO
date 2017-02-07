@@ -319,7 +319,7 @@ module vnfd
                 "Use the default management interface on this VDU.";
             leaf vdu-id {
               type leafref {
-                path "/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:vdu/vnfd:id";
+                path "../../vdu/id";
               }
             }
           }
@@ -329,7 +329,7 @@ module vnfd
                 "Use the ip address associated with this connection point.";
             leaf cp {
               type leafref {
-                path "/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:connection-point/vnfd:name";
+                path "../../connection-point/name";
               }
             }
           }

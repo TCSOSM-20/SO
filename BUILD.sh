@@ -195,20 +195,45 @@ if [[ $PLATFORM == ub16 ]]; then
     
     if $installSO; then
 	sudo apt-get install -y \
-	     rw.core.mc-\*=${PLATFORM_VERSION}
+	     rw.core.mano-rwcal_yang_ylib-1.0 \
+	     rw.core.mano-rwconfig_agent_yang_ylib-1.0 \
+	     rw.core.mano-rwlaunchpad_yang_ylib-1.0 \
+	     rw.core.mano-mano_yang_ylib-1.0 \
+	     rw.core.mano-common-1.0 \
+	     rw.core.mano-rwsdn_yang_ylib-1.0 \
+	     rw.core.mano-mano-types_yang_ylib-1.0 \
+	     rw.core.mano-rwcal-cloudsim-1.0 \
+	     rw.core.mano-rwcal-1.0 \
+	     rw.core.mano-rw_conman_yang_ylib-1.0 \
+	     rw.core.mano-rwcalproxytasklet-1.0 \
+	     rw.core.mano-rwlaunchpad-1.0 \
+	     rw.core.mano-rwcal-openmano-vimconnector-1.0 \
+	     rw.core.mano-rwcal-propcloud1-1.0 \
+	     rw.core.mano-lpmocklet_yang_ylib-1.0 \
+	     rw.core.mano-rwmon-1.0 \
+	     rw.core.mano-rwcloud_yang_ylib-1.0 \
+	     rw.core.mano-rwcal-openstack-1.0 \
+	     rw.core.mano-rw.core.mano_foss \
+	     rw.core.mano-rwmon_yang_ylib-1.0 \
+	     rw.core.mano-rwcm-1.0 \
+	     rw.core.mano-rwcal-mock-1.0 \
+	     rw.core.mano-rwmano_examples-1.0 \
+	     rw.core.mano-rwcal-cloudsimproxy-1.0 \
+	     rw.core.mano-models-1.0 \
+	     rw.core.mano-rwcal-aws-1.0
     fi
     
     if $installUI; then
 	sudo apt-get install -y \
-	     rw.ui-about=${PLATFORM_VERSION} \
-	     rw.ui-logging=${PLATFORM_VERSION} \
-	     rw.ui-skyquake=${PLATFORM_VERSION} \
-	     rw.ui-accounts=${PLATFORM_VERSION} \
-	     rw.ui-composer=${PLATFORM_VERSION} \
-	     rw.ui-launchpad=${PLATFORM_VERSION} \
-	     rw.ui-debug=${PLATFORM_VERSION} \
-	     rw.ui-config=${PLATFORM_VERSION} \
-	     rw.ui-dummy_component=${PLATFORM_VERSION}
+	     rw.ui-about \
+	     rw.ui-logging \
+	     rw.ui-skyquake \
+	     rw.ui-accounts \
+	     rw.ui-composer \
+	     rw.ui-launchpad \
+	     rw.ui-debug \
+	     rw.ui-config \
+	     rw.ui-dummy_component
     fi
 elif [[ $PLATFORM == fc20 ]]; then
     

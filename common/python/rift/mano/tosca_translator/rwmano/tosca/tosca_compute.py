@@ -39,7 +39,13 @@ class ToscaCompute(ManoResource):
         'cloud-init-file',]
     IGNORE_PROPS = []
 
-    toscatype = 'tosca.nodes.Compute'
+    toscatype = 'tosca.nodes.nfv.VDU'
+
+    VALUE_TYPE_CONVERSION_MAP =  {
+    'integer': 'INT',
+    'string':'STRING',
+    'float':'DECIMAL'
+    }
 
     def __init__(self, log, nodetemplate, metadata=None):
         super(ToscaCompute, self).__init__(log,
@@ -54,6 +60,8 @@ class ToscaCompute(ManoResource):
         self._vnf = None
         self._yang = None
         self._id = self.name
+        self._monitor_param = []
+        self._mgmt_interface = {}
 
     @property
     def image(self):
@@ -104,6 +112,39 @@ class ToscaCompute(ManoResource):
 
     def handle_capabilities(self):
 
+        def get_mgmt_interface(specs):
+            mgmt_intfce = {}
+            mgmt_intfce['vdu-id'] = self.id
+            if 'dashboard_params' in specs:
+                mgmt_intfce['dashboard-params'] = {'path':specs['dashboard_params']['path'], 'port':specs['dashboard_params']['port']}
+            if 'port' in specs:
+                mgmt_intfce['port'] = specs['port']
+            return mgmt_intfce;
+
+        def get_monitor_param(specs, monitor_id):
+            monitor_param = {}
+            monitor_param['id'] = monitor_id
+            if 'name' in specs:
+                monitor_param['name'] = specs['name']
+            if 'json_query_method' in specs:
+                monitor_param['json_query_method'] = specs['json_query_method'].upper()
+            if 'description' in specs:
+                monitor_param['description'] = specs['description']
+            if 'url_path' in specs:
+                monitor_param['http-endpoint-ref'] = specs['url_path']
+            if 'ui_data' in specs:
+                if 'widget_type' in specs['ui_data']:
+                    monitor_param['widget-type'] = specs['ui_data']['widget_type'].upper()
+                if 'units' in specs['ui_data']:
+                    monitor_param['units'] = specs['ui_data']['units']
+                if 'group_tag' in specs['ui_data']:
+                    monitor_param['group_tag'] = specs['ui_data']['group_tag']
+            if 'constraints' in specs:
+                if 'value_type' in specs['constraints']:
+                    monitor_param['value-type'] = ToscaCompute.VALUE_TYPE_CONVERSION_MAP[specs['constraints']['value_type']]
+
+            return monitor_param
+
         def get_vm_flavor(specs):
             vm_flavor = {}
             if 'num_cpus' in specs:
@@ -125,14 +166,108 @@ class ToscaCompute(ManoResource):
 
             return vm_flavor
 
+        def get_host_epa(specs):
+            host_epa = {}
+            if 'cpu_model' in specs:
+                host_epa["cpu-model"] = specs['cpu_model'].upper()
+            if 'cpu_arch' in specs:
+                host_epa["cpu-arch"] = specs['cpu_arch'].upper()
+            if 'cpu_vendor' in specs:
+                host_epa["cpu-vendor"] = specs['cpu_vendor'].upper()
+            if 'cpu_socket_count' in specs:
+                host_epa["cpu-socket-count"] = specs['cpu_socket_count']
+            if 'cpu_core_count' in specs:
+                host_epa["cpu-core-count"] = specs['cpu_core_count']
+            if 'cpu_core_thread_count' in specs:
+                host_epa["cpu-core-thread-count"] = specs['cpu_core_thread_count']
+            if 'om_cpu_model_string' in specs:
+                host_epa["om-cpu-model-string"] = specs['om_cpu_model_string']
+            if 'cpu_feature' in specs:
+                cpu_feature_prop = []
+                for spec in specs['cpu_feature']:
+                    cpu_feature_prop.append({'feature':spec.upper()})
+                host_epa['cpu-feature'] = cpu_feature_prop
+            if 'om_cpu_feature' in specs:
+                cpu_feature_prop = []
+                for spec in specs['om_cpu_feature']:
+                    cpu_feature_prop.append({'feature':spec})
+                host_epa['om-cpu-feature'] = cpu_feature_prop
+            return host_epa;
+
+        def get_vswitch_epa(specs):
+            vswitch_epa = {}
+            if 'ovs_acceleration' in specs:
+                vswitch_epa['ovs-acceleration'] = specs['ovs_acceleration'].upper()
+            if 'ovs_offload' in specs:
+                vswitch_epa['ovs-offload'] = specs['ovs_offload'].upper()
+            return vswitch_epa
+
+        def get_hypervisor_epa(specs):
+            hypervisor_epa = {}
+            if 'type' in specs:
+                hypervisor_epa['type'] = specs['type'].upper()
+            if 'version' in specs:
+                hypervisor_epa['version'] = specs['version']
+
+            return hypervisor_epa
+
+        def get_guest_epa(specs):
+            guest_epa = {}
+            guest_epa['numa-node-policy'] = {}
+            guest_epa['numa-node-policy']['node'] = []
+            if 'mem_policy' in specs:
+                guest_epa['numa-node-policy']['mem-policy'] = specs['mem_policy'].upper()
+            if 'node_cnt' in specs:
+                guest_epa['numa-node-policy']['node-cnt'] = specs['node_cnt']
+            if 'node' in specs:
+                for node in specs['node']:
+                    node_prop = {}
+                    if 'id' in node:
+                            node_prop['id'] = node['id']
+                    if 'mem_size' in node:
+                        if 'MiB' in node['mem_size'] or 'MB' in node['mem_size']:
+                            node_prop['memory-mb'] = int(node['mem_size'].replace('MB',''))
+                        else:
+                            err_msg = "Specify mem_size of NUMA extension should be in MB"
+                            raise ValidationError(message=err_msg)
+                    if 'om_numa_type' in node:
+                        numa_type = node['om_numa_type']
+                        if 'paired-threads' == numa_type:
+                            node_prop['paired_threads'] = {}
+                            node_prop['paired_threads']['num_paired_threads'] = node['paired_threads']['num_paired_threads']
+                        elif 'threads' == numa_type:
+                            if 'num_threads' in node:
+                                node_prop['num_threads'] = node['num_threads']
+                        elif 'cores' == numa_type:
+                            if 'num_cores' in node:
+                                node_prop['num_cores'] = node['num_cores']
+                        else:
+                            err_msg = "om_numa_type should be among cores, paired-threads or threads"
+                            raise ValidationError(message=err_msg)
+                    guest_epa['numa-node-policy']['node'].append(node_prop)
+            return guest_epa
+
         tosca_caps = self.get_tosca_caps()
         self.log.debug(_("VDU {0} tosca capabilites: {1}").
                        format(self.name, tosca_caps))
-
-        if 'host' in tosca_caps:
-            self.properties['vm-flavor'] = get_vm_flavor(tosca_caps['host'])
+        if 'nfv_compute' in tosca_caps:
+            self.properties['vm-flavor'] = get_vm_flavor(tosca_caps['nfv_compute'])
             self.log.debug(_("VDU {0} properties: {1}").
                            format(self.name, self.properties))
+        if 'host_epa' in tosca_caps:
+            self.properties['host-epa'] = get_host_epa(tosca_caps['host_epa'])
+        if 'hypervisor_epa' in tosca_caps:
+            self.properties['hypervisor-epa'] = get_hypervisor_epa(tosca_caps['hypervisor_epa'])
+        if 'vswitch_epa' in tosca_caps:
+            self.properties['vswitch-epa'] = get_vswitch_epa(tosca_caps['vswitch_epa'])
+        if 'numa_extension' in tosca_caps:
+            self.properties['guest-epa'] = get_guest_epa(tosca_caps['numa_extension'])
+        if 'monitoring_param' in tosca_caps:
+            self._monitor_param.append(get_monitor_param(tosca_caps['monitoring_param'], '1'))
+        if 'monitoring_param_1' in tosca_caps:
+            self._monitor_param.append(get_monitor_param(tosca_caps['monitoring_param_1'], '2'))
+        if 'mgmt_interface' in tosca_caps:
+            self._mgmt_interface = get_mgmt_interface(tosca_caps['mgmt_interface'])
 
     def handle_artifacts(self):
         if self.artifacts is None:
@@ -145,20 +280,18 @@ class ToscaCompute(ManoResource):
             if isinstance(props, dict):
                 details = {}
                 for name, value in props.items():
-                    if name == 'type':
+                    if name == 'type' and value == 'tosca.artifacts.Deployment.Image.riftio.QCOW2':
                         prefix, type_ = value.rsplit('.', 1)
                         if type_ == 'QCOW2':
                             details['type'] = 'qcow2'
-                        else:
-                            err_msg = _("VDU {0}, Currently only QCOW2 images "
-                                        "are supported in artifacts ({1}:{2})"). \
-                                        format(self.name, key, value)
-                            self.log.error(err_msg)
-                            raise ValidationError(message=err_msg)
+                            self.properties['image'] = os.path.basename(props['file'])
+                    elif name == 'type' and value == 'tosca.artifacts.Deployment.riftio.cloud_init_file':
+                        details['cloud_init_file'] = os.path.basename(props['file'])
+                        self.properties['cloud_init_file'] = os.path.basename(props['file'])
                     elif name == 'file':
                         details['file'] = value
                     elif name == 'image_checksum':
-                        details['image_checksum'] = value
+                        self.properties['image_checksum'] = value
                     else:
                         self.log.warn(_("VDU {0}, unsuported attribute {1}").
                                       format(self.name, name))
@@ -249,7 +382,13 @@ class ToscaCompute(ManoResource):
             return None
         self._update_properties_for_model()
         props = convert_keys_to_python(self.properties)
+
+        for monitor_param in self._monitor_param:
+            monitor_props = convert_keys_to_python(monitor_param)
+            vnfd.monitoring_param.add().from_dict(monitor_props)
         try:
+            if len(self._mgmt_interface) > 0:
+                vnfd.mgmt_interface.from_dict(convert_keys_to_python(self._mgmt_interface))
             vnfd.vdu.add().from_dict(props)
         except Exception as e:
             err_msg = _("{0} Exception vdu from dict {1}: {2}"). \

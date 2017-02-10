@@ -1148,7 +1148,7 @@ module mano-types
         type string;
       }
 
-      leaf polling_interval_secs {
+      leaf polling-interval-secs {
         description "The HTTP polling interval in seconds";
         type uint8;
         default 2;

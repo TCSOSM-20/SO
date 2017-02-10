@@ -117,7 +117,8 @@ class YangVnfd(ToscaResource):
                 http_ep = {'protocol': 'http'}  # Required for TOSCA
                 http_ep[self.PATH] = ep.pop(self.PATH)
                 http_ep[self.PORT] = ep.pop(self.PORT)
-                http_ep[self.POLL_INTVL] = ep.pop(self.POLL_INTVL_SECS)
+                if self.POLL_INTVL in http_ep:
+                    http_ep[self.POLL_INTVL] = ep.pop(self.POLL_INTVL_SECS)
                 if len(ep):
                     self.log.warn(_("{0}, Did not process the following for "
                                     "http ep {1}").format(self, ep))

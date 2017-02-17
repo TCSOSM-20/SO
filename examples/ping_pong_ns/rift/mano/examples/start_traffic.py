@@ -41,10 +41,11 @@ def start_traffic(yaml_cfg, logger):
                        vnf_type=vnf_type)
 
         logger.debug("Executing cmd: %s", curl_cmd)
-        proc = subprocess.run(curl_cmd, shell=True,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
+        proc = subprocess.Popen(curl_cmd, shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
 
+        proc.wait()
         logger.debug("Process: {}".format(proc))
 
         return proc.returncode

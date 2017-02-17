@@ -50,9 +50,11 @@ def ping_rate(yaml_cfg, logger):
               rate=rate)
 
     logger.debug("Executing cmd: %s", cmd)
-    proc = subprocess.run(cmd, shell=True,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
+    proc = subprocess.Popen(cmd, shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+
+    proc.wait()
 
     logger.debug("Process: {}".format(proc))
 

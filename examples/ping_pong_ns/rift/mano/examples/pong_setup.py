@@ -62,15 +62,16 @@ def pong_setup(yaml_cfg, logger):
 
     while True:
         count += 1
-        proc = subprocess.run(config_cmd, shell=True,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
+        proc = subprocess.Popen(config_cmd, shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
 
+        proc.wait()
         logger.debug("Process: {}".format(proc))
 
         if proc.returncode == 0:
             # Check if response is 200 OK
-            resp = proc.stdout.decode()
+            resp = proc.stdout.read().decode()
             if 'HTTP/1.1 200 OK' in resp:
                 rc = 0
                 break

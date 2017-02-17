@@ -51,17 +51,18 @@ def pong_start_stop(yaml_cfg, logger):
               start=start)
 
     logger.debug("Executing cmd: %s", cmd)
-    proc = subprocess.run(cmd, shell=True,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
+    proc = subprocess.Popen(cmd, shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
 
+    proc.wait()
     logger.debug("Process: {}".format(proc))
 
     rc = proc.returncode
 
     if rc == 0:
         # Check if we got 200 OK
-        resp = proc.stdout.decode()
+        resp = proc.stdout.read().decode()
         if 'HTTP/1.1 200 OK' not in resp:
             self._log.error("Got error response: {}".format(resp))
             rc = 1

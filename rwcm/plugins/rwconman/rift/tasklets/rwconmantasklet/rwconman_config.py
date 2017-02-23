@@ -1216,9 +1216,11 @@ class ConfigManagerConfig(object):
                                               vnfd.name,
                                               'vnfd')
 
-            except KeyError as e:
-                self._log.debug("Did not find initial config: {}".
-                                format(e))
+                yield from self.process_initial_config(nsr_obj,
+                                                       conf.as_dict(),
+                                                       script,
+                                                       vnfr_name=vnfr_name)
+
 
 
 class ConfigManagerNSR(object):

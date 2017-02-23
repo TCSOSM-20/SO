@@ -75,14 +75,14 @@ def pong_setup(yaml_cfg, logger):
             if 'HTTP/1.1 200 OK' in resp:
                 rc = 0
                 break
-            self._log.error("Got error response: {}".format(resp))
+            logger.error("Got error response: {}".format(resp))
             rc = 1
             break
 
         elif proc.returncode == 7:
             # Connection timeout
             if count >= max_tries:
-                self._log.error("Connect failed for {}. Failing".format(count))
+                logger.error("Connect failed for {}. Failing".format(count))
                 rc = 7
                 break
             # Try after delay

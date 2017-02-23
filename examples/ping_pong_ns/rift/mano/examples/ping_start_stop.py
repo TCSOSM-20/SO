@@ -64,7 +64,7 @@ def ping_start_stop(yaml_cfg, logger):
         # Check if we got 200 OK
         resp = proc.stdout.read().decode()
         if 'HTTP/1.1 200 OK' not in resp:
-            self._log.error("Got error response: {}".format(resp))
+            logger.error("Got error response: {}".format(resp))
             rc = 1
 
     return rc

@@ -729,16 +729,6 @@ class VirtualNetworkFunction(ManoDescriptor):
                     else:
                         self.add_ping_config()
 
-            # Add VNF access point
-            if use_vca_conf:
-                self.add_vnf_access_point(mano_ut=mano_ut)
-                if 'pong_' in self.name:
-                    self.add_pong_config(mano_ut=mano_ut,
-                                         use_ns_init_conf=use_ns_init_conf)
-                else:
-                    self.add_ping_config(mano_ut=mano_ut,
-                                         use_ns_init_conf=use_ns_init_conf)
-
             # sepcify the guest EPA
             if use_epa:
                 vdu.guest_epa.trusted_execution = False

@@ -675,8 +675,6 @@ module vnfd
       key "id";
 
       uses vnfd-descriptor;
-
-      uses vnf-access-point;
     }
   }
 }

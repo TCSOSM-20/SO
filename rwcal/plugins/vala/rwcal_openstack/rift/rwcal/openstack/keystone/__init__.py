@@ -1,6 +1,6 @@
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -15,9 +15,7 @@
 #   limitations under the License.
 #
 
-from .openstack_drv import (
-    OpenstackDriver,
-    ValidationError
+from .keystone_drv import (
+    KeystoneDriver,
+    KeystoneVersionDiscover
 )
-
-

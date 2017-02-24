@@ -354,16 +354,17 @@ def main():
         logger.error("fork failed: %d (%s)\n" % (e.errno, e.strerror))
         sys.exit(2)
 
+    kwargs = dict(username = argument.username,
+                  password = argument.password,
+                  auth_url = argument.auth_url,
+                  project =  argument.tenant_name,
+                  mgmt_network = argument.mgmt_network,
+                  cert_validate = False,
+                  user_domain = argument.user_domain,
+                  project_domain = argument.project_domain,
+                  region = argument.region)
 
-    drv = openstack_drv.OpenstackDriver(username            = argument.username,
-                                        password            = argument.password,
-                                        auth_url            = argument.auth_url,
-                                        tenant_name         = argument.tenant_name,
-                                        mgmt_network        = argument.mgmt_network,
-                                        user_domain_name    = argument.user_domain,
-                                        project_domain_name = argument.project_domain,
-                                        region              = argument.region)
-    
+    drv = openstack_drv.OpenstackDriver(logger = logger, **kwargs)
     prepare_vm_after_boot(drv, argument)
     sys.exit(0)
     

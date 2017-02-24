@@ -23,6 +23,7 @@ import sys
 import rift.auto.log
 import rift.auto.session
 import rift.vcs.vcs
+import rift.rwcal.openstack
 import logging
 
 import gi
@@ -129,3 +130,22 @@ def cloud_account(cloud_accounts):
     '''
     return cloud_accounts[0]
 
+@pytest.fixture(scope='class')
+def openstack_client(cloud_host, cloud_user, cloud_tenant):
+    """Fixture which returns a session to openstack host.
+
+    Returns:
+        Session to an openstack host.
+    """
+    password = 'mypasswd'
+    auth_url = 'http://{cloud_host}:5000/v3/'.format(cloud_host=cloud_host)
+    mgmt_network = os.getenv('MGMT_NETWORK', 'private')
+    return rift.rwcal.openstack.OpenstackDriver(**{'username': cloud_user,
+                                                   'password': password,
+                                                   'auth_url': auth_url,
+                                                   'project' : cloud_tenant,
+                                                   'mgmt_network': mgmt_network,
+                                                   'cert_validate': False,
+                                                   'user_domain': 'Default',
+                                                   'project_domain':'Default',
+                                                   'region': 'RegionOne'})

@@ -341,6 +341,25 @@ def cloud_init(rift_vnfd_id, vdu):
     logger.debug("Current cloud init msg is {}".format(cloud_init_msg))
     return cloud_init_msg
 
+def config_file_init(rift_vnfd_id, vdu, cfg_file):
+    """ Populate config file init with file provided
+    """
+    vnfd_package_store = rift.package.store.VnfdPackageFilesystemStore(logger)
+
+    # Get script contents from the file provided in the cloud_init directory
+    logger.debug("config file script provided in file {}".format(cfg_file))
+    filename = cfg_file
+    vnfd_package_store.refresh()
+    stored_package = vnfd_package_store.get_package(rift_vnfd_id)
+    cloud_init_extractor = rift.package.cloud_init.PackageCloudInitExtractor(logger)
+    try:
+            cfg_file_msg = cloud_init_extractor.read_script(stored_package, filename)
+    except rift.package.cloud_init.CloudInitExtractionError as e:
+            raise ValueError(e)
+
+    logger.debug("Current config file msg is {}".format(cfg_file_msg))
+    return cfg_file_msg
+
 def rift2openmano_vnfd(rift_vnfd, rift_nsd):
     openmano_vnf = {"vnf":{}}
     vnf = openmano_vnf["vnf"]
@@ -539,6 +558,14 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                         vnfc['boot-data'] = dict()
                         vnfc_boot_data_init = True
                     vnfc['boot-data']['boot-data-drive'] = vdu.supplemental_boot_data.boot_data_drive
+
+            if vdu.supplemental_boot_data.has_field('config_file'):
+                om_cfgfile_list = list()
+                for custom_config_file in vdu.supplemental_boot_data.config_file:
+                    cfg_source = config_file_init(rift_vnfd.id, vdu, custom_config_file.source)
+                    om_cfgfile_list.append({"dest":custom_config_file.dest, "content": cfg_source})
+                vnfc['boot-data']['config-files'] = om_cfgfile_list
+ 
 
         vnf["VNFC"].append(vnfc)
 

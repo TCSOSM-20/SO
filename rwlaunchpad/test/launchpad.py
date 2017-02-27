@@ -445,7 +445,7 @@ class Demo(rift.vcs.demo.Demo):
         restart_procs = [
               VnfmTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               VnsTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              MonitorTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
+              # MonitorTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               MonitoringParameterTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               NsmTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               ResMgrTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),

@@ -49,6 +49,7 @@ class ToscaNetwork(ManoResource):
             vld_prop['name'] = self.name
             vld_prop['short-name'] = self.name
             vld_prop['type'] = self.get_type()
+            vld_prop['ip_profile_ref'] = "{0}_{1}".format(self.nodetemplate.name, "ip")
             if 'description' in specs:
                 vld_prop['description'] = specs['description']
             if 'vendor' in specs:
@@ -63,13 +64,13 @@ class ToscaNetwork(ManoResource):
                         for mapping in substitution_mapping_list:
                             if req_key in mapping:
                                 # link the VLD to the connection point
-                                node = self.get_node_with_name(mapping[req_key][0], nodes)
+                                node_vld = self.get_node_with_name(mapping[req_key][0], nodes)
                                 if node:
                                     #print()
                                     prop = {}
-                                    prop['member-vnf-index-ref'] = index_count
-                                    prop['vnfd-connection-point-ref'] = node.cp_name
-                                    prop['vnfd-id-ref'] = node.vnf._id
+                                    prop['member-vnf-index-ref'] = node.get_member_vnf_index()
+                                    prop['vnfd-connection-point-ref'] = node_vld.cp_name
+                                    prop['vnfd-id-ref'] = node_vld.vnf._id
                                     vld_connection_point_list.append(prop)
                                     index_count += 1
                 if len(vld_connection_point_list) > 1:
@@ -79,10 +80,8 @@ class ToscaNetwork(ManoResource):
         def get_ip_profile_props(specs):
             ip_profile_prop = {}
             ip_profile_param = {}
-            if 'name' in specs:
-                ip_profile_prop['name'] = specs['name']
-            elif 'description' in specs:
-                ip_profile_prop['name'] = specs['description']
+            if 'ip_profile_ref' in self._vld:
+                ip_profile_prop['name'] = self._vld['ip_profile_ref']
 
             if 'description' in specs:
                 ip_profile_prop['description'] = specs['description']

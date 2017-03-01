@@ -49,7 +49,8 @@ class YangNsd(ToscaResource):
                  log,
                  name,
                  type_,
-                 yang):
+                 yang,
+                 vnfd_files):
         super(YangNsd, self).__init__(log,
                                       name,
                                       type_,
@@ -57,10 +58,16 @@ class YangNsd(ToscaResource):
         self.props = {}
         self.inputs = []
         self.vnfds = {}
-        self.vlds = []
+        self.vlds = {}
         self.conf_prims = []
         self.scale_grps = []
         self.initial_cfg = []
+        self.placement_groups = []
+        self.vnf_id_to_vnf_map = {}
+        self.vnfd_files = vnfd_files
+        self.vld_to_vnf_map = {}
+        self.vnf_to_vld_map = {}
+        self._vnf_vld_conn_point_map = {}
 
     def handle_yang(self, vnfds):
         self.log.debug(_("Process NSD desc {0}: {1}").
@@ -85,6 +92,7 @@ class YangNsd(ToscaResource):
             vnfd_id = cvnfd.pop(self.VNFD_ID_REF)
             for vnfd in vnfds:
                 if vnfd.type == self.VNFD and vnfd.id == vnfd_id:
+                    self.vnf_id_to_vnf_map[vnfd_id] = vnfd.name
                     self.vnfds[cvnfd.pop(self.MEM_VNF_INDEX)] = vnfd
                     if self.START_BY_DFLT in cvnfd:
                         vnfd.props[self.START_BY_DFLT] = \
@@ -160,7 +168,82 @@ class YangNsd(ToscaResource):
                 self.log.warn(_("{0}, Did not process all fields for {1}").
                               format(self, dic))
             self.log.debug(_("{0}, Initial config {1}").format(self, icp))
-            self.initial_cfg.append(icp)
+            self.initial_cfg.append({self.PROPERTIES : icp})
+
+        def process_vld(vld, dic):
+            vld_conf = {}
+            vld_prop = {}
+            ip_profile_vld = None
+            vld_name = None
+            if 'ip_profile_ref' in vld:
+                ip_profile_name  = vld['ip_profile_ref']
+                if 'ip_profiles' in dic:
+                    for ip_prof in dic['ip_profiles']:
+                        if ip_profile_name == ip_prof['name']:
+                            ip_profile_vld = ip_prof
+            if 'name' in vld:
+                vld_name = vld['name']
+            if 'description' in vld:
+                vld_conf['description'] = vld['description']
+            if 'vendor' in vld:
+                vld_conf['vendor'] = vld['vendor']
+            if ip_profile_vld:
+                if 'ip_profile_params' in ip_profile_vld:
+                    ip_param = ip_profile_vld['ip_profile_params']
+                    if 'gateway_address' in ip_param:
+                        vld_conf['gateway_ip'] = ip_param['gateway_address']
+                    if 'subnet_address' in ip_param:
+                        vld_conf['cidr'] = ip_param['subnet_address']
+                    if 'ip_version' in ip_param:
+                        vld_conf['ip_version'] = ip_param['ip_version'].replace('ipv','')
+
+            if vld_name:
+                vld_prop = {vld_name :
+                {
+                 'type': self.T_ELAN,
+                 self.PROPERTIES : vld_conf
+                }}
+                self.vlds[vld_name] = { 'type': self.T_ELAN,
+                                         self.PROPERTIES : vld_conf
+                                        }
+
+                self.vld_to_vnf_map[vld_name] = []
+                if 'vnfd_connection_point_ref' in vld:
+                    for vnfd_ref in vld['vnfd_connection_point_ref']:
+                        vnf_name = self.vnf_id_to_vnf_map[vnfd_ref['vnfd_id_ref']]
+                        if vnf_name in self.vnf_to_vld_map:
+                            self.vnf_to_vld_map[vnf_name].append(vld_name)
+                            self._vnf_vld_conn_point_map[vnf_name].\
+                            append((vld_name ,vnfd_ref['vnfd_connection_point_ref']))
+                        else:
+                            self.vnf_to_vld_map[vnf_name] = []
+                            self._vnf_vld_conn_point_map[vnf_name] = []
+                            self.vnf_to_vld_map[vnf_name].append(vld_name)
+                            self._vnf_vld_conn_point_map[vnf_name].\
+                            append((vld_name ,vnfd_ref['vnfd_connection_point_ref']))
+
+        def process_placement_group(placement_groups):
+            for i in range(0, len(placement_groups)):
+                placement_group = placement_groups[i]
+                pg_name = "placement_{0}".format(i)
+                pg_config = {}
+                targets = []
+                if 'name' in placement_group:
+                    pg_config['name'] = placement_group['name']
+                if 'requirement' in placement_group:
+                    pg_config['requirement'] = placement_group['requirement']
+                if 'strategy' in placement_group:
+                    pg_config['strategy'] = placement_group['strategy']
+                if 'member_vnfd' in placement_group:
+                    for member_vnfd in placement_group['member_vnfd']:
+                        targets.append(self.vnf_id_to_vnf_map[member_vnfd['vnfd_id_ref']])
+                placement = { pg_name : {
+                                'type': self.T_PLACEMENT,
+                                self.PROPERTIES: pg_config,
+                                self.TARGETS   :  str(targets)
+                                }
+                            }
+                self.placement_groups.append(placement)
 
         dic = deepcopy(self.yang)
         try:
@@ -177,10 +260,8 @@ class YangNsd(ToscaResource):
             # Process VLDs
             if self.VLD in dic:
                 for vld_dic in dic.pop(self.VLD):
-                    vld = YangVld(self.log, vld_dic.pop(self.NAME),
-                                  self.VLD, vld_dic)
-                    vld.process_vld(self.vnfds)
-                    self.vlds.append(vld)
+                    process_vld(vld_dic, dic)
+                    #self.vlds.append(vld)
 
             # Process config primitives
             if self.CONF_PRIM in dic:
@@ -212,6 +293,10 @@ class YangNsd(ToscaResource):
                 for param in dic.pop(self.INPUT_PARAM_XPATH):
                     process_input_param(param)
 
+            if 'placement_groups' in dic:
+                process_placement_group(dic['placement_groups'])
+
+
             self.remove_ignored_fields(dic)
             if len(dic):
                 self.log.warn(_("{0}, Did not process the following for "
@@ -226,13 +311,14 @@ class YangNsd(ToscaResource):
             raise ValidationError(message=err_msg)
 
     def generate_tosca_type(self):
+
         self.log.debug(_("{0} Generate tosa types").
                        format(self))
 
         tosca = {}
-        tosca[self.DATA_TYPES] = {}
-        tosca[self.NODE_TYPES] = {}
-
+        #tosca[self.DATA_TYPES] = {}
+        #tosca[self.NODE_TYPES] = {}
+        return tosca
         for idx, vnfd in self.vnfds.items():
             tosca = vnfd.generate_tosca_type(tosca)
 
@@ -287,20 +373,25 @@ class YangNsd(ToscaResource):
     def generate_tosca_template(self, tosca):
         self.log.debug(_("{0}, Generate tosca template").
                        format(self, tosca))
-
         # Add the standard entries
         tosca['tosca_definitions_version'] = \
-                                    'tosca_simple_profile_for_nfv_1_0_0'
+                                    'tosca_simple_profile_for_nfv_1_0'
         tosca[self.DESC] = self.props[self.DESC]
         tosca[self.METADATA] = {
             'ID': self.name,
             self.VENDOR: self.props[self.VENDOR],
             self.VERSION: self.props[self.VERSION],
         }
+        if len(self.vnfd_files) > 0:
+            tosca[self.IMPORT] = []
+            imports = []
+            for vnfd_file in self.vnfd_files:
+                tosca[self.IMPORT].append('"{0}.yaml"'.format(vnfd_file))
 
         tosca[self.TOPOLOGY_TMPL] = {}
 
         # Add input params
+        '''
         if len(self.inputs):
             if self.INPUTS not in tosca[self.TOPOLOGY_TMPL]:
                 tosca[self.TOPOLOGY_TMPL][self.INPUTS] = {}
@@ -309,15 +400,38 @@ class YangNsd(ToscaResource):
                                           self.DESC:
                                           'Translated from YANG'}}
                 tosca[self.TOPOLOGY_TMPL][self.INPUTS] = entry
-
+        '''
         tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL] = {}
 
         # Add the VNFDs and VLDs
         for idx, vnfd in self.vnfds.items():
-            vnfd.generate_vnf_template(tosca, idx)
+            #vnfd.generate_vnf_template(tosca, idx)
+            node = {
+              'type' : vnfd.vnf_type,
+              self.PROPERTIES : {
+                self.ID : idx,
+                self.VENDOR : self.props[self.VENDOR],
+                self.VERSION : self.props[self.VERSION]
+              }
+            }
+            if vnfd.name in self.vnf_to_vld_map:
+                vld_list = self.vnf_to_vld_map[vnfd.name]
+                node[self.REQUIREMENTS] = []
+                for vld_idx in range(0, len(vld_list)):
+                    vld_link_name = "{0}{1}".format("virtualLink", vld_idx + 1)
+                    vld_prop = {}
+                    vld_prop[vld_link_name] = vld_list[vld_idx]
+                    node[self.REQUIREMENTS].append(vld_prop)
+                    if vnfd.name in self._vnf_vld_conn_point_map:
+                        vnf_vld_list = self._vnf_vld_conn_point_map[vnfd.name]
+                        for vnf_vld in vnf_vld_list:
+                            vnfd.generate_vld_link(vld_link_name, vnf_vld[1])
 
-        for vld in self.vlds:
-            vld.generate_tosca_template(tosca)
+
+            tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vnfd.name] = node
+
+        for vld_node_name in self.vlds:
+            tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vld_node_name] = self.vlds[vld_node_name]
 
         # add the config primitives
         if len(self.conf_prims):
@@ -361,33 +475,38 @@ class YangNsd(ToscaResource):
                 tosca[self.TOPOLOGY_TMPL][self.POLICIES] = []
 
             for icp in self.initial_cfg:
-                icpt = {
-                    self.TYPE: self.T_INITIAL_CFG,
-                }
-                icpt.update(icp)
-                tosca[self.TOPOLOGY_TMPL][self.POLICIES].append({
-                    self.INITIAL_CFG: icpt
-                })
+                if len(tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL]) > 0:
+                    node_name = list(tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL].keys())[0]
+                    icpt = {
+                        self.TYPE: self.T_INITIAL_CFG,
+                        self.TARGETS : "[{0}]".format(node_name)
+                    }
+                    icpt.update(icp)
+                    tosca[self.TOPOLOGY_TMPL][self.POLICIES].append({
+                        self.INITIAL_CFG: icpt
+                    })
+
+        if len(self.placement_groups) > 0:
+            if self.POLICIES not in tosca[self.TOPOLOGY_TMPL]:
+                tosca[self.TOPOLOGY_TMPL][self.POLICIES] = []
+
+            for placment_group in self.placement_groups:
+                tosca[self.TOPOLOGY_TMPL][self.POLICIES].append(placment_group)
 
         return tosca
 
     def get_supporting_files(self):
         files = []
-
-        for vnfd in self.vnfds.values():
-            f = vnfd.get_supporting_files()
-            if f and len(f):
-                files.extend(f)
-
         # Get the config files for initial config
         for icp in self.initial_cfg:
-            if self.USER_DEF_SCRIPT in icp:
-                script = os.path.basename(icp[self.USER_DEF_SCRIPT])
-                files.append({
-                    self.TYPE: 'script',
-                    self.NAME: script,
-                    self.DEST: "{}/{}".format(self.SCRIPT_DIR, script),
-                })
+            if 'properties' in icp:
+                if 'user_defined_script' in icp['properties']:
+                    script = os.path.basename(icp['properties']['user_defined_script'])
+                    files.append({
+                        self.TYPE: 'script',
+                        self.NAME: script,
+                        self.DEST: "{}/{}".format(self.SCRIPT_DIR, script),
+                    })
 
         # TODO (pjoseph): Add support for config scripts,
         # charms, etc

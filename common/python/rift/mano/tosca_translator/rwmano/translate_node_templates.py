@@ -23,6 +23,7 @@ from rift.mano.tosca_translator.common.exception import ToscaClassImportError
 from rift.mano.tosca_translator.common.exception import ToscaModImportError
 from rift.mano.tosca_translator.conf.config import ConfigProvider as translatorConfig
 from rift.mano.tosca_translator.rwmano.syntax.mano_resource import ManoResource
+from toscaparser.tosca_template import ToscaTemplate
 
 
 class TranslateNodeTemplates(object):
@@ -197,6 +198,7 @@ class TranslateNodeTemplates(object):
         vnf_type_substitution_mapping               = {}
         vnf_type_to_capability_substitution_mapping = {}
         tpl = self.tosca.tpl['topology_template']['node_templates']
+        associated_vnfd_flag = False
 
         for node in self.nodetemplates:
             all_node_templates.append(node)
@@ -214,6 +216,7 @@ class TranslateNodeTemplates(object):
             vnf_type_to_capability_substitution_mapping[vnf_type] = []
             vnf_type_to_capability_substitution_mapping[vnf_type] = []
             policies                                              = []
+
             for node in template.nodetemplates:
                 all_node_templates.append(node)
             for node_key in tpl_node:
@@ -226,10 +229,11 @@ class TranslateNodeTemplates(object):
                 policies.append(policy.name)
             for req in template.substitution_mappings.requirements:
                 vnf_type_substitution_mapping[template.substitution_mappings.node_type].append(req)
-            for capability in template.substitution_mappings.capabilities:
-                sub_list = template.substitution_mappings.capabilities[capability]
-                if len(sub_list) > 0:
-                    vnf_type_to_capability_substitution_mapping[vnf_type].append({capability: sub_list[0]})
+            if template.substitution_mappings.capabilities:
+                for capability in template.substitution_mappings.capabilities:
+                    sub_list = template.substitution_mappings.capabilities[capability]
+                    if len(sub_list) > 0:
+                        vnf_type_to_capability_substitution_mapping[vnf_type].append({capability: sub_list[0]})
 
         for node in all_node_templates:
             base_type = ManoResource.get_base_type(node.type_definition)
@@ -245,10 +249,35 @@ class TranslateNodeTemplates(object):
                             metadata=self.metadata)
             # Currently tosca-parser does not add the artifacts
             # to the node
+            if mano_node.type == 'vnfd':
+                associated_vnfd_flag = True
             if mano_node.name in node_to_artifact_map:
                 mano_node.artifacts = node_to_artifact_map[mano_node.name]
             self.mano_resources.append(mano_node)
             self.mano_lookup[node] = mano_node
+
+        if not associated_vnfd_flag:
+            dummy_file = "{0}{1}".format(os.getenv('RIFT_INSTALL'), "/usr/rift/mano/common/dummy_vnf_node.yaml")
+            tosca_vnf = ToscaTemplate(dummy_file, {}, True)
+            vnf_type = self.tosca.topology_template.substitution_mappings.node_type
+            vnf_type_to_vdus_map[vnf_type] = []
+
+            for node in tosca_vnf.nodetemplates:
+                all_node_templates.append(node)
+                base_type = ManoResource.get_base_type(node.type_definition)
+                vnf_type_to_vnf_node[vnf_type] = node.name
+                mano_node = TranslateNodeTemplates. \
+                        TOSCA_TO_MANO_TYPE[base_type.type](
+                            self.log,
+                            node,
+                            metadata=self.metadata)
+                mano_node.vnf_type = vnf_type
+                self.mano_resources.append(mano_node)
+                print("Adding a new node")
+
+            for node in self.tosca.nodetemplates:
+                if 'VDU' in node.type:
+                    vnf_type_to_vdus_map[vnf_type].append(node.name)
 
         # The parser currently do not generate the objects for groups
         for group in self.tosca.topology_template.groups:

@@ -17,7 +17,7 @@ from rift.mano.yang_translator.common.utils import _
 
 
 class ToscaResource(object):
-    '''Base class for YANG node type translation to RIFT.io TOSCA type.'''
+    '''Base class for YANG node type translation to RIFT.io SUBSTITUTION_MAPPINGtype.'''
 
     # Used when creating the resource, so keeping separate
     # from REQUIRED_FIELDS below
@@ -26,8 +26,10 @@ class ToscaResource(object):
     REQUIRED_FIELDS = (DESC, VERSION, VENDOR, ID) = \
                       ('description', 'version', 'vendor', 'id')
 
-    COMMON_FIELDS = (PATH, PORT, HOST, XPATH, TYPE, COUNT, FILE) = \
-                    ('path', 'port', 'host', 'xpath', 'type', 'count', 'file')
+    COMMON_FIELDS = (PATH, PORT, HOST, XPATH, TYPE, COUNT, FILE, 
+                    NFV_COMPUTE, HOST_EPA, VSWITCH_EPA, HYPERVISOR_EPA, GUEST_EPA) = \
+                    ('path', 'port', 'host', 'xpath', 'type', 'count', 'file', 'nfv_compute', 
+                     'host_epa', 'vswitch_epa', 'hypervisor_epa', 'guest_epa')
 
     IGNORE_FIELDS = ['short_name']
 
@@ -66,17 +68,17 @@ class ToscaResource(object):
                  GROUP_TYPES, POLICY_TYPES, REQUIREMENTS,
                  ARTIFACTS, PROPERTIES, INTERFACES,
                  CAPABILITIES, RELATIONSHIP,
-                 ARTIFACT_TYPES) = \
+                 ARTIFACT_TYPES, TARGETS) = \
                 ('data_types', 'capability_types', 'node_types',
                  'group_types', 'policy_types', 'requirements',
                  'artifacts', 'properties', 'interfaces',
                  'capabilities', 'relationship',
-                 'artifact_types')
+                 'artifact_types', 'targets')
 
     TOSCA_TMPL = (INPUTS, NODE_TMPL, GROUPS, POLICIES,
-                  METADATA, TOPOLOGY_TMPL, OUTPUTS) = \
+                  METADATA, TOPOLOGY_TMPL, OUTPUTS, SUBSTITUTION_MAPPING, IMPORT) = \
                  ('inputs', 'node_templates', 'groups', 'policies',
-                  'metadata', 'topology_template', 'outputs')
+                  'metadata', 'topology_template', 'outputs', 'substitution_mappings', 'imports')
 
     TOSCA_DERIVED = (
         T_VNF_CONFIG,
@@ -91,26 +93,32 @@ class ToscaResource(object):
         T_SCALE_GRP,
         T_ARTF_QCOW2,
         T_INITIAL_CFG,
+        T_ARTF_CLOUD_INIT,
+        T_PLACEMENT,
+        T_ELAN
     ) = \
-        ('tosca.datatypes.network.riftio.vnf_configuration',
+        ('tosca.policies.nfv.riftio.vnf_configuration',
          'tosca.capabilities.riftio.http_endpoint_type',
          'tosca.capabilities.riftio.mgmt_interface_type',
          'tosca.capabilities.riftio.monitoring_param',
-         'tosca.nodes.riftio.VNF1',
-         'tosca.nodes.riftio.VDU1',
-         'tosca.nodes.riftio.CP1',
+         'tosca.nodes.nfv.riftio.VNF1',
+         'tosca.nodes.nfv.riftio.VDU1',
+         'tosca.nodes.nfv.riftio.CP1',
          'tosca.nodes.riftio.VL1',
          'tosca.groups.riftio.ConfigPrimitives',
          'tosca.policies.riftio.ScalingGroup',
          'tosca.artifacts.Deployment.Image.riftio.QCOW2',
-         'tosca.policies.riftio.InitialConfigPrimitive'
+         'tosca.policies.nfv.riftio.initial_config_primitive',
+         'tosca.artifacts.Deployment.riftio.cloud_init_file',
+         'tosca.policies.nfv.riftio.placement',
+         'tosca.nodes.nfv.riftio.ELAN'
         )
 
     SUPPORT_FILES = ( SRC, DEST, EXISTING) = \
                     ('source', 'destination', 'existing')
 
-    SUPPORT_DIRS = (IMAGE_DIR, SCRIPT_DIR,) = \
-                   ('images', 'scripts',)
+    SUPPORT_DIRS = (IMAGE_DIR, SCRIPT_DIR, CLOUD_INIT_DIR) = \
+                   ('images', 'scripts','cloud_init')
 
     def __init__(self,
                  log,

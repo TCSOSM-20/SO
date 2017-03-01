@@ -112,6 +112,10 @@ rift_python_install_tree(
     rift/mano/tosca_translator/rwmano/tosca/tosca_compute.py
     rift/mano/tosca_translator/rwmano/tosca/tosca_scaling_group.py
     rift/mano/tosca_translator/rwmano/tosca/tosca_initial_config.py
+    rift/mano/tosca_translator/rwmano/tosca/tosca_placement_group.py
+    rift/mano/tosca_translator/rwmano/tosca/tosca_vnf_configuration.py
+    rift/mano/tosca_translator/rwmano/tosca/tosca_forwarding_graph.py
+    rift/mano/tosca_translator/rwmano/tosca/tosca_forwarding_path.py
     rift/mano/tosca_translator/common/__init__.py
     rift/mano/tosca_translator/common/utils.py
     rift/mano/tosca_translator/common/exception.py
@@ -166,6 +170,20 @@ rift_python_install_tree(
 set(TRANSLATOR_SCRIPTS
   ${CMAKE_CURRENT_SOURCE_DIR}/rift/mano/tosca_translator/tosca-translator
   ${CMAKE_CURRENT_SOURCE_DIR}/rift/mano/yang_translator/yang-translator)
+
+install(
+  FILES rift/mano/yang_translator/riftiotypes.yaml
+    DESTINATION
+      usr/rift/mano/common
+    COMPONENT ${PKG_LONG_NAME}
+    )
+
+install(
+  FILES rift/mano/tosca_translator/dummy_vnf_node.yaml
+    DESTINATION
+      usr/rift/mano/common
+    COMPONENT ${PKG_LONG_NAME}
+    )
 
 install(
   FILES ${TRANSLATOR_SCRIPTS}

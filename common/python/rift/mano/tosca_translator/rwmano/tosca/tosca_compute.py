@@ -47,6 +47,16 @@ class ToscaCompute(ManoResource):
     'float':'DECIMAL'
     }
 
+
+    TOSCA_MEM_SIZE = {
+        'huge': 'LARGE',
+        'normal': 'SMALL',
+        'size_2MB': 'SIZE_2MB',
+        'size_1GB': 'SIZE_1GB',
+        'prefer_huge': 'PREFER_LARGE'
+
+    }
+
     def __init__(self, log, nodetemplate, metadata=None):
         super(ToscaCompute, self).__init__(log,
                                            nodetemplate,
@@ -62,6 +72,7 @@ class ToscaCompute(ManoResource):
         self._id = self.name
         self._monitor_param = []
         self._mgmt_interface = {}
+        self._http_endpoint = None
 
     @property
     def image(self):
@@ -207,11 +218,11 @@ class ToscaCompute(ManoResource):
             if 'type' in specs:
                 hypervisor_epa['type'] = specs['type'].upper()
             if 'version' in specs:
-                hypervisor_epa['version'] = specs['version']
+                hypervisor_epa['version'] = str(specs['version'])
 
             return hypervisor_epa
 
-        def get_guest_epa(specs):
+        def get_guest_epa(specs, nfv_comput_specs):
             guest_epa = {}
             guest_epa['numa-node-policy'] = {}
             guest_epa['numa-node-policy']['node'] = []
@@ -230,6 +241,11 @@ class ToscaCompute(ManoResource):
                         else:
                             err_msg = "Specify mem_size of NUMA extension should be in MB"
                             raise ValidationError(message=err_msg)
+                    if 'vcpus' in node:
+                        vcpu_lis =[]
+                        for vcpu in node['vcpus']:
+                            vcpu_lis.append({'id': vcpu})
+                        node_prop['vcpu'] = vcpu_lis
                     if 'om_numa_type' in node:
                         numa_type = node['om_numa_type']
                         if 'paired-threads' == numa_type:
@@ -245,6 +261,16 @@ class ToscaCompute(ManoResource):
                             err_msg = "om_numa_type should be among cores, paired-threads or threads"
                             raise ValidationError(message=err_msg)
                     guest_epa['numa-node-policy']['node'].append(node_prop)
+
+            if 'mem_page_size' in nfv_comput_specs:
+                guest_epa['mempage-size'] = self.TOSCA_MEM_SIZE[nfv_comput_specs['mem_page_size']]
+            if 'cpu_allocation' in nfv_comput_specs:
+                if 'cpu_affinity' in nfv_comput_specs['cpu_allocation']:
+                     guest_epa['cpu-pinning-policy'] = nfv_comput_specs['cpu_allocation']['cpu_affinity'].upper()
+                     guest_epa['trusted-execution'] = False
+                if 'thread_allocation' in nfv_comput_specs['cpu_allocation']:
+                     guest_epa['cpu-thread-pinning-policy'] = nfv_comput_specs['cpu_allocation']['thread_allocation'].upper()
+
             return guest_epa
 
         tosca_caps = self.get_tosca_caps()
@@ -261,13 +287,23 @@ class ToscaCompute(ManoResource):
         if 'vswitch_epa' in tosca_caps:
             self.properties['vswitch-epa'] = get_vswitch_epa(tosca_caps['vswitch_epa'])
         if 'numa_extension' in tosca_caps:
-            self.properties['guest-epa'] = get_guest_epa(tosca_caps['numa_extension'])
+            self.properties['guest-epa'] = get_guest_epa(tosca_caps['numa_extension'], tosca_caps['nfv_compute'])
         if 'monitoring_param' in tosca_caps:
             self._monitor_param.append(get_monitor_param(tosca_caps['monitoring_param'], '1'))
         if 'monitoring_param_1' in tosca_caps:
             self._monitor_param.append(get_monitor_param(tosca_caps['monitoring_param_1'], '2'))
         if 'mgmt_interface' in tosca_caps:
             self._mgmt_interface = get_mgmt_interface(tosca_caps['mgmt_interface'])
+        if len(self._mgmt_interface) > 0:
+            prop = {}
+            if 'dashboard-params' in self._mgmt_interface:
+                if 'path' in self._mgmt_interface['dashboard-params']:
+                    prop['path'] = self._mgmt_interface['dashboard-params']['path']
+                if 'port' in self._mgmt_interface['dashboard-params']:
+                    prop['port'] = self._mgmt_interface['dashboard-params']['port']
+                self._http_endpoint = prop
+
+
 
     def handle_artifacts(self):
         if self.artifacts is None:
@@ -284,9 +320,11 @@ class ToscaCompute(ManoResource):
                         prefix, type_ = value.rsplit('.', 1)
                         if type_ == 'QCOW2':
                             details['type'] = 'qcow2'
+                            self._image = props['file']
                             self.properties['image'] = os.path.basename(props['file'])
                     elif name == 'type' and value == 'tosca.artifacts.Deployment.riftio.cloud_init_file':
                         details['cloud_init_file'] = os.path.basename(props['file'])
+                        self._cloud_init = props['file']
                         self.properties['cloud_init_file'] = os.path.basename(props['file'])
                     elif name == 'file':
                         details['file'] = value
@@ -325,6 +363,7 @@ class ToscaCompute(ManoResource):
         return None
 
     def update_image_checksum(self, in_file):
+
         # Create image checksum
         # in_file is the TOSCA yaml file location
         if self._image is None:
@@ -389,6 +428,8 @@ class ToscaCompute(ManoResource):
         try:
             if len(self._mgmt_interface) > 0:
                 vnfd.mgmt_interface.from_dict(convert_keys_to_python(self._mgmt_interface))
+            if self._http_endpoint:
+                vnfd.http_endpoint.add().from_dict(convert_keys_to_python(self._http_endpoint))
             vnfd.vdu.add().from_dict(props)
         except Exception as e:
             err_msg = _("{0} Exception vdu from dict {1}: {2}"). \

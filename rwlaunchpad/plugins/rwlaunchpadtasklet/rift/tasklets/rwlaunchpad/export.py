@@ -326,11 +326,6 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
         if format_ != "yaml":
             log.warn("Only yaml format supported for TOSCA export")
 
-        if desc_type != "nsd":
-            raise tornado.web.HTTPError(
-                400,
-                "NSD need to passed to generate TOSCA: {}".format(desc_type))
-
         def get_pkg_from_store(id_, type_):
             package = None
             # Attempt to get the package from the package store
@@ -345,27 +340,38 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
 
             return package
 
-        pkg = tosca.ExportTosca()
+        if desc_type == "nsd":
+            pkg = tosca.ExportTosca()
 
-        # Add NSD and related descriptors for exporting
-        nsd_id = pkg.add_nsd(desc_msg, get_pkg_from_store(desc_id, "nsd"))
+            # Add NSD and related descriptors for exporting
+            nsd_id = pkg.add_nsd(desc_msg, get_pkg_from_store(desc_id, "nsd"))
 
-        catalog = self.catalog_map["vnfd"]
-        for const_vnfd in desc_msg.constituent_vnfd:
-            vnfd_id = const_vnfd.vnfd_id_ref
-            if vnfd_id in catalog:
-                pkg.add_vnfd(nsd_id,
-                             catalog[vnfd_id],
-                             get_pkg_from_store(vnfd_id, "vnfd"))
-            else:
-                raise tornado.web.HTTPError(
-                    400,
-                    "Unknown VNFD descriptor {} for NSD {}".
-                    format(vnfd_id, nsd_id))
+            catalog = self.catalog_map["vnfd"]
+            for const_vnfd in desc_msg.constituent_vnfd:
+                vnfd_id = const_vnfd.vnfd_id_ref
+                if vnfd_id in catalog:
+                    pkg.add_vnfd(nsd_id,
+                                 catalog[vnfd_id],
+                                 get_pkg_from_store(vnfd_id, "vnfd"))
+                else:
+                    raise tornado.web.HTTPError(
+                        400,
+                        "Unknown VNFD descriptor {} for NSD {}".
+                        format(vnfd_id, nsd_id))
 
-        # Create the archive.
-        pkg.create_archive(transaction_id,
-                           dest=self.application.export_dir)
+            # Create the archive.
+            pkg.create_archive(transaction_id,
+                               dest=self.application.export_dir)
+        if desc_type == "vnfd":
+            pkg = tosca.ExportTosca()
+            vnfd_id = desc_msg.id
+            pkg.add_single_vnfd(vnfd_id,
+                                 desc_msg,
+                                 get_pkg_from_store(vnfd_id, "vnfd"))
+
+            # Create the archive.
+            pkg.create_archive(transaction_id,
+                               dest=self.application.export_dir)
 
 
 class ExportStateHandler(state.StateHandler):

@@ -44,12 +44,17 @@ class ToscaVnfConfiguration(ManoResource):
         self.properties = {}
         self.linked_to_vnf = True
         self._vnf_name = vnf_name
+        self._vnf_id = None
+        self.scripts = []
 
     def __str__(self):
         return "%s(%s)" % (self.name, self.type)
 
     def handle_properties(self, nodes, groups):
         tosca_props = self.get_policy_props()
+        if self._vnf_name:
+            vnf_node = self.get_node_with_name(self._vnf_name, nodes)
+            self._vnf_id = vnf_node.id
         self.properties["vnf-configuration"] = {}
         prop = {}
         prop["config-attributes"] = {}
@@ -64,6 +69,20 @@ class ToscaVnfConfiguration(ManoResource):
             if 'config_details' in tosca_props['config']:
                 if 'script_type' in tosca_props['config']['config_details']:
                     prop["script"]["script-type"] = tosca_props['config']['config_details']['script_type']
+            if 'initial_config' in tosca_props:
+                prop['initial-config-primitive'] = []
+                #print("Weleek  " + str(tosca_props['initial_config']))
+                for init_config in tosca_props['initial_config']:
+                    if 'parameter' in init_config:
+                        parameters = init_config.pop('parameter')
+                        init_config['parameter'] = []
+                        for key, value in parameters.items():
+                            init_config['parameter'].append({'name': key, 'value': str(value)})
+                            if 'user_defined_script' in init_config:
+                                self.scripts.append('../scripts/{}'. \
+                                format(init_config['user_defined_script']))
+                    prop['initial-config-primitive'].append(init_config)
+
         self.properties = prop
 
     def generate_yang_submodel_gi(self, vnfd):
@@ -87,3 +106,15 @@ class ToscaVnfConfiguration(ManoResource):
             else:
                 tosca_props[prop.name] = prop.value
         return tosca_props
+    def get_supporting_files(self, files, desc_id=None):
+        if not len(self.scripts):
+            return
+
+        if self._vnf_id not in files:
+            files[desc_id] = []
+
+        for script in self.scripts:
+            files[self._vnf_id].append({
+                'type': 'script',
+                'name': script,
+            },)

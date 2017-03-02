@@ -40,6 +40,7 @@ import rift.rwcal.cloudsim.net
 
 from rift.vcs.ext import ClassProperty
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -421,7 +422,7 @@ class Demo(rift.vcs.demo.Demo):
             GlanceServer(),
             rift.vcs.DtsRouterTasklet(),
             rift.vcs.MsgBrokerTasklet(),
-            rift.vcs.RestPortForwardTasklet(),
+            #rift.vcs.RestPortForwardTasklet(),
             rift.vcs.RestconfTasklet(),
             rift.vcs.RiftCli(),
             rift.vcs.uAgentTasklet(),
@@ -548,8 +549,8 @@ def main(argv=sys.argv[1:]):
         for f in os.listdir(cleanup_dir_name):
             if f.endswith(".aof") or f.endswith(".rdb"):
                 os.remove(os.path.join(cleanup_dir_name, f))
-    
-        # Remove the persistant DTS recovery files 
+
+        # Remove the persistant DTS recovery files
         for f in os.listdir(cleanup_dir_name):
             if f.endswith(".db"):
                 os.remove(os.path.join(cleanup_dir_name, f))
@@ -569,11 +570,11 @@ def main(argv=sys.argv[1:]):
 
     # Create the prepared system from the demo
     system = rift.vcs.demo.prepared_system_from_demo_and_args(demo, args,
-              northbound_listing="cli_launchpad_schema_listing.txt",
+              northbound_listing=["cli_launchpad_schema_listing.txt"],
               netconf_trace_override=True)
 
-    confd_ip = socket.gethostbyname(socket.gethostname())
     # TODO: This need to be changed when launchpad starts running on multiple VMs
+    # confd_ip = socket.gethostbyname(socket.gethostname())
     rift.vcs.logger.configure_sink(config_file=None, confd_ip="127.0.0.1")
 
     # Start the prepared system

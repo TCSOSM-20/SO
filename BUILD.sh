@@ -114,10 +114,10 @@ fi
 
 if [[ $PLATFORM == ub16 ]]; then
     PLATFORM_REPOSITORY=${1:-OSM}
-    PLATFORM_VERSION=${2:-4.3.1.0.53704}
+    PLATFORM_VERSION=${2:-4.99.1.1.57142}
 elif [[ $PLATFORM == fc20 ]]; then
     PLATFORM_REPOSITORY=${1:-OSM}  # change to OSM when published
-    PLATFORM_VERSION=${2:-4.3.1.0.53705}
+    PLATFORM_VERSION=${2:-4.99.1.1.57142}
 else
     echo "Internal error: unknown platform $PLATFORM"
     exit 1
@@ -186,8 +186,8 @@ if [[ $PLATFORM == ub16 ]]; then
 	 rw.core.util-util=${PLATFORM_VERSION} \
 	 rw.core.rwvx-rwvx=${PLATFORM_VERSION} \
 	 rw.core.rwvx-rwdts=${PLATFORM_VERSION} \
-	 rw.automation.core-RWAUTO=${PLATFORM_VERSION} \
-         rw.core.rwvx-rwha-1.0=${PLATFORM_VERSION}
+	 rw.automation.core-RWAUTO=${PLATFORM_VERSION}
+         # rw.core.rwvx-rwha-1.0=${PLATFORM_VERSION}
 
     sudo apt-get install python-cinderclient
     

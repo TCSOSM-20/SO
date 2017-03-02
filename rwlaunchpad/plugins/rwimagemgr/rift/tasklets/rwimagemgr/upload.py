@@ -51,9 +51,10 @@ class ImageUploadJobController(object):
     """ This class starts and manages ImageUploadJobs """
     MAX_COMPLETED_JOBS = 20
 
-    def __init__(self, log, loop, max_completed_jobs=MAX_COMPLETED_JOBS):
+    def __init__(self, log, loop, project, max_completed_jobs=MAX_COMPLETED_JOBS):
         self._log = log
         self._loop = loop
+        self._project = project
         self._job_id_gen = itertools.count(1)
         self._max_completed_jobs = max_completed_jobs
 

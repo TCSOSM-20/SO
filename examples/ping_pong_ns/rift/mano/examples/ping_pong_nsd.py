@@ -112,10 +112,10 @@ class ManoDescriptor(object):
             if output_format == 'json':
                 with open('%s/%s.json' % (outdir, self.name), "w") as fh:
                     fh.write(simplejson.dumps(desc, indent=4))
-            elif output_format.strip() == 'yaml':
+            elif output_format == 'yaml':
                 with open('%s/%s.yaml' % (outdir, self.name), "w") as fh:
                     fh.write(yaml.dump(desc, default_flow_style=False))
-        elif output_format.strip() == 'xml':
+        elif output_format == 'xml':
             # Converting from dict to xml does not provide the
             # required output. So using the PBCM to_xml and then
             # printing only from the catalog tag.
@@ -283,7 +283,7 @@ class VirtualNetworkFunction(ManoDescriptor):
                     internal_cp.name = cp_name + "/icp{}".format(i)
                     internal_cp.id = cp_name + "/icp{}".format(i)
                     internal_cp.type_yang = 'VPORT'
-                    ivld_cp = internal_vlds[i].internal_connection_point_ref.add()
+                    ivld_cp = internal_vlds[i].internal_connection_point.add()
                     ivld_cp.id_ref = internal_cp.id
 
                     internal_interface = vdu.internal_interface.add()
@@ -761,7 +761,7 @@ exit 0
             group_desc.min_instance_count = scale_group.min_count
             for vnfd, count in scale_group.vnfd_count_map.items():
                 member = group_desc.vnfd_member.add()
-                member.member_vnf_index_ref = vnfd_index_map[vnfd]
+                member.member_vnf_index_ref = str(vnfd_index_map[vnfd])
                 member.count = count
 
             for trigger in scale_group.config_action:

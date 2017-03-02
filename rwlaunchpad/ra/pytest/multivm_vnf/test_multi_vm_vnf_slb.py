@@ -71,7 +71,7 @@ def create_nsr(nsd_id, input_param_list, cloud_account_name):
     Return:
          NSR object
     """
-    nsr = RwNsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+    nsr = RwNsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
 
     nsr.id = str(uuid.uuid4())
     nsr.name = rift.auto.mano.resource_name(nsr.id)
@@ -210,11 +210,11 @@ class TestMultiVmVnfSlb(object):
         nsd = catalog.nsd[0]
 
         input_parameters = []
-        descr_xpath = "/nsd:nsd-catalog/nsd:nsd[nsd:id='%s']/nsd:description" % nsd.id
+        descr_xpath = "/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id='%s']/nsd:description" % nsd.id
         descr_value = "New NSD Description"
         in_param_id = str(uuid.uuid4())
 
-        input_param_1= NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter(
+        input_param_1= NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
                                                                 xpath=descr_xpath,
                                                                 value=descr_value)
 

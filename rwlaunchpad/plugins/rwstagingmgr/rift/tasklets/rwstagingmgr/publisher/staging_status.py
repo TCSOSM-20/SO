@@ -28,13 +28,13 @@ from ..protocol import StagingStoreProtocol
 
 class StagingStorePublisher(mano_dts.DtsHandler, StagingStoreProtocol):
 
-    def __init__(self, log, dts, loop):
-        super().__init__(log, dts, loop)
+    def __init__(self, project):
+        super().__init__(project.log, project.dts, project.loop, project)
         self.delegate = None
 
     def xpath(self, area_id=None):
-        return ("D,/rw-staging-mgmt:staging-areas/rw-staging-mgmt:staging-area" +
-            ("[area-id='{}']".format(area_id) if area_id else ""))
+        return self.project.add_project("D,/rw-staging-mgmt:staging-areas/rw-staging-mgmt:staging-area" +
+                                        ("[area-id='{}']".format(area_id) if area_id else ""))
 
     @asyncio.coroutine
     def register(self):
@@ -58,6 +58,12 @@ class StagingStorePublisher(mano_dts.DtsHandler, StagingStoreProtocol):
                                                rwdts.Flag.DATASTORE),)
 
         assert self.reg is not None
+
+    def deregister(self):
+        self._log.debug("Project {}: de-register staging store handler".
+                        format(self._project.name))
+        if self.reg:
+            self.reg.deregister()
 
     def on_staging_area_create(self, store):
         self.reg.update_element(self.xpath(store.area_id), store)

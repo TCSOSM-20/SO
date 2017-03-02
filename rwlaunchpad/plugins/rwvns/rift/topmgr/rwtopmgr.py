@@ -39,8 +39,8 @@ import rift.tasklets
 class SdnGetPluginError(Exception):
     """ Error while fetching SDN plugin """
     pass
-  
-  
+
+
 class SdnGetInterfaceError(Exception):
     """ Error while fetching SDN interface"""
     pass
@@ -48,16 +48,17 @@ class SdnGetInterfaceError(Exception):
 
 class SdnAccountMgr(object):
     """ Implements the interface to backend plugins to fetch topology """
-    def __init__(self, log, log_hdl, loop):
+    def __init__(self, log, log_hdl, loop, project):
         self._account = {}
         self._log = log
         self._log_hdl = log_hdl
         self._loop = loop
+        self._project = project
         self._sdn = {}
 
         self._regh = None
 
-        self._status = RwsdnYang.SDNAccount_ConnectionStatus(
+        self._status = RwsdnYang.SdnConnectionStatus(
                 status='unknown',
                 details="Connection status lookup not started"
                 )
@@ -160,9 +161,9 @@ class SdnAccountMgr(object):
                 )
 
         if rwstatus == RwTypes.RwStatus.SUCCESS:
-            self._status = RwsdnYang.SDNAccount_ConnectionStatus.from_dict(status.as_dict())
+            self._status = RwsdnYang.SdnConnectionStatus.from_dict(status.as_dict())
         else:
-            self._status = RwsdnYang.SDNAccount_ConnectionStatus(
+            self._status = RwsdnYang.SdnConnectionStatus(
                     status="failure",
                     details="Error when calling CAL validate sdn creds"
                     )
@@ -185,10 +186,11 @@ class NwtopDiscoveryDtsHandler(object):
     """ Handles DTS interactions for the Discovered Topology registration """
     DISC_XPATH = "D,/nd:network"
 
-    def __init__(self, dts, log, loop, acctmgr, nwdatastore):
+    def __init__(self, dts, log, loop, project, acctmgr, nwdatastore):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._acctmgr = acctmgr
         self._nwdatastore = nwdatastore
 
@@ -198,6 +200,13 @@ class NwtopDiscoveryDtsHandler(object):
     def regh(self):
         """ The registration handle associated with this Handler"""
         return self._regh
+
+    def deregister(self):
+        self._log.debug("De-register Topology discovery handler for project {}".
+                        format(self._project.name))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
     @asyncio.coroutine
     def register(self):
@@ -268,10 +277,11 @@ class NwtopStaticDtsHandler(object):
     """ Handles DTS interactions for the Static Topology registration """
     STATIC_XPATH = "C,/nd:network"
 
-    def __init__(self, dts, log, loop, acctmgr, nwdatastore):
+    def __init__(self, dts, log, loop, project, acctmgr, nwdatastore):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._acctmgr = acctmgr
 
         self._regh = None
@@ -282,8 +292,14 @@ class NwtopStaticDtsHandler(object):
     def regh(self):
         """ The registration handle associated with this Handler"""
         return self._regh
- 
-    
+
+    def deregister(self):
+        self._log.debug("De-register Topology static handler for project {}".
+                        format(self._project.name))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
+
     @asyncio.coroutine
     def register(self):
         """ Register for the Static Topology path """
@@ -322,8 +338,6 @@ class NwtopStaticDtsHandler(object):
                         on_apply=apply_nw_config)
 
         with self._dts.appconf_group_create(handler=handler) as acg:
-            acg.register(xpath = NwtopStaticDtsHandler.STATIC_XPATH, 
-                                   flags = rwdts.Flag.SUBSCRIBER, 
-                                   on_prepare=prepare_nw_cfg)
-
-
+            self._regh = acg.register(xpath = NwtopStaticDtsHandler.STATIC_XPATH,
+                                      flags = rwdts.Flag.SUBSCRIBER,
+                                      on_prepare=prepare_nw_cfg)

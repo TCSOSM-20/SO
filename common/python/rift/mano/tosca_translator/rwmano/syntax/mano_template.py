@@ -61,7 +61,7 @@ class ManoTemplate(object):
 
         if use_gi:
             try:
-                nsd_cat = RwNsdYang.YangData_Nsd_NsdCatalog()
+                nsd_cat = RwNsdYang.YangData_RwProject_Project_NsdCatalog()
                 nsd = nsd_cat.nsd.add()
                 nsd.id = nsd_id
                 nsd.name = self.metadata['name']
@@ -111,7 +111,7 @@ class ManoTemplate(object):
         if use_gi:
             for param in self.parameters:
                 nsd.input_parameter_xpath.append(
-                 NsdYang.YangData_Nsd_NsdCatalog_Nsd_InputParameterXpath(
+                 NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_InputParameterXpath(
                     xpath=param.get_xpath(),
                     )
                 )

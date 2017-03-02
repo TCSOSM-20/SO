@@ -53,7 +53,7 @@ class CloudAccount(object):
         self._cal = self.plugin.get_interface("Cloud")
         self._cal.init(rwlog_hdl)
 
-        self._status = RwCloudYang.CloudAccount_ConnectionStatus(
+        self._status = RwCloudYang.CloudAcc_ConnectionStatus(
                 status="unknown",
                 details="Connection status lookup not started"
                 )
@@ -151,7 +151,7 @@ class CloudAccount(object):
     @asyncio.coroutine
     def validate_cloud_account_credentials(self, loop):
         self._log.debug("Validating Cloud Account credentials %s", self._account_msg)
-        self._status = RwCloudYang.CloudAccount_ConnectionStatus(
+        self._status = RwCloudYang.CloudAcc_ConnectionStatus(
                 status="validating",
                 details="Cloud account connection validation in progress"
                 )
@@ -161,9 +161,9 @@ class CloudAccount(object):
                 self.cal_account_msg,
                 )
         if rwstatus == RwTypes.RwStatus.SUCCESS:
-            self._status = RwCloudYang.CloudAccount_ConnectionStatus.from_dict(status.as_dict())
+            self._status = RwCloudYang.CloudAcc_ConnectionStatus.from_dict(status.as_dict())
         else:
-            self._status = RwCloudYang.CloudAccount_ConnectionStatus(
+            self._status = RwCloudYang.CloudAcc_ConnectionStatus(
                     status="failure",
                     details="Error when calling CAL validate cloud creds"
                     )

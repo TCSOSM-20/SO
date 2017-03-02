@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 
+#
 #   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,7 +57,13 @@ import rift.mano.examples.ping_pong_nsd as ping_pong_nsd
 import rift.tasklets
 import rift.test.dts
 import rw_peas
+from rift.mano.utils.project import (
+    ManoProject,
+    DEFAULT_PROJECT,
+)
 
+
+PROJECT = 'default'
 
 openstack_info = {
         'username': 'pluto',
@@ -125,11 +131,8 @@ class XPaths(object):
 
     @staticmethod
     def cm_state(k=None):
-        if k is None:
-            return ("D,/rw-conman:cm-state/rw-conman:cm-nsr")
-        else:
-            return ("D,/rw-conman:cm-state/rw-conman:cm-nsr" +
-                    ("[rw-conman:id='{}']".format(k) if k is not None else ""))
+        return ("D,/rw-conman:cm-state/rw-conman:cm-nsr" +
+                ("[rw-conman:id='{}']".format(k) if k is not None else ""))
 
     @staticmethod
     def nsr_scale_group_instance(nsr_id=None, group_name=None, index=None):
@@ -149,19 +152,37 @@ class XPaths(object):
                 ("/nsr:instance") +
                 ("[nsr:index='{}']".format(index) if index is not None else ""))
 
+    @staticmethod
+    def cloud_account(k=None):
+        return ("C,/rw-cloud:cloud/rw-cloud:account" +
+                ("[rw-cloud:name='{}']".format(k) if k is not None else ""))
+
+    @staticmethod
+    def project(k=None):
+        return ("C,/rw-project:project" +
+                ("[rw-project:name='{}']".format(k) if k is not None else ""))
+
 
 class ManoQuerier(object):
-    def __init__(self, log, dts):
+    def __init__(self, log, dts, project):
         self.log = log
         self.dts = dts
+        self.project = project
+
+    def add_project(self, xpath):
+        return self.project.add_project(xpath)
 
     @asyncio.coroutine
-    def _read_query(self, xpath, do_trace=False):
-        self.log.debug("Running XPATH read query: %s (trace: %s)", xpath, do_trace)
+    def _read_query(self, xpath, do_trace=False, project=True):
+        if project:
+            xp = self.add_project(xpath)
+        else:
+            xp = xpath
+        self.log.debug("Running XPATH read query: %s (trace: %s)", xp, do_trace)
         flags = rwdts.XactFlag.MERGE
         flags += rwdts.XactFlag.TRACE if do_trace else 0
         res_iter = yield from self.dts.query_read(
-                xpath, flags=flags
+                xp, flags=flags
                 )
 
         results = []
@@ -171,6 +192,27 @@ class ManoQuerier(object):
                 results.append(result.result)
 
         return results
+
+    @asyncio.coroutine
+    def _delete_query(self, xpath, flags=0):
+        xp = self.add_project(xpath)
+        self.log.debug("Running XPATH delete query: %s (flags: %d)", xp, flags)
+        with self.dts.transaction() as xact:
+            yield from self.dts.query_delete(
+                xp,
+                flags
+            )
+
+    @asyncio.coroutine
+    def _update_query(self, xpath, msg, flags=0):
+        xp = self.add_project(xpath)
+        self.log.debug("Running XPATH update query: %s (flags: %d)", xp, flags)
+        with self.dts.transaction() as xact:
+            yield from self.dts.query_update(
+                xp,
+                flags,
+                msg
+            )
 
     @asyncio.coroutine
     def get_cm_state(self, nsr_id=None):
@@ -183,7 +225,6 @@ class ManoQuerier(object):
     @asyncio.coroutine
     def get_nsr_scale_group_instance_opdata(self, nsr_id=None, group_name=None, index=None):
         return (yield from self._read_query(XPaths.nsr_scale_group_instance(nsr_id, group_name, index), False))
-        #return (yield from self._read_query(XPaths.nsr_scale_group_instance(nsr_id, group_name), True))
 
     @asyncio.coroutine
     def get_nsr_configs(self, nsr_id=None):
@@ -211,66 +252,34 @@ class ManoQuerier(object):
 
     @asyncio.coroutine
     def delete_nsr(self, nsr_id):
-        with self.dts.transaction() as xact:
-            yield from self.dts.query_delete(
-                    XPaths.nsr_config(nsr_id),
-                    0
-                    #rwdts.XactFlag.TRACE,
-                    #rwdts.Flag.ADVISE,
-                    )
+        return (yield from self._delete_query(XPaths.nsr_config(nsr_id)))
 
     @asyncio.coroutine
     def delete_nsd(self, nsd_id):
-        nsd_xpath = XPaths.nsd(nsd_id)
-        self.log.debug("Attempting to delete NSD with path = %s", nsd_xpath)
-        with self.dts.transaction() as xact:
-            yield from self.dts.query_delete(
-                    nsd_xpath,
-                    rwdts.XactFlag.ADVISE,
-                    )
+        return (yield from self._delete_query(XPaths.nsd(nsd_id),
+                                              rwdts.XactFlag.ADVISE))
 
     @asyncio.coroutine
     def delete_vnfd(self, vnfd_id):
-        vnfd_xpath = XPaths.vnfd(vnfd_id)
-        self.log.debug("Attempting to delete VNFD with path = %s", vnfd_xpath)
-        with self.dts.transaction() as xact:
-            yield from self.dts.query_delete(
-                    vnfd_xpath,
-                    rwdts.XactFlag.ADVISE,
-                    )
+        return (yield from self._delete_query(XPaths.vnfd(vnfd_id),
+                                              rwdts.XactFlag.ADVISE))
 
     @asyncio.coroutine
     def update_nsd(self, nsd_id, nsd_msg):
-        nsd_xpath = XPaths.nsd(nsd_id)
-        self.log.debug("Attempting to update NSD with path = %s", nsd_xpath)
-        with self.dts.transaction() as xact:
-            yield from self.dts.query_update(
-                    nsd_xpath,
-                    rwdts.XactFlag.ADVISE,
-                    nsd_msg,
-                    )
+        return (yield from self._update_query(XPaths.nsd(nsd_id), nsd_msg,
+                                              rwdts.XactFlag.ADVISE))
 
     @asyncio.coroutine
     def update_vnfd(self, vnfd_id, vnfd_msg):
-        vnfd_xpath = XPaths.vnfd(vnfd_id)
-        self.log.debug("Attempting to delete VNFD with path = %s", vnfd_xpath)
-        with self.dts.transaction() as xact:
-            yield from self.dts.query_update(
-                    vnfd_xpath,
-                    rwdts.XactFlag.ADVISE,
-                    vnfd_msg,
-                    )
+        return (yield from self._update_query(XPaths.vnfd(vnfd_id), vnfd_msg,
+                                              rwdts.XactFlag.ADVISE))
 
     @asyncio.coroutine
     def update_nsr_config(self, nsr_id, nsr_msg):
-        nsr_xpath = XPaths.nsr_config(nsr_id)
-        self.log.debug("Attempting to update NSR with path = %s", nsr_xpath)
-        with self.dts.transaction() as xact:
-            yield from self.dts.query_update(
-                    nsr_xpath,
-                    rwdts.XactFlag.ADVISE|rwdts.XactFlag.REPLACE,
-                    nsr_msg,
-                    )
+        return (yield from self._update_query(
+            XPaths.nsr_config(nsr_id),
+            nsr_msg,
+            rwdts.XactFlag.ADVISE|rwdts.XactFlag.REPLACE))
 
 
 class ManoTestCase(rift.test.dts.AbstractDTSTest):
@@ -370,39 +379,47 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
         nsd_ref_counts = yield from self.querier.get_nsd_ref_counts(nsd_id)
         self.assertEqual(num_ref, nsd_ref_counts[0].instance_ref_count)
 
+
 class DescriptorPublisher(object):
-    def __init__(self, log, loop, dts):
+    def __init__(self, log, loop, dts, project):
         self.log = log
         self.loop = loop
         self.dts = dts
+        self.project = project
 
         self._registrations = []
 
     @asyncio.coroutine
     def publish(self, w_path, path, desc):
         ready_event = asyncio.Event(loop=self.loop)
+        if 'rw-project' in path:
+            w_xp = w_path
+            xp = path
+        else:
+            w_xp = self.project.add_project(w_path)
+            xp = self.project.add_project(path)
 
         @asyncio.coroutine
         def on_ready(regh, status):
             self.log.debug("Create element: %s, obj-type:%s obj:%s",
-                           path, type(desc), desc)
+                           xp, type(desc), desc)
             with self.dts.transaction() as xact:
-                regh.create_element(path, desc, xact.xact)
-            self.log.debug("Created element: %s, obj:%s", path, desc)
+                regh.create_element(xp, desc, xact.xact)
+            self.log.debug("Created element: %s, obj:%s", xp, desc)
             ready_event.set()
 
         handler = rift.tasklets.DTS.RegistrationHandler(
                 on_ready=on_ready
                 )
 
-        self.log.debug("Registering path: %s, obj:%s", w_path, desc)
+        self.log.debug("Registering path: %s, obj:%s", w_xp, desc)
         reg = yield from self.dts.register(
-                w_path,
+                w_xp,
                 handler,
                 flags=rwdts.Flag.PUBLISHER | rwdts.Flag.NO_PREP_READ
                 )
         self._registrations.append(reg)
-        self.log.debug("Registered path : %s", w_path)
+        self.log.debug("Registered path : %s", w_xp)
         yield from ready_event.wait()
 
         return reg
@@ -413,23 +430,114 @@ class DescriptorPublisher(object):
             reg.deregister()
 
 
-class PingPongNsrConfigPublisher(object):
-    XPATH = "C,/nsr:ns-instance-config"
+class ProjectPublisher(object):
+    XPATH = "C,/rw-project:project"
 
-    def __init__(self, log, loop, dts, ping_pong, cloud_account_name):
+    def __init__(self, log, loop, dts, project):
         self.dts = dts
         self.log = log
         self.loop = loop
+        self.project = project
         self.ref = None
 
-        self.querier = ManoQuerier(log, dts)
+        self.querier = ManoQuerier(log, dts, project)
+        self.publisher = DescriptorPublisher(log, loop,
+                                             dts, project)
 
-        self.nsr_config = rwnsryang.YangData_Nsr_NsInstanceConfig()
+        self._ready_event = asyncio.Event(loop=self.loop)
+        asyncio.ensure_future(self.register(), loop=loop)
 
-        nsr = rwnsryang.YangData_Nsr_NsInstanceConfig_Nsr()
+    @asyncio.coroutine
+    def register(self):
+        @asyncio.coroutine
+        def on_ready(regh, status):
+            self._ready_event.set()
+
+        self.log.debug("Registering path: %s", ProjectPublisher.XPATH)
+        self.reg = yield from self.dts.register(
+                ProjectPublisher.XPATH,
+                flags=rwdts.Flag.PUBLISHER,
+                handler=rift.tasklets.DTS.RegistrationHandler(
+                    on_ready=on_ready,
+                    ),
+                )
+
+    def deregister(self):
+        if self.reg is not None:
+            self.reg.deregister()
+
+    @asyncio.coroutine
+    def publish_project(self, config, xpath, xpath_wild):
+        # Publish project
+        self.log.debug("Publishing cloud_account path: %s - %s, type:%s, obj:%s",
+                           xpath, xpath_wild, type(config), config)
+        yield from self.publisher.publish(xpath_wild, xpath, config)
+
+
+class CloudAccountPublisher(object):
+    XPATH = "C,/rw-cloud:cloud"
+
+    def __init__(self, log, loop, dts, project):
+        self.dts = dts
+        self.log = log
+        self.loop = loop
+        self.project = project
+        self.ref = None
+
+        self.querier = ManoQuerier(log, dts, project)
+        self.publisher = DescriptorPublisher(log, loop,
+                                             dts, project)
+
+        self.xpath = self.project.add_project(CloudAccountPublisher.XPATH)
+
+        self._ready_event = asyncio.Event(loop=self.loop)
+        asyncio.ensure_future(self.register(), loop=loop)
+
+    @asyncio.coroutine
+    def register(self):
+        @asyncio.coroutine
+        def on_ready(regh, status):
+            self._ready_event.set()
+
+        self.log.debug("Registering path: %s", self.xpath)
+        self.reg = yield from self.dts.register(
+                self.xpath,
+                flags=rwdts.Flag.PUBLISHER,
+                handler=rift.tasklets.DTS.RegistrationHandler(
+                    on_ready=on_ready,
+                    ),
+                )
+
+    def deregister(self):
+        if self.reg is not None:
+            self.reg.deregister()
+
+    @asyncio.coroutine
+    def publish_account(self, account, xpath, xpath_wild):
+        # Publish cloud account
+        self.log.debug("Publishing cloud_account path: %s - %s, type:%s, obj:%s",
+                           xpath, xpath_wild, type(account), account)
+        yield from self.publisher.publish(xpath_wild, xpath, account)
+
+
+class PingPongNsrConfigPublisher(object):
+    XPATH = "C,/nsr:ns-instance-config"
+
+    def __init__(self, log, loop, dts, ping_pong, cloud_account_name, project):
+        self.dts = dts
+        self.log = log
+        self.loop = loop
+        self.project = project
+        self.ref = None
+
+        self.querier = ManoQuerier(log, dts, project)
+        self.xpath = self.project.add_project(PingPongNsrConfigPublisher.XPATH)
+        self.nsr_config = rwnsryang.YangData_RwProject_Project_NsInstanceConfig()
+
+        nsr = rwnsryang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
         nsr.id = str(uuid.uuid4())
         nsr.name = "ns1.{}".format(nsr.id)
-        nsr.nsd = nsryang.YangData_Nsr_NsInstanceConfig_Nsr_Nsd()
+        nsr.nsd = nsryang.YangData_RwProject_Project_NsInstanceConfig_Nsr_Nsd()
         nsr.nsd.from_dict(ping_pong.ping_pong_nsd.nsd.as_dict())
         nsr.cloud_account = cloud_account_name
 
@@ -439,8 +547,9 @@ class PingPongNsrConfigPublisher(object):
             #'cloud_account':'mock_account1'
         })
 
-        inputs = nsryang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter()
-        inputs.xpath = "/nsd:nsd-catalog/nsd:nsd[nsd:id={}]/nsd:name".format(ping_pong.nsd_id)
+        inputs = nsryang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter()
+        inputs.xpath = self.project.add_project(
+            "/nsd:nsd-catalog/nsd:nsd[nsd:id={}]/nsd:name".format(ping_pong.nsd_id))
         inputs.value = "inigo montoya"
 
         fast_cpu = {'metadata_key': 'FASTCPU', 'metadata_value': 'True'}
@@ -488,9 +597,9 @@ class PingPongNsrConfigPublisher(object):
         def on_ready(regh, status):
             self._ready_event.set()
 
-        self.log.debug("Registering path: %s", PingPongNsrConfigPublisher.XPATH)
+        self.log.debug("Registering path: %s", self.xpath)
         self.reg = yield from self.dts.register(
-                PingPongNsrConfigPublisher.XPATH,
+                self.xpath,
                 flags=rwdts.Flag.PUBLISHER,
                 handler=rift.tasklets.DTS.RegistrationHandler(
                     on_ready=on_ready,
@@ -503,7 +612,7 @@ class PingPongNsrConfigPublisher(object):
         yield from self._ready_event.wait()
         with self.dts.transaction() as xact:
             self.reg.create_element(
-                    PingPongNsrConfigPublisher.XPATH,
+                    self.xpath,
                     self.nsr_config,
                     xact=xact.xact,
                     )
@@ -520,7 +629,7 @@ class PingPongNsrConfigPublisher(object):
             })
         with self.dts.transaction() as xact:
             self.reg.update_element(
-                    PingPongNsrConfigPublisher.XPATH,
+                    self.xpath,
                     self.nsr_config,
                     xact=xact.xact,
                     )
@@ -539,7 +648,7 @@ class PingPongNsrConfigPublisher(object):
             "cloud_type"          : cloud_type,
             construct_type        : construct_value,
             })
-        
+
 
     def create_vnfd_placement_group_map(self,
                                         nsr,
@@ -555,21 +664,16 @@ class PingPongNsrConfigPublisher(object):
             "cloud_type"           : cloud_type,
             construct_type         : construct_value,
             })
-        
-    
+
+
     @asyncio.coroutine
     def delete_scale_group_instance(self, group_name, index):
         self.log.debug("Deleting scale group %s instance %s", group_name, index)
         #del self.nsr_config.nsr[0].scaling_group[0].instance[0]
-        xpath = XPaths.nsr_scale_group_instance_config(self.nsr_config.nsr[0].id, group_name, index)
+        xpath = self.project.add_project(
+            XPaths.nsr_scale_group_instance_config(self.nsr_config.nsr[0].id,
+                                                   group_name, index))
         yield from self.dts.query_delete(xpath, flags=rwdts.XactFlag.ADVISE)
-        #with self.dts.transaction() as xact:
-        #    self.reg.update_element(
-        #            PingPongNsrConfigPublisher.XPATH,
-        #            self.nsr_config,
-        #            flags=rwdts.XactFlag.REPLACE,
-        #            xact=xact.xact,
-        #            )
 
     def deregister(self):
         if self.reg is not None:
@@ -617,10 +721,12 @@ class PingPongNsrConfigPublisher(object):
     def update_vnf_cloud_map(self,vnf_cloud_map):
         self.log.debug("Modifying NSR to add VNF cloud account map: {}".format(vnf_cloud_map))
         for vnf_index,cloud_acct  in vnf_cloud_map.items():
-            vnf_maps = [vnf_map for vnf_map in self.nsr_config.nsr[0].vnf_cloud_account_map if vnf_index == vnf_map.member_vnf_index_ref]
+            vnf_maps = [vnf_map for vnf_map in \
+                        self.nsr_config.nsr[0].vnf_cloud_account_map \
+                        if vnf_index == vnf_map.member_vnf_index_ref]
             if vnf_maps:
                 vnf_maps[0].cloud_account = cloud_acct
-            else: 
+            else:
                 self.nsr_config.nsr[0].vnf_cloud_account_map.add().from_dict({
                     'member_vnf_index_ref':vnf_index,
                     'cloud_account':cloud_acct
@@ -628,13 +734,16 @@ class PingPongNsrConfigPublisher(object):
 
 
 class PingPongDescriptorPublisher(object):
-    def __init__(self, log, loop, dts, num_external_vlrs=1, num_internal_vlrs=1, num_ping_vms=1):
+    def __init__(self, log, loop, dts, project,
+                 num_external_vlrs=1, num_internal_vlrs=1, num_ping_vms=1):
         self.log = log
         self.loop = loop
         self.dts = dts
+        self.project = project
 
-        self.querier = ManoQuerier(self.log, self.dts)
-        self.publisher = DescriptorPublisher(self.log, self.loop, self.dts)
+        self.querier = ManoQuerier(self.log, self.dts, self.project)
+        self.publisher = DescriptorPublisher(self.log, self.loop,
+                                             self.dts, self.project)
         self.ping_vnfd, self.pong_vnfd, self.ping_pong_nsd = \
                 ping_pong_nsd.generate_ping_pong_descriptors(
                         pingcount=1,
@@ -717,8 +826,6 @@ class PingPongDescriptorPublisher(object):
                 )
 
 
-
-
 class ManoTestCase(rift.test.dts.AbstractDTSTest):
     """
     DTS GI interface unittests
@@ -755,9 +862,9 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
     @staticmethod
     def get_cal_account(account_type, account_name):
         """
-        Creates an object for class RwcalYang.Clo
+        Creates an object for class RwcalYang.Cloud
         """
-        account = rwcloudyang.CloudAccount()
+        account = rwcloudyang.CloudAcc()
         if account_type == 'mock':
             account.name          = account_name
             account.account_type  = "mock"
@@ -773,13 +880,33 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
         return account
 
     @asyncio.coroutine
-    def configure_cloud_account(self, dts, cloud_type, cloud_name="cloud1"):
+    def configure_project(self, project=None):
+        if project is None:
+            project = self.project
+
+        proj_xpath = "C,{}/project-config".format(project.prefix)
+        self.log.info("Creating project: {} with {}".
+                       format(proj_xpath, project.config.as_dict()))
+        xpath_wild = "C,/rw-project:project/project-config"
+        yield from self.project_publisher.publish_project(project.config,
+                                                          proj_xpath,
+                                                          xpath_wild)
+
+    @asyncio.coroutine
+    def configure_cloud_account(self, dts, cloud_type, cloud_name="cloud1", project=None):
         account = self.get_cal_account(cloud_type, cloud_name)
-        account_xpath = "C,/rw-project:project/rw-cloud:cloud/rw-cloud:account[rw-cloud:name='{}']".format(cloud_name)
         self.log.info("Configuring cloud-account: %s", account)
-        yield from dts.query_create(account_xpath,
-                                    rwdts.XactFlag.ADVISE,
-                                    account)
+        if project is None:
+            project = self.project
+        xpath = project.add_project(XPaths.cloud_account(account.name))
+        xpath_wild = project.add_project(XPaths.cloud_account())
+
+        # account_xpath = project.add_project(
+        #     "C,/rw-cloud:cloud/rw-cloud:account[rw-cloud:name='{}']".format(cloud_name))
+        # yield from dts.query_create(account_xpath,
+        #                             rwdts.XactFlag.ADVISE,
+        #                             account)
+        yield from self.cloud_publisher.publish_account(account, xpath, xpath_wild)
 
     @asyncio.coroutine
     def wait_tasklets(self):
@@ -789,22 +916,74 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
         self.log.debug("STARTING - %s", self.id())
         self.tinfo = self.new_tinfo(self.id())
         self.dts = rift.tasklets.DTS(self.tinfo, self.schema, self.loop)
-        self.ping_pong = PingPongDescriptorPublisher(self.log, self.loop, self.dts)
-        self.querier = ManoQuerier(self.log, self.dts)
+        self.project = ManoProject(self.log,
+                                   name=DEFAULT_PROJECT)
+        self.project1 = ManoProject(self.log,
+                                   name='test-1')
+        self.ping_pong = PingPongDescriptorPublisher(self.log, self.loop,
+                                                     self.dts, self.project)
+        self.querier = ManoQuerier(self.log, self.dts, self.project)
+        self.project_publisher = ProjectPublisher(
+            self.log,
+            loop,
+            self.dts,
+            self.project
+        )
+        self.cloud_publisher = CloudAccountPublisher(
+            self.log,
+            loop,
+            self.dts,
+            self.project
+        )
         self.nsr_publisher = PingPongNsrConfigPublisher(
                 self.log,
                 loop,
                 self.dts,
                 self.ping_pong,
                 "mock_account",
+                self.project,
                 )
 
     def test_create_nsr_record(self):
 
         @asyncio.coroutine
+        def verify_projects(termination=False):
+            self.log.debug("Verifying projects = %s", XPaths.project())
+
+            accts = yield from self.querier._read_query(XPaths.project(),
+                                                        project=False)
+            projs = []
+            for acc in accts:
+                self.log.debug("Project: {}".format(acc.as_dict()))
+                if acc.name not in projs:
+                    projs.append(acc.name)
+            self.log.debug("Merged: {}".format(projs))
+            self.assertEqual(2, len(projs))
+
+        @asyncio.coroutine
+        def verify_cloud_accounts(termination=False):
+            self.log.debug("Verifying cloud accounts = %s", XPaths.cloud_account())
+
+            accts = yield from self.querier._read_query(XPaths.cloud_account())
+            self.assertEqual(2, len(accts))
+
+            accts = yield from self.querier._read_query(
+                self.project1.add_project(XPaths.cloud_account()), project=False)
+            self.assertEqual(1, len(accts))
+
+            accts = yield from self.querier._read_query(
+                "C,/rw-project:project/rw-cloud:cloud/rw-cloud:account",
+                project=False)
+            self.assertEqual(3, len(accts))
+
+            accts = yield from self.querier._read_query(
+                "C,/rw-project:project/rw-cloud:cloud/rw-cloud:account[rw-cloud:name='mock_account']",
+                project=False)
+            self.assertEqual(2, len(accts))
+
+        @asyncio.coroutine
         def verify_cm_state(termination=False, nsrid=None):
             self.log.debug("Verifying cm_state path = %s", XPaths.cm_state(nsrid))
-            #print("###>>> Verifying cm_state path:", XPaths.cm_state(nsrid))
 
             loop_count = 10
             loop_sleep = 10
@@ -878,7 +1057,7 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
 
             nsr_config = nsr_configs[0]
             self.assertEqual(
-                    "/nsd:nsd-catalog/nsd:nsd[nsd:id={}]/nsd:name".format(self.ping_pong.nsd_id),
+                    "/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id={}]/nsd:name".format(self.ping_pong.nsd_id),
                     nsr_config.input_parameter[0].xpath,
                     )
 
@@ -1031,6 +1210,9 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
             yield from verify_cm_state(termination, nsrid)
             yield from verify_nsr_config_status(termination, nsrid)
 
+            yield from verify_cloud_account(termination)
+            yield from verify_project_record(termination)
+
         @asyncio.coroutine
         def verify_scale_instance(index):
             self.log.debug("Verifying scale record path = %s, Termination=%d",
@@ -1074,12 +1256,20 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
         def run_test():
             yield from self.wait_tasklets()
 
+            yield from self.configure_project()
+            yield from self.configure_project(project=self.project1)
 
             cloud_type = "mock"
             yield from self.configure_cloud_account(self.dts, cloud_type, "mock_account")
             yield from self.configure_cloud_account(self.dts, cloud_type, "mock_account1")
+            yield from self.configure_cloud_account(self.dts, cloud_type, "mock_account",
+                                                    project=self.project1)
+
+            yield from verify_cloud_accounts()
+            yield from verify_projects()
 
             yield from self.ping_pong.publish_desciptors()
+            return
 
             # Attempt deleting VNFD not in use
             yield from self.ping_pong.update_ping_vnfd()

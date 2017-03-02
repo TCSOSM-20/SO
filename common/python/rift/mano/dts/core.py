@@ -25,7 +25,7 @@ class DtsHandler(object):
     """A common class to hold the barebone objects to build a publisher or
     subscriber
     """
-    def __init__(self, log, dts, loop):
+    def __init__(self, log, dts, loop, project):
         """Constructor
 
         Args:
@@ -34,7 +34,39 @@ class DtsHandler(object):
             loop : Asyncio event loop.
         """
         # Reg handle
-        self.reg = None
-        self.log = log
-        self.dts = dts
-        self.loop = loop
+        self._reg = None
+        self._log = log
+        self._dts = dts
+        self._loop = loop
+        self._project = project
+
+    @property
+    def reg(self):
+        return self._reg
+
+    @reg.setter
+    def reg(self, val):
+        self._reg = val
+
+    @property
+    def log(self):
+        return self._log
+
+    @property
+    def dts(self):
+        return self._dts
+
+    @property
+    def loop(self):
+        return self._loop
+
+    @property
+    def project(self):
+        return self._project
+
+    def deregister(self):
+        self._log.debug("De-registering DTS handler ({}) for project {}".
+                        format(self.__class__.__name__, self._project))
+        if self._reg:
+            self._reg.deregister()
+            self._reg = None

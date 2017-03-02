@@ -42,17 +42,19 @@ class RiftCMRPCHandler(object):
     GET_NS_CONF_XPATH = "I,/nsr:get-ns-service-primitive-values"
     GET_NS_CONF_O_XPATH = "O,/nsr:get-ns-service-primitive-values"
 
-    def __init__(self, dts, log, loop, nsm):
+    def __init__(self, dts, log, loop, project, nsm):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._nsm = nsm
 
         self._ns_regh = None
         self._vnf_regh = None
         self._get_ns_conf_regh = None
 
-        self.job_manager = rift.mano.config_agent.ConfigAgentJobManager(dts, log, loop, nsm)
+        self.job_manager = rift.mano.config_agent.ConfigAgentJobManager(dts, log, loop,
+                                                                        project, nsm)
 
         self._rift_install_dir = os.environ['RIFT_INSTALL']
         self._rift_artif_dir = os.environ['RIFT_ARTIFACTS']
@@ -66,6 +68,16 @@ class RiftCMRPCHandler(object):
     def nsm(self):
         """ Return the NS manager instance """
         return self._nsm
+
+    def deregister(self):
+        self._log.debug("De-register conman rpc handlers for project {}".
+                        format(self._project))
+        for reg in self.reghs:
+            if reg:
+                reg.deregister()
+                reg = None
+
+        self.job_manager.deregister()
 
     def prepare_meta(self, rpc_ip):
 
@@ -264,6 +276,10 @@ class RiftCMRPCHandler(object):
         def on_ns_config_prepare(xact_info, action, ks_path, msg):
             """ prepare callback from dts exec-ns-service-primitive"""
             assert action == rwdts.QueryAction.RPC
+
+            if not self._project.rpc_check(msg, xact_info):
+                return
+
             rpc_ip = msg
             rpc_op = NsrYang.YangOutput_Nsr_ExecNsServicePrimitive.from_dict({
                     "triggered_by": rpc_ip.triggered_by,
@@ -389,6 +405,10 @@ class RiftCMRPCHandler(object):
         @asyncio.coroutine
         def on_get_ns_config_values_prepare(xact_info, action, ks_path, msg):
             assert action == rwdts.QueryAction.RPC
+
+            if not self._project.rpc_check(msg, xact_info):
+                return
+
             nsr_id = msg.nsr_id_ref
             cfg_prim_name = msg.name
             try:

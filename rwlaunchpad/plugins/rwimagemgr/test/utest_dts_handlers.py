@@ -138,7 +138,7 @@ class RwImageRPCTestCase(rift.test.dts.AbstractDTSTest):
                     )
 
             query_iter = yield from self.dts_c.query_read(
-                    "D,/rw-image-mgmt:upload-jobs",
+                    "D,/rw-project:project/rw-image-mgmt:upload-jobs",
                     )
 
             for fut_resp in query_iter:

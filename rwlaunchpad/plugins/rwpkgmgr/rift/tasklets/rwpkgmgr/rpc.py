@@ -102,22 +102,36 @@ class PackageOperationsRpcHandler(mano_dts.AbstractRpcHandler):
     3. Return a tracking ID for the client to monitor the entire status
 
     """
-    def __init__(self, log, dts, loop, proxy, publisher):
+    def __init__(self, log, dts, loop, proxy, tasklet):
         """
         Args:
             proxy: Any impl of .proxy.AbstractPackageManagerProxy
-            publisher: Instance of DownloadStatusPublisher
+            publisher: Instance of tasklet to find the DownloadStatusPublisher
+                       for a specific project
         """
         super().__init__(log, dts, loop)
         self.proxy = proxy
-        self.publisher = publisher
+        self.tasklet = tasklet
 
     @property
     def xpath(self):
         return "/rw-pkg-mgmt:package-file-add"
 
+    def get_publisher(self, msg):
+        try:
+            proj = self.tasklet.projects[msg.project_name]
+        except Exception as e:
+            err = "Project or project name not found {}: {}". \
+                  format(msg.as_dict(), e)
+            self.log.error (err)
+            raise Exception (err)
+
+        return proj.job_handler
+
     @asyncio.coroutine
     def callback(self, ks_path, msg):
+        publisher = self.get_publisher(msg)
+
         if not msg.external_url:
             # For now we will only support External URL download
             raise Exception ("No download URL provided")
@@ -138,7 +152,7 @@ class PackageOperationsRpcHandler(mano_dts.AbstractRpcHandler):
                 proxy=self.proxy,
                 log=self.log)
 
-        download_id = yield from self.publisher.register_downloader(url_downloader)
+        download_id = yield from publisher.register_downloader(url_downloader)
 
         rpc_op = RPC_PACKAGE_ADD_ENDPOINT.from_dict({"task_id": download_id})
 

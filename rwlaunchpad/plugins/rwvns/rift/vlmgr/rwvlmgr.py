@@ -70,6 +70,7 @@ class VirtualLinkRecord(object):
         self._vnsm = vnsm
         self._vlr_msg = vlr_msg
 
+        self._project = vnsm._project
         self._network_id = None
         self._network_pool = None
         self._assigned_subnet = None
@@ -85,7 +86,8 @@ class VirtualLinkRecord(object):
     @property
     def vld_xpath(self):
         """ VLD xpath associated with this VLR record """
-        return "C,/vld:vld-catalog/vld:vld[id='{}']".format(self.vld_id)
+        return self._project.add_project("C,/vld:vld-catalog/vld:vld[id='{}']".
+                                         format(self.vld_id))
 
     @property
     def vld_id(self):
@@ -100,7 +102,7 @@ class VirtualLinkRecord(object):
     @property
     def xpath(self):
         """ path for this VLR """
-        return("D,/vlr:vlr-catalog"
+        return self._project.add_project("D,/vlr:vlr-catalog"
                "/vlr:vlr[vlr:id='{}']".format(self.vlr_id))
 
     @property
@@ -116,7 +118,7 @@ class VirtualLinkRecord(object):
     @property
     def resmgr_path(self):
         """ path for resource-mgr"""
-        return ("D,/rw-resource-mgr:resource-mgmt" +
+        return self._project.add_project("D,/rw-resource-mgr:resource-mgmt" +
                 "/vlink-event/vlink-event-data[event-id='{}']".format(self._request_id))
 
     @property
@@ -135,7 +137,7 @@ class VirtualLinkRecord(object):
     @property
     def msg(self):
         """ VLR message for this VLR """
-        msg = RwVlrYang.YangData_Vlr_VlrCatalog_Vlr()
+        msg = RwVlrYang.YangData_RwProject_Project_VlrCatalog_Vlr()
         msg.copy_from(self._vlr_msg)
 
         if self._network_id is not None:
@@ -313,6 +315,7 @@ class VlrDtsHandler(object):
         self._vnsm = vnsm
 
         self._regh = None
+        self._project = vnsm._project
 
     @property
     def regh(self):
@@ -369,7 +372,7 @@ class VlrDtsHandler(object):
                 return
             elif action == rwdts.QueryAction.DELETE:
                 # Delete an VLR record
-                schema = RwVlrYang.YangData_Vlr_VlrCatalog_Vlr.schema()
+                schema = RwVlrYang.YangData_RwProject_Project_VlrCatalog_Vlr.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
                 self._log.debug("Terminating VLR id %s", path_entry.key00.id)
                 yield from self._vnsm.delete_vlr(path_entry.key00.id, xact_info.xact)
@@ -379,8 +382,9 @@ class VlrDtsHandler(object):
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
             return
 
-        self._log.debug("Registering for VLR using xpath: %s",
-                        VlrDtsHandler.XPATH)
+        xpath = self._project.add_project(VlrDtsHandler.XPATH)
+        self._log.debug("Registering for VLR using xpath: {}".
+                        format(xpath))
 
         reg_handle = rift.tasklets.DTS.RegistrationHandler(
             on_commit=on_commit,
@@ -389,16 +393,24 @@ class VlrDtsHandler(object):
         handlers = rift.tasklets.Group.Handler(on_event=on_event,)
         with self._dts.group_create(handler=handlers) as group:
             self._regh = group.register(
-                xpath=VlrDtsHandler.XPATH,
+                xpath=xpath,
                 handler=reg_handle,
                 flags=rwdts.Flag.PUBLISHER | rwdts.Flag.NO_PREP_READ| rwdts.Flag.DATASTORE,
                 )
 
+    def deregister(self):
+        self._log.debug("De-register VLR handler for project {}".
+                        format(self._project.name))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
+
     @asyncio.coroutine
-    def create(self, xact, path, msg):
+    def create(self, xact, xpath, msg):
         """
         Create a VLR record in DTS with path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Creating VLR xact = %s, %s:%s",
                         xact, path, msg)
         self.regh.create_element(path, msg)
@@ -406,10 +418,11 @@ class VlrDtsHandler(object):
                         xact, path, msg)
 
     @asyncio.coroutine
-    def update(self, xact, path, msg):
+    def update(self, xact, xpath, msg):
         """
         Update a VLR record in DTS with path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Updating VLR xact = %s, %s:%s",
                         xact, path, msg)
         self.regh.update_element(path, msg)
@@ -417,10 +430,11 @@ class VlrDtsHandler(object):
                         xact, path, msg)
 
     @asyncio.coroutine
-    def delete(self, xact, path):
+    def delete(self, xact, xpath):
         """
         Delete a VLR record in DTS with path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Deleting VLR xact = %s, %s", xact, path)
         self.regh.delete_element(path)
         self._log.debug("Deleted VLR xact = %s, %s", xact, path)
@@ -453,8 +467,13 @@ class VldDtsHandler(object):
                 "Got on prepare for VLD update (ks_path: %s) (action: %s)",
                 ks_path.to_xpath(VldYang.get_schema()), msg)
 
-            schema = VldYang.YangData_Vld_VldCatalog_Vld.schema()
+            schema = VldYang.YangData_RwProject_Project_VldCatalog_Vld.schema()
             path_entry = schema.keyspec_to_entry(ks_path)
+            # TODO: Check why on project delete this gets called
+            if not path_entry:
+                xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+                return
+
             vld_id = path_entry.key00.id
 
             disabled_actions = [rwdts.QueryAction.DELETE, rwdts.QueryAction.UPDATE]
@@ -477,7 +496,14 @@ class VldDtsHandler(object):
         handler = rift.tasklets.DTS.RegistrationHandler(on_prepare=on_prepare)
 
         yield from self._dts.register(
-            VldDtsHandler.XPATH,
+            self._vnsm._project.add_project(VldDtsHandler.XPATH),
             flags=rwdts.Flag.SUBSCRIBER,
             handler=handler
             )
+
+    def deregister(self):
+        self._log.debug("De-register VLD handler for project {}".
+                        format(self._vnsm._project.name))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None

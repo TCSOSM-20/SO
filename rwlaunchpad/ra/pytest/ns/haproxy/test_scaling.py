@@ -25,8 +25,8 @@ def proxy(request, mgmt_session):
     return mgmt_session.proxy
 
 
-ScalingGroupInstance = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup_Instance
-ScalingGroup = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup
+ScalingGroupInstance = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_ScalingGroup_Instance
+ScalingGroup = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_ScalingGroup
 
 INSTANCE_ID = 1
 

@@ -36,11 +36,33 @@ from gi.repository import (
         RwDts as rwdts,
         RwStagingMgmtYang)
 import rift.tasklets
+from rift.mano.utils.project import (
+    ManoProject,
+    ProjectHandler,
+)
 
 from . import rpc
 from . import store
 from .server import StagingApplication
 from .publisher import StagingStorePublisher
+
+
+class StagingManagerProject(ManoProject):
+
+    def __init__(self, name, tasklet, **kw):
+        super(StagingManagerProject, self).__init__(tasklet.log, name)
+        self.update(tasklet)
+
+        self.publisher = StagingStorePublisher(self)
+        # For recovery
+        self.publisher.delegate = tasklet.store
+
+    @asyncio.coroutine
+    def register (self):
+        yield from self.publisher.register()
+
+    def deregister(self):
+        self.publisher.deregister()
 
 
 class StagingManagerTasklet(rift.tasklets.Tasklet):
@@ -49,8 +71,12 @@ class StagingManagerTasklet(rift.tasklets.Tasklet):
     def __init__(self, *args, **kwargs):
         try:
             super().__init__(*args, **kwargs)
+            self._project_handler = None
+            self.projects = {}
+
         except Exception as e:
-            self.log.exception(e)
+            self.log.exception("Staging Manager tasklet init: {}".
+                               format(e))
 
     def start(self):
         super().start()
@@ -72,14 +98,7 @@ class StagingManagerTasklet(rift.tasklets.Tasklet):
 
     @asyncio.coroutine
     def init(self):
-        self.store = store.StagingFileStore(log=self.log)
-        self.publisher = StagingStorePublisher(self.log, self.dts, self.loop)
-        # Fore recovery
-        self.publisher.delegate = self.store
-        # For create and delete events
-        self.store.delegate = self.publisher
-        yield from self.publisher.register()
-
+        self.store = store.StagingFileStore(self)
 
         io_loop = rift.tasklets.tornado.TaskletAsyncIOLoop(asyncio_loop=self.loop)
         self.app = StagingApplication(self.store)
@@ -107,8 +126,11 @@ class StagingManagerTasklet(rift.tasklets.Tasklet):
                 self.dts,
                 self.loop,
                 self.store)
-
         yield from self.create_stg_rpc.register()
+
+        self.log.debug("creating project handler")
+        self.project_handler = ProjectHandler(self, StagingManagerProject)
+        self.project_handler.register()
 
     @asyncio.coroutine
     def run(self):

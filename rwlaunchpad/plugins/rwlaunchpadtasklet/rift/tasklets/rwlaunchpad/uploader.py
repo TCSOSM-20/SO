@@ -146,12 +146,12 @@ class HttpMessageError(Exception):
 
 
 class UploadRpcHandler(mano_dts.AbstractRpcHandler):
-    def __init__(self, log, dts, loop, application):
+    def __init__(self, application):
         """
         Args:
             application: UploaderApplication
         """
-        super().__init__(log, dts, loop)
+        super().__init__(application.log, application.dts, application.loop)
         self.application = application
 
     @property
@@ -164,30 +164,41 @@ class UploadRpcHandler(mano_dts.AbstractRpcHandler):
         log = self.application.get_logger(transaction_id)
         log.message(OnboardStart())
 
+        self.log.debug("Package create RPC: {}".format(msg))
 
         auth = None
         if msg.username is not None:
             auth = (msg.username, msg.password)
 
+        try:
+            project = msg.project_name
+        except AttributeError as e:
+            self._log.warning("Did not get project name in RPC: {}".
+                              format(msg.as_dict()))
+            project = rift.mano.utils.project.DEFAULT_PROJECT
+
         self.application.onboard(
                 msg.external_url,
                 transaction_id,
-                auth=auth
+                auth=auth,
+                project=project,
                 )
 
         rpc_op = RPC_PACKAGE_CREATE_ENDPOINT.from_dict({
-                "transaction_id": transaction_id})
+            "transaction_id": transaction_id,
+            "project_name": project,
+        })
 
         return rpc_op
 
 
 class UpdateRpcHandler(mano_dts.AbstractRpcHandler):
-    def __init__(self, log, dts, loop, application):
+    def __init__(self, application):
         """
         Args:
             application: UploaderApplication
         """
-        super().__init__(log, dts, loop)
+        super().__init__(application.log, application.dts, application.loop)
         self.application = application
 
     @property
@@ -208,11 +219,14 @@ class UpdateRpcHandler(mano_dts.AbstractRpcHandler):
         self.application.update(
                 msg.external_url,
                 transaction_id,
-                auth=auth
+                auth=auth,
+                project=msg.project_name,
                 )
 
         rpc_op = RPC_PACKAGE_UPDATE_ENDPOINT.from_dict({
-                "transaction_id": transaction_id})
+            "transaction_id": transaction_id,
+            "project_name": msg.project_name,
+        })
 
         return rpc_op
 
@@ -231,11 +245,12 @@ class UpdateStateHandler(state.StateHandler):
 
 class UpdatePackage(downloader.DownloaderProtocol):
 
-    def __init__(self, log, loop, url, auth,
+    def __init__(self, log, loop, project, url, auth,
                  onboarder, uploader, package_store_map):
         super().__init__()
         self.log = log
         self.loop = loop
+        self.project = project
         self.url = url
         self.auth = auth
         self.onboarder = onboarder
@@ -355,7 +370,7 @@ class UpdatePackage(downloader.DownloaderProtocol):
                             )
                 try:
                     self.uploader.upload_image(image_name, image_checksum, image_hdl)
-                    self.uploader.upload_image_to_cloud_accounts(image_name, image_checksum)
+                    self.uploader.upload_image_to_cloud_accounts(image_name, image_checksum, self.project)
 
                 except image.ImageUploadError as e:
                     self.log.exception("Failed to upload image: %s", image_name)
@@ -427,22 +442,24 @@ class UpdatePackage(downloader.DownloaderProtocol):
         self.log.message(UpdateDescriptorUpdate())
 
         try:
-            self.onboarder.update(descriptor_msg)
+            self.onboarder.update(descriptor_msg, project=self.project)
         except onboard.UpdateError as e:
             raise MessageException(UpdateDescriptorError(package.descriptor_file)) from e
 
 
 class OnboardPackage(downloader.DownloaderProtocol):
 
-    def __init__(self, log, loop, url, auth,
+    def __init__(self, log, loop, project, url, auth,
                  onboarder, uploader, package_store_map):
         self.log = log
         self.loop = loop
+        self.project = project
         self.url = url
         self.auth = auth
         self.onboarder = onboarder
         self.uploader = uploader
         self.package_store_map = package_store_map
+        self.project = project
 
     def _onboard_package(self, packages):
         # Extract package could return multiple packages if
@@ -623,7 +640,7 @@ class OnboardPackage(downloader.DownloaderProtocol):
         self.log.message(OnboardDescriptorOnboard())
 
         try:
-            self.onboarder.onboard(descriptor_msg)
+            self.onboarder.onboard(descriptor_msg, project=self.project)
         except onboard.OnboardError as e:
             raise MessageException(OnboardDescriptorError(package.descriptor_file)) from e
 
@@ -637,29 +654,23 @@ class UploaderApplication(tornado.web.Application):
         ssl_cert = manifest.bootstrap_phase.rwsecurity.cert
         ssl_key = manifest.bootstrap_phase.rwsecurity.key
         return cls(
-                tasklet.log,
-                tasklet.dts,
-                tasklet.loop,
-                ssl=(ssl_cert, ssl_key),
-                vnfd_store=tasklet.vnfd_package_store,
-                nsd_store=tasklet.nsd_package_store,
-                vnfd_catalog=tasklet.vnfd_catalog,
-                nsd_catalog=tasklet.nsd_catalog)
+            tasklet,
+            ssl=(ssl_cert, ssl_key),
+            vnfd_store=tasklet.vnfd_package_store,
+            nsd_store=tasklet.nsd_package_store)
 
     def __init__(
             self,
-            log,
-            dts,
-            loop,
+            tasklet,
             ssl=None,
             vnfd_store=None,
-            nsd_store=None,
-            vnfd_catalog=None,
-            nsd_catalog=None):
+            nsd_store=None):
 
-        self.log = log
-        self.loop = loop
-        self.dts = dts
+        self.log = tasklet.log
+        self.loop = tasklet.loop
+        self.dts = tasklet.dts
+
+        self.accounts = {}
 
         self.use_ssl = False
         self.ssl_cert, self.ssl_key = None, None
@@ -673,7 +684,6 @@ class UploaderApplication(tornado.web.Application):
         if not nsd_store:
             nsd_store = rift.package.store.NsdPackageFilesystemStore(self.log)
 
-        self.accounts = []
         self.messages = collections.defaultdict(list)
         self.export_dir = os.path.join(os.environ['RIFT_ARTIFACTS'], 'launchpad/exports')
 
@@ -689,24 +699,16 @@ class UploaderApplication(tornado.web.Application):
         self.exporter = export.DescriptorPackageArchiveExporter(self.log)
         self.loop.create_task(export.periodic_export_cleanup(self.log, self.loop, self.export_dir))
 
-        self.vnfd_catalog = vnfd_catalog
-        self.nsd_catalog = nsd_catalog
+        self.get_vnfd_catalog = tasklet.get_vnfd_catalog
+        self.get_nsd_catalog = tasklet.get_nsd_catalog
         catalog_map = {
-                 "vnfd": self.vnfd_catalog,
-                 "nsd": self.nsd_catalog
+                 "vnfd": self.get_vnfd_catalog,
+                 "nsd": self.get_nsd_catalog
                  }
 
-        self.upload_handler = UploadRpcHandler(self.log, self.dts, self.loop, self)
-        self.update_handler = UpdateRpcHandler(self.log, self.dts, self.loop, self)
-        self.export_handler = export.ExportRpcHandler(
-                    self.log,
-                    self.dts,
-                    self.loop,
-                    self,
-                    store_map=self.package_store_map,
-                    exporter=self.exporter,
-                    catalog_map=catalog_map
-                    )
+        self.upload_handler = UploadRpcHandler(self)
+        self.update_handler = UpdateRpcHandler(self)
+        self.export_handler = export.ExportRpcHandler(self, catalog_map)
 
         attrs = dict(log=self.log, loop=self.loop)
 
@@ -737,12 +739,13 @@ class UploaderApplication(tornado.web.Application):
     def get_logger(self, transaction_id):
         return message.Logger(self.log, self.messages[transaction_id])
 
-    def onboard(self, url, transaction_id, auth=None):
+    def onboard(self, url, transaction_id, auth=None, project=None):
         log = message.Logger(self.log, self.messages[transaction_id])
 
         onboard_package = OnboardPackage(
                 log,
                 self.loop,
+                project,
                 url,
                 auth,
                 self.onboarder,
@@ -752,12 +755,13 @@ class UploaderApplication(tornado.web.Application):
 
         self.loop.run_in_executor(None, onboard_package.download_package)
 
-    def update(self, url, transaction_id, auth=None):
+    def update(self, url, transaction_id, auth=None, project=None):
         log = message.Logger(self.log, self.messages[transaction_id])
 
         update_package = UpdatePackage(
                 log,
                 self.loop,
+                project,
                 url,
                 auth,
                 self.onboarder,

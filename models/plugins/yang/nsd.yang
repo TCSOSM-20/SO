@@ -843,9 +843,11 @@ module nsd
 
         leaf member-vnf-index-ref {
           description "Reference to member-vnf within constituent-vnfds";
-          type leafref {
-            path "../../../constituent-vnfd/member-vnf-index";
-          }
+          // TODO (Philip): Fix this
+          // type leafref {
+          //   path "../../../constituent-vnfd/member-vnf-index";
+          // }
+          type uint64;
         }
 
         leaf vnfd-id-ref {
@@ -865,11 +867,13 @@ module nsd
 
         leaf vnfd-connection-point-ref {
           description "A reference to a connection point name";
-          type leafref {
-            path "../../../../../../vnfd:vnfd-catalog/vnfd:vnfd" +
-                 "[vnfd:id = current()/../vnfd-id-ref]/" +
-                 "vnfd:connection-point/vnfd:name";
-          }
+          // TODO (Philip): Fix this
+          // type leafref {
+          //   path "../../../../../../vnfd:vnfd-catalog/vnfd:vnfd" +
+          //        "[vnfd:id = current()/../vnfd-id-ref]/" +
+          //        "vnfd:connection-point/vnfd:name";
+          // }
+          type string;
         }
       }
     }
@@ -927,9 +931,11 @@ module nsd
       leaf vnfd-id-ref {
         description
           "Identifier for the VNFD.";
-        type leafref {
-          path "../../../../../vnfd:vnfd-catalog/vnfd:vnfd/vnfd:id";
-        }
+        // TODO (Philip): Fix this
+        // type leafref {
+        //   path "../../../../../vnfd:vnfd-catalog/vnfd:vnfd/vnfd:id";
+        // }
+        type string;
       }
 
       leaf start-by-default {
@@ -987,17 +993,21 @@ module nsd
 
         leaf member-vnf-index-ref {
           description "member VNF index of this member VNF";
-          type leafref {
-            path "../../../constituent-vnfd/member-vnf-index";
-          }
+          // TODO (Philip): Fix this
+          // type leafref {
+          //   path "../../../constituent-vnfd/member-vnf-index";
+          // }
+          type uint64;
         }
 
         leaf vnfd-id-ref {
           description
               "Identifier for the VNFD.";
-          type leafref {
-            path "../../../../../../vnfd:vnfd-catalog/vnfd:vnfd/vnfd:id";
-          }
+          // TODO (Philip): Fix this
+          // type leafref {
+          //   path "../../../../../../vnfd:vnfd-catalog/vnfd:vnfd/vnfd:id";
+          // }
+          type string;
         }
       }
     }

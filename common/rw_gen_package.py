@@ -40,9 +40,9 @@ def read_from_file(module_list, infile, input_format, descr_type):
 
       descr = None
       if descr_type == "nsd":
-        descr = RwNsdYang.YangData_Nsd_NsdCatalog_Nsd()
+        descr = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
       else:
-        descr = VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd()
+        descr = VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
 
       if input_format == 'json':
           json_str = open(infile).read()

@@ -52,9 +52,9 @@ class PackageFilesystemStore(object):
     @property
     def root_dir(self):
         return self._root_dir
-    
 
     def _get_package_dir(self, package_id):
+        self._log.debug("Package dir {}, {}".format(self._root_dir, package_id))
         return os.path.join(self._root_dir, package_id)
 
     def _get_package_files(self, package_id):

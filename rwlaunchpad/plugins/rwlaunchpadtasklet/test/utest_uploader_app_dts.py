@@ -74,7 +74,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         mock_vnfd_catalog = mock.MagicMock()
         self.uid, path = self.create_mock_package()
 
-        mock_vnfd = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd.from_dict({
+        mock_vnfd = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd.from_dict({
               "id": self.uid
             })
         mock_vnfd_catalog = {self.uid: mock_vnfd}

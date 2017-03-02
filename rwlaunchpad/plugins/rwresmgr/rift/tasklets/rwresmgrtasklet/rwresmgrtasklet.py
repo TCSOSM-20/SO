@@ -34,6 +34,10 @@ from gi.repository import (
 )
 
 import rift.tasklets
+from rift.mano.utils.project import (
+    ManoProject,
+    ProjectHandler,
+)
 
 from . import rwresmgr_core as Core
 from . import rwresmgr_config as Config
@@ -41,11 +45,13 @@ from . import rwresmgr_events as Event
 
 
 class ResourceManager(object):
-    def __init__(self, log, log_hdl, loop, dts):
+    def __init__(self, log, log_hdl, loop, dts, project):
         self._log            = log
         self._log_hdl        = log_hdl
         self._loop           = loop
         self._dts            = dts
+        self._project        = project
+
         self.config_handler  = Config.ResourceMgrConfig(self._dts, self._log, self._log_hdl, self._loop, self)
         self.event_handler   = Event.ResourceMgrEvent(self._dts, self._log, self._loop, self)
         self.core            = Core.ResourceMgrCore(self._dts, self._log, self._log_hdl, self._loop, self)
@@ -54,6 +60,10 @@ class ResourceManager(object):
     def register(self):
         yield from self.config_handler.register()
         yield from self.event_handler.register()
+
+    def deregister(self):
+        self.event_handler.deregister()
+        self.config_handler.deregister()
 
     def add_cloud_account_config(self, account):
         self._log.debug("Received Cloud-Account add config event for account: %s", account.name)
@@ -160,16 +170,45 @@ class ResourceManager(object):
         return info
 
 
+class ResMgrProject(ManoProject):
+
+    def __init__(self, name, tasklet, **kw):
+        super(ResMgrProject, self).__init__(tasklet.log, name)
+        self.update(tasklet)
+
+        self._resource_manager = None
+
+    @asyncio.coroutine
+    def register (self):
+        self._log.debug("Initializing the Resource Manager tasklet for project {}".
+                        format(self.name))
+        self._resource_manager = ResourceManager(self._log,
+                                                 self._log_hdl,
+                                                 self._loop,
+                                                 self._dts,
+                                                 self,)
+        yield from self._resource_manager.register()
+
+    def deregister(self):
+        self._log.debug("De-registering project {}".format(self.name))
+        self._resource_manager.deregister()
+
+
 class ResMgrTasklet(rift.tasklets.Tasklet):
     def __init__(self, *args, **kwargs):
         super(ResMgrTasklet, self).__init__(*args, **kwargs)
         self.rwlog.set_category("rw-resource-mgr-log")
         self._dts = None
-        self._resource_manager = None
+        self._project_handler = None
+        self.projects = {}
+
+    @property
+    def dts(self):
+        return self._dts
 
     def start(self):
         super(ResMgrTasklet, self).start()
-        self.log.info("Starting ResMgrTasklet")
+        self.log.debug("Starting ResMgrTasklet")
 
         self.log.debug("Registering with dts")
 
@@ -192,12 +231,9 @@ class ResMgrTasklet(rift.tasklets.Tasklet):
 
     @asyncio.coroutine
     def init(self):
-        self._log.info("Initializing the Resource Manager tasklet")
-        self._resource_manager = ResourceManager(self.log,
-                                                 self.log_hdl,
-                                                 self.loop,
-                                                 self._dts)
-        yield from self._resource_manager.register()
+        self.log.debug("creating project handler")
+        self.project_handler = ProjectHandler(self, ResMgrProject)
+        self.project_handler.register()
 
     @asyncio.coroutine
     def run(self):

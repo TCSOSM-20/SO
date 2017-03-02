@@ -42,8 +42,8 @@ from gi.repository import (
         )
 
 
-ScalingCriteria = NsdYang.YangData_Nsd_NsdCatalog_Nsd_ScalingGroupDescriptor_ScalingPolicy_ScalingCriteria
-ScalingPolicy = NsdYang.YangData_Nsd_NsdCatalog_Nsd_ScalingGroupDescriptor_ScalingPolicy
+ScalingCriteria = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_ScalingGroupDescriptor_ScalingPolicy_ScalingCriteria
+ScalingPolicy = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_ScalingGroupDescriptor_ScalingPolicy
 
 
 class MockDelegate(engine.ScalingCriteria.Delegate):
@@ -73,7 +73,7 @@ class MockStore():
     def __call__(self):
         store = mock.MagicMock()
 
-        mock_vnfd =  RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd.from_dict({
+        mock_vnfd =  RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd.from_dict({
             'id': "1",
             'monitoring_param': [
                 {'description': 'no of ping requests',
@@ -98,12 +98,12 @@ class MockStore():
 
         store.get_vnfd = mock.MagicMock(return_value=mock_vnfd)
 
-        mock_vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict({'id': '1'})
-        mock_vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict({'id': '1'})
+        mock_vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr.from_dict({'id': '1'})
+        mock_vnfr.vnfd = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vnfd.from_dict({'id': '1'})
 
         store.get_vnfr = mock.MagicMock(return_value=mock_vnfr)
 
-        mock_nsr = RwNsrYang.YangData_Nsr_NsInstanceOpdata_Nsr.from_dict({
+        mock_nsr = RwNsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr.from_dict({
             'ns_instance_config_ref': "1",
             'name_ref': "Foo",
             'nsd_ref': '1',
@@ -138,7 +138,7 @@ class MockStore():
         scale_in_val = 100
         scale_out_val = 200
 
-        mock_nsd = RwNsdYang.YangData_Nsd_NsdCatalog_Nsd.from_dict({
+        mock_nsd = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd.from_dict({
             'id': '1',
             'monitoring_param': (monp_cfg if not self.legacy else []),
             'constituent_vnfd': [{'member_vnf_index': 1,
@@ -206,13 +206,13 @@ class AutoscalarDtsTestCase(rift.test.dts.AbstractDTSTest):
     def _populate_mock_values(self, criterias, nsr_id, floor, ceil):
         # Mock publish
         # Verify Scale in AND operator
-        NsMonParam = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_MonitoringParam
+        NsMonParam = NsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr_MonitoringParam
 
         publisher = rift.test.dts.DescriptorPublisher(self.log, self.dts, self.loop)
 
         for criteria in criterias:
             monp_id = criteria.ns_monitoring_param_ref
-            w_xpath = "D,/nsr:ns-instance-opdata/nsr:nsr"
+            w_xpath = "D,/rw-project:project/nsr:ns-instance-opdata/nsr:nsr"
             w_xpath = w_xpath + "[nsr:ns-instance-config-ref='{}']/nsr:monitoring-param".format(nsr_id)
             xpath =  w_xpath + "[nsr:id ='{}']".format(monp_id)
 

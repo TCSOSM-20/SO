@@ -32,8 +32,9 @@ class RiftCAConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
     """
         Implementation of the riftcm_config_plugin.RiftCMConfigPluginBase
     """
-    def __init__(self, dts, log, loop, account):
-        riftcm_config_plugin.RiftCMConfigPluginBase.__init__(self, dts, log, loop, account)
+    def __init__(self, dts, log, loop, project, account):
+        riftcm_config_plugin.RiftCMConfigPluginBase.__init__(self, dts, log,
+                                                             loop, project, account)
         self._name = account.name
         self._type = riftcm_config_plugin.DEFAULT_CAP_TYPE
         self._rift_install_dir = os.environ['RIFT_INSTALL']

@@ -108,17 +108,17 @@ class MockTasklet(object):
 
 
 def make_nsr(ns_instance_config_ref=str(uuid.uuid4())):
-    nsr = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr()
+    nsr = NsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr()
     nsr.ns_instance_config_ref = ns_instance_config_ref
     return nsr
 
 def make_vnfr(id=str(uuid.uuid4())):
-    vnfr = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
+    vnfr = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
     vnfr.id = id
     return vnfr
 
 def make_vdur(id=str(uuid.uuid4()), vim_id=str(uuid.uuid4())):
-    vdur = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+    vdur = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
     vdur.id = id
     vdur.vim_id = vim_id
     return vdur
@@ -149,7 +149,7 @@ class TestNfviMetricsCache(unittest.TestCase):
         mock = self.plugin_manager.plugin(self.account.name)
         mock.set_impl(TestNfviMetricsCache.Plugin())
 
-        self.vdur = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+        self.vdur = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
         self.vdur.id = "test-vdur-id"
         self.vdur.vim_id = "test-vim-id"
         self.vdur.vm_flavor.vcpu_count = 4
@@ -207,7 +207,7 @@ class TestNfviMetrics(unittest.TestCase):
             return True
 
         def nfvi_metrics(self, account, vim_id):
-            metrics = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur_NfviMetrics()
+            metrics = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur_NfviMetrics()
             metrics.vcpu.utilization = 0.5
             return None, metrics
 
@@ -340,7 +340,7 @@ class TestNfviInterface(unittest.TestCase):
         pass
 
     def test_alarm_create_and_destroy(self):
-        alarm = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur_Alarms()
+        alarm = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur_Alarms()
         alarm.name = "test-alarm"
         alarm.description = "test-description"
         alarm.vdur_id = "test-vdur-id"
@@ -606,7 +606,7 @@ class TestMonitor(unittest.TestCase):
         self.monitor.add_cloud_account(self.account)
 
         # Create a VNFR associated with the cloud account
-        vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
+        vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
         vnfr.cloud_account = self.account.name
         vnfr.id = 'test-vnfr-id'
 
@@ -644,7 +644,7 @@ class TestMonitor(unittest.TestCase):
         to retrieve the NFVI metrics associated with the VDU.
         """
         # Define the VDUR to be registered
-        vdur = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+        vdur = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
         vdur.vm_flavor.vcpu_count = 4
         vdur.vm_flavor.memory_mb = 100
         vdur.vm_flavor.storage_gb = 2
@@ -680,11 +680,11 @@ class TestMonitor(unittest.TestCase):
         the VDURs contained in the VNFR are unregistered.
         """
         # Define the VDUR to be registered
-        vdur = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+        vdur = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
         vdur.vim_id = 'test-vim-id-1'
         vdur.id = 'test-vdur-id-1'
 
-        vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
+        vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
         vnfr.cloud_account = self.account.name
         vnfr.id = 'test-vnfr-id'
 
@@ -699,7 +699,7 @@ class TestMonitor(unittest.TestCase):
 
         # Add another VDUR to the VNFR and update the monitor. Both VDURs
         # should now be registered
-        vdur = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+        vdur = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
         vdur.vim_id = 'test-vim-id-2'
         vdur.id = 'test-vdur-id-2'
 
@@ -730,7 +730,7 @@ class TestMonitor(unittest.TestCase):
         Monitor.
         """
         # Create the VNFR
-        vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
+        vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
         vnfr.cloud_account = self.account.name
         vnfr.id = 'test-vnfr-id'
 

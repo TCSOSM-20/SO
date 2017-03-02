@@ -128,15 +128,17 @@ class NsmPlugins(object):
 
 
 class CloudAccountConfigSubscriber:
-    def __init__(self, log, dts, log_hdl):
+    def __init__(self, log, dts, log_hdl, project):
         self._dts = dts
         self._log = log
         self._log_hdl = log_hdl
+        self._project = project
 
         self._cloud_sub = rift.mano.cloud.CloudAccountConfigSubscriber(
                 self._dts,
                 self._log,
                 self._log_hdl,
+                self._project,
                 rift.mano.cloud.CloudAccountConfigCallbacks())
 
     def get_cloud_account_sdn_name(self, account_name):
@@ -154,6 +156,9 @@ class CloudAccountConfigSubscriber:
     def register(self):
        self._cloud_sub.register()
 
+    def deregister(self):
+       self._cloud_sub.deregister()
+
 
 class ROAccountPluginSelector(object):
     """
@@ -166,10 +171,11 @@ class ROAccountPluginSelector(object):
     """
     DEFAULT_PLUGIN = RwNsPlugin
 
-    def __init__(self, dts, log, loop, records_publisher):
+    def __init__(self, dts, log, loop, project, records_publisher):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._records_publisher = records_publisher
 
         self._nsm_plugins = NsmPlugins()
@@ -178,12 +184,14 @@ class ROAccountPluginSelector(object):
                 self._log,
                 self._dts,
                 self._loop,
+                self._project,
                 callback=self.on_ro_account_change
                 )
         self._nsr_sub = mano_dts.NsrCatalogSubscriber(
                 self._log,
                 self._dts,
                 self._loop,
+                self._project,
                 self.handle_nsr)
 
         # The default plugin will be RwNsPlugin
@@ -240,3 +248,8 @@ class ROAccountPluginSelector(object):
     def register(self):
         yield from self._ro_sub.register()
         yield from self._nsr_sub.register()
+
+    def deregister(self):
+        self._log.debug("Project {} de-register".format(self._project.name))
+        self._ro_sub.deregister()
+        self._nsr_sub.deregister()

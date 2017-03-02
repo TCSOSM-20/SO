@@ -32,6 +32,10 @@ from gi.repository import (
 )
 
 import rift.tasklets
+from rift.mano.utils.project import (
+    ManoProject,
+    ProjectHandler,
+)
 
 from rift.vlmgr import (
     VlrDtsHandler,
@@ -79,13 +83,16 @@ class SDNAccountDtsOperdataHandler(object):
         self._log = log
         self._loop = loop
         self._parent = parent
+        self._project = self._parent._project
+        self._regh = None
+        self._rpch = None
 
     def _register_show_status(self):
         def get_xpath(sdn_name=None):
-            return "D,/rw-project:project/rw-sdn:sdn/rw-sdn:account{}" \
+            return self._project.add_project("D,/rw-sdn:sdn/rw-sdn:account{}" \
                 "/rw-sdn:connection-status".format(
                     "[name='%s']" % sdn_name if sdn_name is not None else ''
-                   )
+                   ))
 
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
@@ -112,12 +119,12 @@ class SDNAccountDtsOperdataHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        yield from self._dts.register(
-                xpath=get_xpath(),
-                handler=rift.tasklets.DTS.RegistrationHandler(
-                    on_prepare=on_prepare),
-                flags=rwdts.Flag.PUBLISHER,
-                )
+        self._regh = yield from self._dts.register(
+            xpath=get_xpath(),
+            handler=rift.tasklets.DTS.RegistrationHandler(
+                on_prepare=on_prepare),
+            flags=rwdts.Flag.PUBLISHER,
+        )
 
     def _register_validate_rpc(self):
         def get_xpath():
@@ -125,6 +132,10 @@ class SDNAccountDtsOperdataHandler(object):
 
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
+
+            if not self._project.rpc_check(msg, xact_info=xact_info):
+                return
+
             if not msg.has_field("sdn_account"):
                 raise SdnAccountNotFound("SDN account name not provided")
 
@@ -139,28 +150,46 @@ class SDNAccountDtsOperdataHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        yield from self._dts.register(
-                xpath=get_xpath(),
-                handler=rift.tasklets.DTS.RegistrationHandler(
-                    on_prepare=on_prepare
-                    ),
-                flags=rwdts.Flag.PUBLISHER,
-                )
+        self._rpch = yield from self._dts.register(
+            xpath=get_xpath(),
+            handler=rift.tasklets.DTS.RegistrationHandler(
+                on_prepare=on_prepare
+            ),
+            flags=rwdts.Flag.PUBLISHER,
+        )
 
     @asyncio.coroutine
     def register(self):
         yield from self._register_show_status()
         yield from self._register_validate_rpc()
 
+    def deregister(self):
+        self._log.debug("De-register SDN opdata handler for project {}".
+                        format(self._project.name))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
+
+        if self._rpch:
+            self._rpch.deregister()
+            self._rpch = None
+
+
 class SDNAccountDtsHandler(object):
-    XPATH = "C,/rw-project:project/rw-sdn:sdn/rw-sdn:account"
+    XPATH = "C,/rw-sdn:sdn/rw-sdn:account"
 
     def __init__(self, dts, log, parent):
         self._dts = dts
         self._log = log
         self._parent = parent
+        self._project = parent._project
 
         self._sdn_account = {}
+        self._regh = None
+
+    @property
+    def _xpath(self):
+        return self._project.add_project(SDNAccountDtsHandler.XPATH)
 
     def _set_sdn_account(self, account):
         self._log.info("Setting sdn account: {}".format(account))
@@ -211,7 +240,7 @@ class SDNAccountDtsHandler(object):
                         errmsg = "Cannot update SDN account's account-type."
                         self._log.error(errmsg)
                         xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
-                                                   SDNAccountDtsHandler.XPATH,
+                                                   self._xpath,
                                                    errmsg)
                         raise SdnAccountError(errmsg)
 
@@ -223,7 +252,7 @@ class SDNAccountDtsHandler(object):
                         errmsg = "New SDN account must contain account-type field."
                         self._log.error(errmsg)
                         xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
-                                                   SDNAccountDtsHandler.XPATH,
+                                                   self._xpath,
                                                    errmsg)
                         raise SdnAccountError(errmsg)
 
@@ -233,37 +262,47 @@ class SDNAccountDtsHandler(object):
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
 
-        self._log.debug("Registering for Sdn Account config using xpath: %s",
-                        SDNAccountDtsHandler.XPATH,
-                        )
+        self._log.debug("Registering for Sdn Account config using xpath: {}".
+                        format(self._xpath))
 
         acg_handler = rift.tasklets.AppConfGroup.Handler(
                         on_apply=apply_config,
                         )
 
         with self._dts.appconf_group_create(acg_handler) as acg:
-            acg.register(
-                    xpath=SDNAccountDtsHandler.XPATH,
-                    flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY,
-                    on_prepare=on_prepare
-                    )
+            self._regh = acg.register(
+                xpath=self._xpath,
+                flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY,
+                on_prepare=on_prepare
+            )
+
+    def deregister(self):
+        self._log.debug("De-register VLR handler for project {}".
+                        format(self._project.name))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
 
 class VnsManager(object):
     """ The Virtual Network Service Manager """
-    def __init__(self, dts, log, log_hdl, loop):
+    def __init__(self, dts, log, log_hdl, loop, project):
         self._dts = dts
         self._log = log
         self._log_hdl = log_hdl
         self._loop = loop
+        self._project = project
+
         self._vlr_handler = VlrDtsHandler(dts, log, loop, self)
         self._vld_handler = VldDtsHandler(dts, log, loop, self)
         self._sdn_handler = SDNAccountDtsHandler(dts,log,self)
         self._sdn_opdata_handler = SDNAccountDtsOperdataHandler(dts,log, loop, self)
-        self._acctmgr = SdnAccountMgr(self._log, self._log_hdl, self._loop)
+        self._acctmgr = SdnAccountMgr(self._log, self._log_hdl, self._loop, self._project)
         self._nwtopdata_store = NwtopDataStore(log)
-        self._nwtopdiscovery_handler = NwtopDiscoveryDtsHandler(dts, log, loop, self._acctmgr, self._nwtopdata_store)
-        self._nwtopstatic_handler = NwtopStaticDtsHandler(dts, log, loop, self._acctmgr, self._nwtopdata_store)
+        self._nwtopdiscovery_handler = NwtopDiscoveryDtsHandler(dts, log, loop, self._project,
+                                                                self._acctmgr, self._nwtopdata_store)
+        self._nwtopstatic_handler = NwtopStaticDtsHandler(dts, log, loop, self._project,
+                                                          self._acctmgr, self._nwtopdata_store)
         self._vlrs = {}
 
     @asyncio.coroutine
@@ -306,6 +345,14 @@ class VnsManager(object):
         yield from self.register_nwtopstatic_handler()
         # Not used for now
         yield from self.register_nwtopdiscovery_handler()
+
+    def deregister(self):
+        self._nwtopdiscovery_handler.deregister()
+        self._nwtopstatic_handler.deregister()
+        self._vld_handler.deregister()
+        self._vlr_handler.deregister()
+        self._sdn_opdata_handler.deregister()
+        self._sdn_handler.deregister()
 
     def create_vlr(self, msg):
         """ Create VLR """
@@ -360,17 +407,50 @@ class VnsManager(object):
         return False
 
     @asyncio.coroutine
-    def publish_vlr(self, xact, path, msg):
+    def publish_vlr(self, xact, xpath, msg):
         """ Publish a VLR """
+        path = self._project.add_project(xpath)
         self._log.debug("Publish vlr called with path %s, msg %s",
                         path, msg)
         yield from self._vlr_handler.update(xact, path, msg)
 
     @asyncio.coroutine
-    def unpublish_vlr(self, xact, path):
+    def unpublish_vlr(self, xact, xpath):
         """ Publish a VLR """
+        path = self._project.add_project(xpath)
         self._log.debug("Unpublish vlr called with path %s", path)
         yield from self._vlr_handler.delete(xact, path)
+
+
+class VnsProject(ManoProject):
+
+    def __init__(self, name, tasklet, **kw):
+        super(VnsProject, self).__init__(tasklet.log, name)
+        self.update(tasklet)
+
+        self._vlr_handler = None
+        self._vnsm = None
+        # A mapping of instantiated vlr_id's to VirtualLinkRecord objects
+        self._vlrs = {}
+
+    @asyncio.coroutine
+    def register (self):
+        self._vnsm = VnsManager(dts=self._dts,
+                                log=self.log,
+                                log_hdl=self._log_hdl,
+                                loop=self._loop,
+                                project=self)
+        yield from self._vnsm.run()
+
+        # NSM needs to detect VLD deletion that has active VLR
+        # self._vld_handler = VldDescriptorConfigDtsHandler(
+        #         self._dts, self.log, self.loop, self._vlrs,
+        #         )
+        # yield from self._vld_handler.register()
+
+    def deregister(self):
+        self._log.debug("De-register project {}".format(self.name))
+        self._vnsm.deregister()
 
 
 class VnsTasklet(rift.tasklets.Tasklet):
@@ -381,11 +461,12 @@ class VnsTasklet(rift.tasklets.Tasklet):
         self.rwlog.set_subcategory("vns")
 
         self._dts = None
-        self._vlr_handler = None
+        self._project_handler = None
+        self.projects = {}
 
-        self._vnsm = None
-        # A mapping of instantiated vlr_id's to VirtualLinkRecord objects
-        self._vlrs = {}
+    @property
+    def dts(self):
+        return self._dts
 
     def start(self):
         super(VnsTasklet, self).start()
@@ -413,17 +494,9 @@ class VnsTasklet(rift.tasklets.Tasklet):
     @asyncio.coroutine
     def init(self):
         """ task init callback"""
-        self._vnsm = VnsManager(dts=self._dts,
-                                log=self.log,
-                                log_hdl=self.log_hdl,
-                                loop=self.loop)
-        yield from self._vnsm.run()
-
-        # NSM needs to detect VLD deletion that has active VLR
-        # self._vld_handler = VldDescriptorConfigDtsHandler(
-        #         self._dts, self.log, self.loop, self._vlrs,
-        #         )
-        # yield from self._vld_handler.register()
+        self.log.debug("creating project handler")
+        self.project_handler = ProjectHandler(self, VnsProject)
+        self.project_handler.register()
 
     @asyncio.coroutine
     def run(self):

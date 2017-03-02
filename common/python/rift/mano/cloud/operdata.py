@@ -21,6 +21,7 @@ import rift.tasklets
 from gi.repository import(
         RwCloudYang,
         RwDts as rwdts,
+        RwTypes,
         )
 
 class CloudAccountNotFound(Exception):
@@ -28,11 +29,14 @@ class CloudAccountNotFound(Exception):
 
 
 class CloudAccountDtsOperdataHandler(object):
-    def __init__(self, dts, log, loop):
+    def __init__(self, dts, log, loop, project):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
 
+        self._regh = None
+        self._rpc = None
         self.cloud_accounts = {}
 
     def add_cloud_account(self, account):
@@ -71,13 +75,13 @@ class CloudAccountDtsOperdataHandler(object):
 
     def _register_show_status(self):
         def get_xpath(cloud_name=None):
-            return "D,/rw-project:project/rw-cloud:cloud/account{}/connection-status".format(
-                    "[name='%s']" % cloud_name if cloud_name is not None else ''
-                    )
+            return "D,/rw-cloud:cloud/account{}/connection-status".format(
+                 "[name='%s']" % cloud_name if cloud_name is not None else ''
+            )
 
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
-            path_entry = RwCloudYang.CloudAccount.schema().keyspec_to_entry(ks_path)
+            path_entry = RwCloudYang.CloudAcc.schema().keyspec_to_entry(ks_path)
             cloud_account_name = path_entry.key00.name
             self._log.debug("Got show cloud connection status request: %s", ks_path.create_string())
 
@@ -86,9 +90,10 @@ class CloudAccountDtsOperdataHandler(object):
                 for account in saved_accounts:
                     connection_status = account.connection_status
                     self._log.debug("Responding to cloud connection status request: %s", connection_status)
+                    xpath = self._project.add_project(get_xpath(account.name))
                     xact_info.respond_xpath(
                             rwdts.XactRspCode.MORE,
-                            xpath=get_xpath(account.name),
+                            xpath=xpath,
                             msg=account.connection_status,
                             )
             except KeyError as e:
@@ -98,8 +103,9 @@ class CloudAccountDtsOperdataHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        yield from self._dts.register(
-                xpath=get_xpath(),
+        xpath = self._project.add_project(get_xpath())
+        self._regh = yield from self._dts.register(
+                xpath=xpath,
                 handler=rift.tasklets.DTS.RegistrationHandler(
                     on_prepare=on_prepare),
                 flags=rwdts.Flag.PUBLISHER,
@@ -113,12 +119,20 @@ class CloudAccountDtsOperdataHandler(object):
         def on_prepare(xact_info, action, ks_path, msg):
             if not msg.has_field("cloud_account"):
                 raise CloudAccountNotFound("Cloud account name not provided")
-
             cloud_account_name = msg.cloud_account
+
+            if not self._project.rpc_check(msg, xact_info=xact_info):
+                return
+
             try:
                 account = self.cloud_accounts[cloud_account_name]
             except KeyError:
-                raise CloudAccountNotFound("Cloud account name %s not found" % cloud_account_name)
+                errmsg = "Cloud account name {} not found in project {}". \
+                         format(cloud_account_name, self._project.name)
+                xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
+                                           get_xpath(),
+                                           errmsg)
+                raise CloudAccountNotFound(errmsg)
 
             account.start_validate_credentials(self._loop)
 
@@ -126,7 +140,7 @@ class CloudAccountDtsOperdataHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        yield from self._dts.register(
+        self._rpc = yield from self._dts.register(
                 xpath=get_xpath(),
                 handler=rift.tasklets.DTS.RegistrationHandler(
                     on_prepare=on_prepare
@@ -138,3 +152,7 @@ class CloudAccountDtsOperdataHandler(object):
     def register(self):
         yield from self._register_show_status()
         yield from self._register_validate_rpc()
+
+    def deregister(self):
+        yield from self._rpc.deregister()
+        yield from self._regh.deregister()

@@ -222,7 +222,7 @@ class ToscaNfvVnf(ManoResource):
                        format(self.name, self.properties))
 
     def generate_yang_model_gi(self, nsd, vnfds):
-        vnfd_cat = RwVnfdYang.YangData_Vnfd_VnfdCatalog()
+        vnfd_cat = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog()
         vnfd = vnfd_cat.vnfd.add()
         props = convert_keys_to_python(self.properties)
         try:

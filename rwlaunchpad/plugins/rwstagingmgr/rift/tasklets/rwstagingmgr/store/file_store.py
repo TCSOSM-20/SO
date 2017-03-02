@@ -53,7 +53,7 @@ class StagingFileStore(StagingStorePublisherProtocol):
     META_YAML = "meta.yaml"
     DEFAULT_EXPIRY = 60 * 60
 
-    def __init__(self, log=None, root_dir=None):
+    def __init__(self, tasklet, root_dir=None):
         default_path = os.path.join(
             os.getenv('RIFT_ARTIFACTS'),
             "launchpad/staging")
@@ -63,11 +63,11 @@ class StagingFileStore(StagingStorePublisherProtocol):
         if not os.path.isdir(self.root_dir):
             os.makedirs(self.root_dir)
 
-        self.log = log or logging.getLogger()
+        self.log = tasklet.log
         self.tmp_dir = tempfile.mkdtemp(dir=self.root_dir)
 
         self._cache = {}
-        self.delegate = None
+        self.tasklet = tasklet
 
     def on_recovery(self, staging_areas):
         for area in staging_areas:
@@ -82,6 +82,17 @@ class StagingFileStore(StagingStorePublisherProtocol):
         return self._cache[area_id]
 
 
+    def get_delegate(self, msg):
+        try:
+            proj = self.tasklet.projects[msg.project_name]
+        except Exception as e:
+            err = "Project or project name not found {}: {}". \
+                  format(msg.as_dict(), e)
+            self.log.error (err)
+            raise Exception (err)
+
+        return proj.publisher
+
     def create_staging_area(self, staging_area_config):
         """Create the staging area
         Args:
@@ -93,6 +104,8 @@ class StagingFileStore(StagingStorePublisherProtocol):
         Raises:
             StagingAreaExists: if the staging area already exists
         """
+        delegate = self.get_delegate(staging_area_config)
+
         area_id = str(uuid.uuid4())
 
         container_path = os.path.join(self.root_dir, str(area_id))
@@ -118,10 +131,10 @@ class StagingFileStore(StagingStorePublisherProtocol):
         self._cache[area_id] = staging_area
 
         try:
-            if self.delegate:
-                self.delegate.on_staging_area_create(staging_area.model)
+            if delegate:
+                delegate.on_staging_area_create(staging_area.model)
         except Exception as e:
-            self.log.exception(str(e))
+            self.log.exception(e)
 
         return staging_area
 
@@ -131,6 +144,8 @@ class StagingFileStore(StagingStorePublisherProtocol):
             staging_area (str or model.StagingArea): Staging ID or the
                 StagingArea object
         """
+        delegate = self.get_delegate(staging_area_config)
+
         if type(staging_area) is str:
             staging_area = self.get_staging_area(staging_area)
 
@@ -140,7 +155,7 @@ class StagingFileStore(StagingStorePublisherProtocol):
         staging_area.model.status = "EXPIRED"
 
         try:
-            if self.delegate:
-                self.delegate.on_staging_area_delete(staging_area.model)
+            if delegate:
+                delegate.on_staging_area_delete(staging_area.model)
         except Exception as e:
-            self.log.exception(str(e))
+            self.log.exception(e)

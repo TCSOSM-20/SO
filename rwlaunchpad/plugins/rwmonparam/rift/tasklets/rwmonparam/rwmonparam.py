@@ -34,21 +34,20 @@ from gi.repository import (
 import rift.mano.cloud
 import rift.mano.dts as subscriber
 import rift.tasklets
+from rift.mano.utils.project import (
+    ManoProject,
+    ProjectHandler,
+    )
 
 from . import vnfr_core
 from . import nsr_core
 
 
-class MonitoringParameterTasklet(rift.tasklets.Tasklet):
-    """The main task of this Tasklet is to listen for VNFR changes and once the
-    VNFR hits the running state, triggers the monitor.
-    """
-    def __init__(self, *args, **kwargs):
-        try:
-            super().__init__(*args, **kwargs)
-            self.rwlog.set_category("rw-monitor-log")
-        except Exception as e:
-            self.log.exception(e)
+class MonParamProject(ManoProject):
+
+    def __init__(self, name, tasklet, **kw):
+        super(MonParamProject, self).__init__(tasklet.log, name)
+        self.update(tasklet)
 
         self.vnfr_subscriber = None
         self.store = None
@@ -59,77 +58,27 @@ class MonitoringParameterTasklet(rift.tasklets.Tasklet):
         # Needs to be moved to store once the DTS bug is resolved
         self.vnfrs = {}
 
-    def start(self):
-        super().start()
-
-        self.log.info("Starting MonitoringParameterTasklet")
-        self.log.debug("Registering with dts")
-
-        self.dts = rift.tasklets.DTS(
-                self.tasklet_info,
-                RwLaunchpadYang.get_schema(),
-                self.loop,
-                self.on_dts_state_change
-                )
-
-        self.vnfr_subscriber = subscriber.VnfrCatalogSubscriber.from_tasklet(
+        self.vnfr_subscriber = subscriber.VnfrCatalogSubscriber.from_project(
                 self,
                 callback=self.handle_vnfr)
-        self.nsr_subsriber = subscriber.NsrCatalogSubscriber.from_tasklet(
+        self.nsr_subsriber = subscriber.NsrCatalogSubscriber.from_project(
                 self,
                 callback=self.handle_nsr)
 
-        self.store = subscriber.SubscriberStore.from_tasklet(self)
+        self.store = subscriber.SubscriberStore.from_project(self)
 
         self.log.debug("Created DTS Api GI Object: %s", self.dts)
 
-    def stop(self):
-      try:
-          self.dts.deinit()
-      except Exception as e:
-          self.log.exception(e)
-
     @asyncio.coroutine
-    def init(self):
+    def register (self):
         self.log.debug("creating vnfr subscriber")
         yield from self.store.register()
         yield from self.vnfr_subscriber.register()
         yield from self.nsr_subsriber.register()
 
-    @asyncio.coroutine
-    def run(self):
-        pass
-
-    @asyncio.coroutine
-    def on_dts_state_change(self, state):
-        """Handle DTS state change
-
-        Take action according to current DTS state to transition application
-        into the corresponding application state
-
-        Arguments
-            state - current dts state
-
-        """
-        switch = {
-            rwdts.State.INIT: rwdts.State.REGN_COMPLETE,
-            rwdts.State.CONFIG: rwdts.State.RUN,
-        }
-
-        handlers = {
-            rwdts.State.INIT: self.init,
-            rwdts.State.RUN: self.run,
-        }
-
-        # Transition application to next state
-        handler = handlers.get(state, None)
-        if handler is not None:
-            yield from handler()
-
-        # Transition dts to next state
-        next_state = switch.get(state, None)
-        if next_state is not None:
-            self.dts.handle.set_state(next_state)
+    def deregister(self):
+        self.log.debug("De-register vnfr project {}".format(self.name))
+        #TODO:
 
     def handle_vnfr(self, vnfr, action):
         """Starts a monitoring parameter job for every VNFR that reaches
@@ -141,7 +90,6 @@ class MonitoringParameterTasklet(rift.tasklets.Tasklet):
         """
 
         def vnfr_create():
-            # if vnfr.operational_status == "running" and vnfr.id not in self.vnfr_monitors:
             if vnfr.config_status == "configured" and vnfr.id not in self.vnfr_monitors:
 
                 vnf_mon = vnfr_core.VnfMonitorDtsHandler.from_vnf_data(
@@ -178,7 +126,7 @@ class MonitoringParameterTasklet(rift.tasklets.Tasklet):
         NS that moves to config state.
 
         Args:
-            nsr (RwNsrYang.YangData_Nsr_NsInstanceOpdata_Nsr): Ns Opdata
+            nsr (RwNsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr): Ns Opdata
             action (rwdts.QueryAction): Action type of the change.
         """
         def nsr_create():
@@ -188,6 +136,7 @@ class MonitoringParameterTasklet(rift.tasklets.Tasklet):
                         self.log,
                         self.dts,
                         self.loop,
+                        self,
                         nsr,
                         list(self.vnfrs.values()),
                         self.store
@@ -197,8 +146,12 @@ class MonitoringParameterTasklet(rift.tasklets.Tasklet):
 
                 @asyncio.coroutine
                 def task():
-                    yield from nsr_mon.register()
-                    yield from nsr_mon.start()
+                    try:
+                        yield from nsr_mon.register()
+                        yield from nsr_mon.start()
+                    except Exception as e:
+                        self.log.exception("NSR {} monparam task failed: {}".
+                                           format(nsr.name_ref, e))
 
                 self.loop.create_task(task())
 
@@ -214,3 +167,78 @@ class MonitoringParameterTasklet(rift.tasklets.Tasklet):
             nsr_create()
         elif action == rwdts.QueryAction.DELETE:
             nsr_delete()
+
+
+class MonitoringParameterTasklet(rift.tasklets.Tasklet):
+    """The main task of this Tasklet is to listen for VNFR changes and once the
+    VNFR hits the running state, triggers the monitor.
+    """
+    def __init__(self, *args, **kwargs):
+        try:
+            super().__init__(*args, **kwargs)
+            self.rwlog.set_category("rw-monitor-log")
+        except Exception as e:
+            self.log.exception(e)
+
+        self._project_handler = None
+        self.projects = {}
+
+    def start(self):
+        super().start()
+
+        self.log.info("Starting MonitoringParameterTasklet")
+        self.log.debug("Registering with dts")
+
+        self.dts = rift.tasklets.DTS(
+                self.tasklet_info,
+                RwLaunchpadYang.get_schema(),
+                self.loop,
+                self.on_dts_state_change
+                )
+
+    def stop(self):
+      try:
+          self.dts.deinit()
+      except Exception as e:
+          self.log.exception(e)
+
+    @asyncio.coroutine
+    def init(self):
+        self.log.debug("creating project handler")
+        self.project_handler = ProjectHandler(self, MonParamProject)
+        self.project_handler.register()
+
+    @asyncio.coroutine
+    def run(self):
+        pass
+
+    @asyncio.coroutine
+    def on_dts_state_change(self, state):
+        """Handle DTS state change
+
+        Take action according to current DTS state to transition application
+        into the corresponding application state
+
+        Arguments
+            state - current dts state
+
+        """
+        switch = {
+            rwdts.State.INIT: rwdts.State.REGN_COMPLETE,
+            rwdts.State.CONFIG: rwdts.State.RUN,
+        }
+
+        handlers = {
+            rwdts.State.INIT: self.init,
+            rwdts.State.RUN: self.run,
+        }
+
+        # Transition application to next state
+        handler = handlers.get(state, None)
+        if handler is not None:
+            yield from handler()
+
+        # Transition dts to next state
+        next_state = switch.get(state, None)
+        if next_state is not None:
+            self.dts.handle.set_state(next_state)

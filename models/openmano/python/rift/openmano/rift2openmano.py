@@ -88,20 +88,20 @@ class RiftNSD(object):
     @classmethod
     def from_xml_file_hdl(cls, hdl):
         hdl.seek(0)
-        descriptor = RwNsdYang.YangData_Nsd_NsdCatalog_Nsd()
+        descriptor = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
         descriptor.from_xml_v2(RiftNSD.model, hdl.read())
         return cls(descriptor)
 
     @classmethod
     def from_yaml_file_hdl(cls, hdl):
         hdl.seek(0)
-        descriptor = RwNsdYang.YangData_Nsd_NsdCatalog_Nsd()
+        descriptor = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
         descriptor.from_yaml(RiftNSD.model, hdl.read())
         return cls(descriptor)
 
     @classmethod
     def from_dict(cls, nsd_dict):
-        descriptor = RwNsdYang.YangData_Nsd_NsdCatalog_Nsd.from_dict(nsd_dict)
+        descriptor = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd.from_dict(nsd_dict)
         return cls(descriptor)
 
 
@@ -143,20 +143,20 @@ class RiftVNFD(object):
     @classmethod
     def from_xml_file_hdl(cls, hdl):
         hdl.seek(0)
-        descriptor = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd()
+        descriptor = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
         descriptor.from_xml_v2(RiftVNFD.model, hdl.read())
         return cls(descriptor)
 
     @classmethod
     def from_yaml_file_hdl(cls, hdl):
         hdl.seek(0)
-        descriptor = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd()
+        descriptor = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
         descriptor.from_yaml(RiftVNFD.model, hdl.read())
         return cls(descriptor)
 
     @classmethod
     def from_dict(cls, vnfd_dict):
-        descriptor = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd.from_dict(vnfd_dict)
+        descriptor = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd.from_dict(vnfd_dict)
         return cls(descriptor)
 
 

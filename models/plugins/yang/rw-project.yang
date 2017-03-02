@@ -21,6 +21,10 @@ module rw-project
   namespace "http://riftio.com/ns/riftware-1.0/rw-project";
   prefix "rw-project";
 
+  import rw-pb-ext {
+    prefix "rw-pb-ext";
+  }
+
   revision 2017-02-08 {
     description
       "Initial revision. This YANG file defines the
@@ -59,6 +63,13 @@ module rw-project
     container project-config {
 
       description "Project management related configuration.";
+
+      leaf name-ref {
+        type leafref {
+          path "../../name";
+        }
+        mandatory true;
+      }
 
       // list user {
       //   description

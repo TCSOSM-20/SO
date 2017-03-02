@@ -48,16 +48,17 @@ class ConfigAgentVnfrTypeError(Exception):
 
 
 class ConfigAccountHandler(object):
-    def __init__(self, dts, log, loop, on_add_config_agent, on_delete_config_agent):
+    def __init__(self, dts, log, loop, project, on_add_config_agent, on_delete_config_agent):
         self._log = log
         self._dts = dts
         self._loop = loop
+        self._project = project
         self._on_add_config_agent = on_add_config_agent
         self._on_delete_config_agent = on_delete_config_agent
 
         self._log.debug("creating config account handler")
         self.cloud_cfg_handler = rift.mano.config_agent.ConfigAgentSubscriber(
-            self._dts, self._log,
+            self._dts, self._log, self._project,
             rift.mano.config_agent.ConfigAgentCallbacks(
                 on_add_apply=self.on_config_account_added,
                 on_delete_apply=self.on_config_account_deleted,
@@ -76,6 +77,10 @@ class ConfigAccountHandler(object):
     @asyncio.coroutine
     def register(self):
         self.cloud_cfg_handler.register()
+
+    def deregister(self):
+        self.cloud_cfg_handler.deregister()
+
 
 class RiftCMConfigPlugins(object):
     """ NSM Config Agent Plugins """
@@ -117,7 +122,8 @@ class RiftCMConfigAgent(object):
 
         self._config_plugins = RiftCMConfigPlugins()
         self._config_handler = ConfigAccountHandler(
-            self._dts, self._log, self._loop, self._on_config_agent, self._on_config_agent_delete)
+            self._dts, self._log, self._loop, parent._project,
+            self._on_config_agent, self._on_config_agent_delete)
         self._plugin_instances = {}
         self._default_account_added = False
 
@@ -179,7 +185,8 @@ class RiftCMConfigAgent(object):
         else:
             # Otherwise, instantiate a new plugin using the config agent account
             self._log.debug("Instantiting new config agent using class: %s", cap_inst)
-            new_instance = cap_inst(self._dts, self._log, self._loop, config_agent)
+            new_instance = cap_inst(self._dts, self._log, self._loop,
+                                    self._ConfigManagerConfig._project, config_agent)
             self._plugin_instances[cap_name] = new_instance
 
         # TODO (pjoseph): See why this was added, as this deletes the
@@ -215,6 +222,11 @@ class RiftCMConfigAgent(object):
         config_agents = yield from self._ConfigManagerConfig.cmdts_obj.get_config_agents(name=None)
         for account in config_agents:
             self._on_config_agent(account)
+
+    def deregister(self):
+        self._log.debug("De-registering config agent nsm plugin manager".
+                        format(self._ConfigManagerConfig._project))
+        self._config_handler.deregister()
 
     def set_config_agent(self, nsr, vnfr, method):
         if method == 'juju':

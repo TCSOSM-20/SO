@@ -46,18 +46,18 @@ class TestGiXpath(unittest.TestCase):
 
         """
         # Create the initial NSD catalog
-        nsd_catalog = NsdYang.YangData_Nsd_NsdCatalog()
+        nsd_catalog = NsdYang.YangData_RwProject_Project_NsdCatalog()
 
         # Create an NSD, set its 'id', and add it to the catalog
         nsd_id = str(uuid.uuid4())
         nsd_catalog.nsd.append(
-                NsdYang.YangData_Nsd_NsdCatalog_Nsd(
+                NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(
                     id=nsd_id,
                     )
                 )
 
         # Retrieve the NSD using and xpath expression
-        xpath = '/nsd:nsd-catalog/nsd:nsd[nsd:id={}]'.format(nsd_id)
+        xpath = '/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id={}]'.format(nsd_id)
         nsd = rwxpath.getxattr(nsd_catalog, xpath)
 
         self.assertEqual(nsd_id, nsd.id)
@@ -74,19 +74,19 @@ class TestGiXpath(unittest.TestCase):
 
         """
         # Define a simple NSD
-        nsd = NsdYang.YangData_Nsd_NsdCatalog_Nsd()
+        nsd = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
 
         # Check that the unset fields are in fact set to None
-        self.assertEqual(None, rwxpath.getxattr(nsd, "/nsd:nsd-catalog/nsd:nsd/nsd:name"))
-        self.assertEqual(None, rwxpath.getxattr(nsd, "/nsd:nsd-catalog/nsd:nsd/nsd:short-name"))
+        self.assertEqual(None, rwxpath.getxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name"))
+        self.assertEqual(None, rwxpath.getxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name"))
 
         # Set the values of the 'name' and 'short-name' fields
-        rwxpath.setxattr(nsd, "/nsd:nsd-catalog/nsd:nsd/nsd:name", "test-name")
-        rwxpath.setxattr(nsd, "/nsd:nsd-catalog/nsd:nsd/nsd:short-name", "test-short-name")
+        rwxpath.setxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name", "test-name")
+        rwxpath.setxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name", "test-short-name")
 
         # Check that the 'name' and 'short-name' fields are correctly set
-        self.assertEqual(nsd.name, rwxpath.getxattr(nsd, "/nsd:nsd-catalog/nsd:nsd/nsd:name"))
-        self.assertEqual(nsd.short_name, rwxpath.getxattr(nsd, "/nsd:nsd-catalog/nsd:nsd/nsd:short-name"))
+        self.assertEqual(nsd.name, rwxpath.getxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name"))
+        self.assertEqual(nsd.short_name, rwxpath.getxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name"))
 
 
 class TestInputParameterSubstitution(unittest.TestCase):
@@ -99,8 +99,8 @@ class TestInputParameterSubstitution(unittest.TestCase):
         config, no exception should be raised.
 
         """
-        nsd = NsdYang.YangData_Nsd_NsdCatalog_Nsd()
-        nsr_config = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+        nsd = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
+        nsr_config = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
 
         self.substitute_input_parameters(None, None)
         self.substitute_input_parameters(nsd, None)
@@ -115,27 +115,27 @@ class TestInputParameterSubstitution(unittest.TestCase):
 
         """
         # Define the original NSD
-        nsd = NsdYang.YangData_Nsd_NsdCatalog_Nsd()
+        nsd = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
         nsd.name = "robert"
         nsd.short_name = "bob"
 
         # Define which parameters may be modified
         nsd.input_parameter_xpath.append(
-                NsdYang.YangData_Nsd_NsdCatalog_Nsd_InputParameterXpath(
-                    xpath="/nsd:nsd-catalog/nsd:nsd/nsd:name",
+                NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_InputParameterXpath(
+                    xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name",
                     label="NSD Name",
                     )
                 )
 
         # Define the input parameters that are intended to be modified
-        nsr_config = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+        nsr_config = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
         nsr_config.input_parameter.extend([
-            NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter(
-                xpath="/nsd:nsd-catalog/nsd:nsd/nsd:name",
+            NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
+                xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name",
                 value="alice",
                 ),
-            NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter(
-                xpath="/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
+            NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
+                xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
                 value="alice",
                 ),
             ])
@@ -153,31 +153,31 @@ class TestInputParameterSubstitution(unittest.TestCase):
 
         """
         # Define the original NSD
-        nsd = NsdYang.YangData_Nsd_NsdCatalog_Nsd()
+        nsd = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
         nsd.name = "robert"
         nsd.short_name = "bob"
 
         # Define which parameters may be modified
         nsd.input_parameter_xpath.extend([
-                NsdYang.YangData_Nsd_NsdCatalog_Nsd_InputParameterXpath(
-                    xpath="/nsd:nsd-catalog/nsd:nsd/nsd:name",
+                NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_InputParameterXpath(
+                    xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name",
                     label="NSD Name",
                     ),
-                NsdYang.YangData_Nsd_NsdCatalog_Nsd_InputParameterXpath(
-                    xpath="/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
+                NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_InputParameterXpath(
+                    xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
                     label="NSD Short Name",
                     ),
                 ])
 
         # Define the input parameters that are intended to be modified
-        nsr_config = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+        nsr_config = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
         nsr_config.input_parameter.extend([
-            NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter(
-                xpath="/nsd:nsd-catalog/nsd:nsd/nsd:name",
+            NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
+                xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name",
                 value="robert",
                 ),
-            NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter(
-                xpath="/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
+            NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
+                xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
                 value="bob",
                 ),
             ])

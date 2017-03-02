@@ -102,7 +102,7 @@ class VnfrConsoleOperdataDtsHandler(object):
                 )
 
             if action == rwdts.QueryAction.READ:
-                schema = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur.schema()
+                schema = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
 
                 try:
@@ -118,7 +118,7 @@ class VnfrConsoleOperdataDtsHandler(object):
                                         self._nsr._nsr_uuid,
                                         self._vdur_id
                                        )
-                    vdur_console = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur()
+                    vdur_console = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur()
                     vdur_console.id = self._vdur_id
                     if console_url:
                         vdur_console.console_url = console_url
@@ -128,7 +128,7 @@ class VnfrConsoleOperdataDtsHandler(object):
                 except openmano_client.InstanceStatusError as e:
                     self._log.error("Could not get NS instance console URL: %s",
                                         str(e))
-                    vdur_console = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur()
+                    vdur_console = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur()
                     vdur_console.id = self._vdur_id
                     vdur_console.console_url = 'none'
 
@@ -885,7 +885,7 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
 
     def vnfr_uptime_update(self, vnfr):
         try:
-            vnfr_ = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict({'id': vnfr.id})
+            vnfr_ = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr.from_dict({'id': vnfr.id})
             while True:
                 vnfr_.uptime = int(time.time()) - vnfr._create_time
                 yield from self._publisher.publish_vnfr(None, vnfr_)

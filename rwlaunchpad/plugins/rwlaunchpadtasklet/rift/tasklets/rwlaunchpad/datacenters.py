@@ -35,19 +35,20 @@ class DataCenterPublisher(mano_dts.DtsHandler):
 
     XPATH = "D,/rw-launchpad:datacenters"
 
-    def __init__(self, log, dts, loop):
+    def __init__(self, log, dts, loop, project):
         """Creates an instance of a DataCenterPublisher
 
         Arguments:
             tasklet - the tasklet that this publisher is registered for
 
         """
-        super().__init__(log, dts, loop)
+        super().__init__(log, dts, loop, project)
 
         self._ro_sub = mano_dts.ROAccountConfigSubscriber(
                         self.log,
                         self.dts,
                         self.loop,
+                        self.project,
                         callback=self.on_ro_account_change
                         )
         self.ro_accounts = {}
@@ -57,6 +58,15 @@ class DataCenterPublisher(mano_dts.DtsHandler):
             self.ro_accounts[ro_account.name] = ro_account
         elif action == RwDts.QueryAction.DELETE and ro_account.name in self.ro_accounts:
             del self.ro_accounts[ro_account.name]
+
+    def deregister(self):
+        self._log.debug("De-register datacenter handler for project {}".
+                        format(self.project.name))
+        if self.reg:
+            self.reg.deregister()
+            self.reg = None
+
+        self._ro_sub.deregister()
 
     @asyncio.coroutine
     def register(self):
@@ -105,7 +115,7 @@ class DataCenterPublisher(mano_dts.DtsHandler):
 
                 xact_info.respond_xpath(
                         RwDts.XactRspCode.MORE,
-                        'D,/rw-launchpad:datacenters',
+                        self.project.add_project(DataCenterPublisher.XPATH),
                         datacenters,
                         )
 
@@ -119,7 +129,7 @@ class DataCenterPublisher(mano_dts.DtsHandler):
 
         with self.dts.group_create() as group:
             self.reg = group.register(
-                    xpath=DataCenterPublisher.XPATH,
+                    xpath=self.project.add_project(DataCenterPublisher.XPATH),
                     handler=handler,
                     flags=RwDts.Flag.PUBLISHER,
                     )

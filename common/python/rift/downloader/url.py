@@ -39,6 +39,7 @@ gi.require_version("RwPkgMgmtYang", "1.0")
 
 from gi.repository import RwPkgMgmtYang
 from . import base
+from .local_file import LocalFileAdapter as LocalFileAdapter
 
 
 class UrlDownloader(base.AbstractDownloader):
@@ -109,6 +110,7 @@ class UrlDownloader(base.AbstractDownloader):
         retries = Retry(total=5, backoff_factor=1)
         session.mount("http://", HTTPAdapter(max_retries=retries))
         session.mount("https://", HTTPAdapter(max_retries=retries))
+        session.mount("file://", LocalFileAdapter())
 
         return session
 

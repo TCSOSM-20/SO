@@ -23,14 +23,14 @@ import yaml
 
 @pytest.fixture(scope="function")
 def nsd():
-    catalog = NsdYang.YangData_Nsd_NsdCatalog()
+    catalog = NsdYang.YangData_RwProject_Project_NsdCatalog()
     nsd = catalog.nsd.add()
     nsd.id = str(uuid.uuid1())
     return nsd
 
 @pytest.fixture(scope="function")
 def vnfd():
-    catalog = VnfdYang.YangData_Vnfd_VnfdCatalog()
+    catalog = VnfdYang.YangData_RwProject_Project_VnfdCatalog()
     vnfd = catalog.vnfd.add()
     vnfd.id = str(uuid.uuid1())
     return vnfd
@@ -287,7 +287,7 @@ initial_config_primitive:
       cidr: 10.10.10.2/30
 """
 
-    catalog = VnfdYang.YangData_Vnfd_VnfdCatalog()
+    catalog = VnfdYang.YangData_RwProject_Project_VnfdCatalog()
     expected_vnfd = catalog.vnfd.add()
     vnf_config = expected_vnfd.vnf_configuration
     expected_vnfd.id = vnfd.id
@@ -374,7 +374,7 @@ def test_nsd_merge(nsd, convertor):
       Vlan ID: '3000'
 """
 
-        catalog = NsdYang.YangData_Nsd_NsdCatalog()
+        catalog = NsdYang.YangData_RwProject_Project_NsdCatalog()
         expected_nsd = catalog.nsd.add()
         expected_nsd.id = nsd.id
         expected_nsd.service_primitive.add().from_dict(

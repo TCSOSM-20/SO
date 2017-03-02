@@ -46,6 +46,7 @@ class ROConfigManager(object):
         self._loop = loop
         self._dts = dts
         self.nsm = parent
+        self.project = parent._project
         self._log.debug("Initialized ROConfigManager")
 
     def is_ready(self):
@@ -53,7 +54,7 @@ class ROConfigManager(object):
 
     @property
     def cm_state_xpath(self):
-        return ("/rw-conman:cm-state/rw-conman:cm-nsr")
+        return self.project.add_project("/rw-conman:cm-state/rw-conman:cm-nsr")
 
     @classmethod
     def map_config_status(cls, status):

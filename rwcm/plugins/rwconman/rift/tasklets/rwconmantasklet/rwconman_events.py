@@ -55,9 +55,12 @@ def log_this_vnf(vnf_cfg):
             else:
                 log_vnf += "{}/".format(vnf_cfg[item])
     return log_vnf
-        
+
+
 class ConfigManagerROifConnectionError(Exception):
     pass
+
+
 class ScriptError(Exception):
     pass
 
@@ -68,10 +71,13 @@ class ConfigManagerEvents(object):
         self._log = log
         self._loop = loop
         self._parent = parent
-        self._nsr_xpath = "/cm-state/cm-nsr"
+        self._nsr_xpath = parent._project.add_project("/cm-state/cm-nsr")
 
     @asyncio.coroutine
     def register(self):
+        pass
+
+    def deregister(self):
         pass
 
     @asyncio.coroutine

@@ -75,6 +75,7 @@ rift_python_install_tree(
   FILES
     rift/downloader/__init__.py
     rift/downloader/base.py
+    rift/downloader/local_file.py
     rift/downloader/url.py
   COMPONENT ${PKG_LONG_NAME}
   PYTHON3_ONLY

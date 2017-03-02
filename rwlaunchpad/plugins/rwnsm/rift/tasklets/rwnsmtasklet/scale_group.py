@@ -104,7 +104,7 @@ class ScalingGroup(object):
 
     def create_record_msg(self):
         """ Returns a NSR Scaling group record """
-        msg = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ScalingGroupRecord(
+        msg = NsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr_ScalingGroupRecord(
                 scaling_group_name_ref=self.name,
                 )
 
@@ -259,7 +259,7 @@ class ScalingGroupInstance(object):
         return self._vnfrs.values()
 
     def create_record_msg(self):
-        msg = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ScalingGroupRecord_Instance(
+        msg = NsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr_ScalingGroupRecord_Instance(
                 instance_id=self._instance_id,
                 create_time=self._create_time,
                 op_status=self._op_status,

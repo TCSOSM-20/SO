@@ -21,8 +21,9 @@ import rift.mano.dts as mano_dts
 
 
 class DownloadStatusSubscriber(mano_dts.AbstractOpdataSubscriber):
-    def __init__(self, log, dts, loop, callback=None):
-        super().__init__(log, dts, loop, callback)
+    def __init__(self, log, dts, loop, project, callback=None):
+        super().__init__(log, dts, loop, project, callback)
 
     def get_xpath(self):
-        return ("D,/rw-pkg-mgmt:download-jobs/rw-pkg-mgmt:job")
+        return self._project.add_project(
+            "D,/rw-pkg-mgmt:download-jobs/rw-pkg-mgmt:job")

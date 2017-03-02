@@ -54,7 +54,7 @@ class MonParamsPingStatsTest(AsyncioTornadoTest):
             'ping-response-rx-count': 10
             }
 
-    mon_param_msg = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MonitoringParam()
+    mon_param_msg = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MonitoringParam()
     mon_param_msg.from_dict({
             'id': '1',
             'name': 'ping-request-tx-count',
@@ -67,7 +67,7 @@ class MonParamsPingStatsTest(AsyncioTornadoTest):
             'units': 'packets'
             })
 
-    endpoint_msg = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_HttpEndpoint()
+    endpoint_msg = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_HttpEndpoint()
     endpoint_msg.from_dict({
         'path': ping_path,
         'polling_interval_secs': 1,
@@ -231,7 +231,7 @@ class MonParamsPingStatsHttpsTest(AsyncioTornadoHttpsTest):
             'ping-response-rx-count': 10
             }
 
-    mon_param_msg = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MonitoringParam()
+    mon_param_msg = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MonitoringParam()
     mon_param_msg.from_dict({
             'id': '1',
             'name': 'ping-request-tx-count',
@@ -244,7 +244,7 @@ class MonParamsPingStatsHttpsTest(AsyncioTornadoHttpsTest):
             'units': 'packets'
             })
 
-    endpoint_msg = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_HttpEndpoint()
+    endpoint_msg = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_HttpEndpoint()
     endpoint_msg.from_dict({
         'path': ping_path,
         'https': 'true',

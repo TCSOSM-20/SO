@@ -100,6 +100,8 @@ class OnboardPackage:
         self._log = log
         self._args = args
 
+        self._project = args.project
+
         self._pkgs = None
 
         self._service_name = None
@@ -121,30 +123,36 @@ class OnboardPackage:
                                     user=self._user,
                                     passwd=self._password,
                                     api_server_ip=self._api_server_ip)
+
         self._upload_url = "curl -k https://{ip}:{port}/api/upload". \
                             format(ip=self._ip,
                                    port=self._uport)
 
         self._headers = '-H "accept: application/json"' + \
                         ' -H "content-type: application/json"'
-        self._conf_url = "curl -k {header} --user \"{user}:{passwd}\" https://{ip}:{port}/api/config". \
+
+        self._conf_url = "curl -k {header} --user \"{user}:{passwd}\" https://{ip}:{port}/api/config/project/{project}". \
                        format(header=self._headers,
                               user=self._user,
                               passwd=self._password,
                               ip=self._ip,
-                              port=self._rport)
-        self._oper_url = "curl -k {header} --user \"{user}:{passwd}\" https://{ip}:{port}/api/operational". \
+                              port=self._rport,
+                              project=self._project)
+
+        self._oper_url = "curl -k {header} --user \"{user}:{passwd}\" https://{ip}:{port}/api/operational/project/{project}". \
                        format(header=self._headers,
                               user=self._user,
                               passwd=self._password,
                               ip=self._ip,
-                              port=self._rport)
+                              port=self._rport,
+                              project=self._project)
 
     @property
     def log(self):
         return self._log
 
     def validate_args(self):
+        args = self._args
         if args.upload_pkg is not None:
             self._pkgs = args.upload_pkg
             self.log.debug("Packages to upload: {}".format(self._pkgs))
@@ -165,8 +173,8 @@ class OnboardPackage:
                     uuid.UUID(args.datacenter)
                     self._dc = args.datacenter
                 except ValueError as e:
-                    raise OnboardPkgInvalidDescId("Invalid UUID for datacenter: {}".
-                                                  format(args.datacenter))
+                    raise OnboardPkgInvalidDescId("Invalid UUID for datacenter {}: {}".
+                                                  format(args.datacenter, e))
 
             elif args.vim_account:
                 self._account = args.vim_account
@@ -181,8 +189,8 @@ class OnboardPackage:
                                                                    self._service_name,
                                                                    self._account))
 
-        if (self._pkgs is None) and (self._nsd_id is None):
-            raise OnboardPkgInputError("Need to specify either upload-pkg or instantiate options")
+        if (self._pkgs is None) and (self._nsd_id is None) and (not args.list_nsds):
+            raise OnboardPkgInputError("Need to specify either upload-pkg or instantiate or list options")
 
         # Validate the port numbers are correct
         def valid_port(port):
@@ -334,7 +342,12 @@ class OnboardPackage:
                                      format(self._nsd_id,
                                             js['error']))
 
-        nsd = js['nsd:nsd']
+        try:
+            nsd = js['nsd:nsd']
+        except KeyError as e:
+            raise OnboardPkgNsdError("NSD ID {} provided is not valid".
+                                     format(self._nsd_id))
+
         self.log.debug("NSD to instantiate: {}".format(nsd))
 
         # Generate a UUID for NS
@@ -381,11 +394,41 @@ class OnboardPackage:
         self.log.info("Successfully initiated instantiation of NS as {} ({})".
                       format(self._service_name, ns_id))
 
+    def list_nsds(self):
+        if self._args.list_nsds:
+            self.log.debug("Check NSDS at {}:{}, with credentials {}:{}".
+                           format(self._ip, self._rport, self._user, self._password))
+
+            rest_url = self._conf_url+"/nsd-catalog/nsd"
+            try:
+                output = self._exec_cmd(rest_url)
+                self.log.debug("Output of NSD list: {}".
+                               format(output))
+                if output:
+                    js = json.loads(output)
+                    if "error" in js:
+                        raise OnboardPkgRcConnError("SO Restconf connect error: {}".
+                                                    format(js["error"]))
+                else:
+                    print("No NSDs found on SO")
+                    return
+
+                self.log.debug("NSD list: {}".format(js))
+                print('List of NSDs on SO:\nName\tID')
+                for nsd in js['nsd:nsd']:
+                    print('{}\t{}'.format(nsd['name'], nsd['id']))
+
+            except OnboardPkgCmdError as e:
+                self.log.error("SO restconf connect failed: {}".format(e))
+                raise OnboardPkgRcConnError("SO Restconf connect error: {}".
+                                            format(e))
+
     def process(self):
         self.validate_args()
         self.validate_connectivity()
         self.upload_packages()
         self.instantiate()
+        self.list_nsds()
 
 
 if __name__ == "__main__":
@@ -397,6 +440,9 @@ if __name__ == "__main__":
                         help="Descriptor packages to upload. " + \
                         "If multiple descriptors are provided, they are uploaded in the same sequence.")
 
+    parser.add_argument("-l", "--list-nsds", action='store_true',
+                        help="List available network service descriptors")
+
     parser.add_argument("-i", "--instantiate",
                         help="Instantiate a network service with the name")
     parser.add_argument("-d", "--nsd-id",
@@ -406,6 +452,8 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--vim-account",
                         help="Cloud/VIM account to instantiate on")
 
+    parser.add_argument("--project", default='default',
+                        help="Project to use, default 'default'")
     parser.add_argument("-o", "--onboard-port", default=8443, type=int,
                         help="Onboarding port number - node port number, default 8443")
     parser.add_argument("-p", "--upload-port", default=4567, type=int,

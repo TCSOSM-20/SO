@@ -16,8 +16,10 @@
 #
 
 import json
+import logging
 import os
 import tempfile
+import yaml
 
 import gi
 gi.require_version('RwNsdYang', '1.0')
@@ -30,6 +32,8 @@ from gi.repository import (
         VnfdYang,
         RwYang,
         )
+
+from rift.mano.utils.project import NS_PROJECT
 
 
 class UnknownExtensionError(Exception):
@@ -97,7 +101,7 @@ class ProtoMessageSerializer(object):
 
     @property
     def yang_class(self):
-        """ The Protobuf's GI class (e.g. RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd) """
+        """ The Protobuf's GI class (e.g. RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd) """
         return self._yang_pb_cls
 
     @property
@@ -122,9 +126,16 @@ class ProtoMessageSerializer(object):
         return self.yang_class.from_json(self.model, decode(json), strict=False)
 
     def _from_yaml_file_hdl(self, file_hdl):
-        yaml = file_hdl.read()
+        yml = file_hdl.read()
 
-        return self.yang_class.from_yaml(self.model, decode(yaml), strict=False)
+        # Need to prefix project on to the descriptor and then
+        # convert to yang pb
+        # TODO: See if there is a better way to do this
+        desc = {NS_PROJECT: []}
+        desc[NS_PROJECT].append(yaml.load(decode(yml)))
+        # log = logging.getLogger('rw-mano-log')
+        # log.error("Desc from yaml: {}".format(desc))
+        return self.yang_class.from_yaml(self.model, yaml.dump(desc), strict=False)
 
     def to_json_string(self, pb_msg):
         """ Serialize a protobuf message into JSON
@@ -145,10 +156,15 @@ class ProtoMessageSerializer(object):
         try:
             json_str = pb_msg.to_json(self.model)
 
+            # Remove rw-project:project top level element
+            dic = json.loads(json_str)
+            jstr = json.dumps(dic[NS_PROJECT][0])
         except Exception as e:
             raise SerializationError(e)
 
-        return json_str
+        log = logging.getLogger('rw-mano-log')
+        log.error("Desc to json: {}".format(jstr))
+        return jstr
 
     def to_yaml_string(self, pb_msg):
         """ Serialize a protobuf message into YAML
@@ -262,22 +278,22 @@ class ProtoMessageSerializer(object):
 class VnfdSerializer(ProtoMessageSerializer):
     """ Creates a serializer for the VNFD descriptor"""
     def __init__(self):
-        super().__init__(VnfdYang, VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd)
+        super().__init__(VnfdYang, VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd)
 
 
 class NsdSerializer(ProtoMessageSerializer):
     """ Creates a serializer for the NSD descriptor"""
     def __init__(self):
-        super().__init__(NsdYang, NsdYang.YangData_Nsd_NsdCatalog_Nsd)
+        super().__init__(NsdYang, NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd)
 
 
 class RwVnfdSerializer(ProtoMessageSerializer):
     """ Creates a serializer for the VNFD descriptor"""
     def __init__(self):
-        super().__init__(RwVnfdYang, RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd)
+        super().__init__(RwVnfdYang, RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd)
 
 
 class RwNsdSerializer(ProtoMessageSerializer):
     """ Creates a serializer for the NSD descriptor"""
     def __init__(self):
-        super().__init__(RwNsdYang, RwNsdYang.YangData_Nsd_NsdCatalog_Nsd)
+        super().__init__(RwNsdYang, RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd)

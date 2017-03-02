@@ -25,9 +25,10 @@ class RiftCMnsr(object):
     Agent class for NSR
     created for Agents to use objects from NSR
     '''
-    def __init__(self, nsr_dict, cfg):
+    def __init__(self, nsr_dict, cfg, project):
         self._nsr = nsr_dict
         self._cfg = cfg
+        self._project = project
         self._vnfrs = []
         self._vnfrs_msg = []
         self._vnfr_ids = {}
@@ -75,7 +76,7 @@ class RiftCMnsr(object):
         if vnfr['id'] in self._vnfr_ids.keys():
             agent_vnfr = self._vnfr_ids[vnfr['id']]
         else:
-            agent_vnfr = RiftCMvnfr(self.name, vnfr, vnfr_msg)
+            agent_vnfr = RiftCMvnfr(self.name, vnfr, vnfr_msg, self._project)
             self._vnfrs.append(agent_vnfr)
             self._vnfrs_msg.append(vnfr_msg)
             self._vnfr_ids[agent_vnfr.id] = agent_vnfr
@@ -89,11 +90,12 @@ class RiftCMvnfr(object):
     '''
     Agent base class for VNFR processing
     '''
-    def __init__(self, nsr_name, vnfr_dict, vnfr_msg):
+    def __init__(self, nsr_name, vnfr_dict, vnfr_msg, project):
         self._vnfr = vnfr_dict
         self._vnfr_msg = vnfr_msg
         self._nsr_name = nsr_name
         self._configurable = False
+        self._project = project
 
     @property
     def nsr_name(self):
@@ -133,7 +135,8 @@ class RiftCMvnfr(object):
     @property
     def xpath(self):
         """ VNFR xpath """
-        return "D,/vnfr:vnfr-catalog/vnfr:vnfr[vnfr:id = '{}']".format(self.id)
+        return self._project.add_project("D,/vnfr:vnfr-catalog/vnfr:vnfr[vnfr:id = '{}']".
+                                         format(self.id))
 
     def set_to_configurable(self):
         self._configurable = True
@@ -152,10 +155,11 @@ class RiftCMConfigPluginBase(object):
         There will be single instance of this plugin for each plugin type.
     """
 
-    def __init__(self, dts, log, loop, config_agent):
+    def __init__(self, dts, log, loop, project, config_agent):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._config_agent = config_agent
 
     @property

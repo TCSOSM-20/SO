@@ -1,6 +1,6 @@
 
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -20,21 +20,18 @@ import rift.mano.dts as mano_dts
 
 class NsrMonParamSubscriber(mano_dts.AbstractOpdataSubscriber):
     """Registers for NSR monitoring parameter changes.
-    
+
     Attributes:
         monp_id (str): Monitoring Param ID
         nsr_id (str): NSR ID
     """
-    def __init__(self, log, dts, loop, nsr_id, monp_id=None, callback=None):
-        super().__init__(log, dts, loop, callback)
+    def __init__(self, log, dts, loop, project, nsr_id, monp_id=None, callback=None):
+        super().__init__(log, dts, loop, project, callback)
         self.nsr_id = nsr_id
         self.monp_id = monp_id
 
     def get_xpath(self):
-        return ("D,/nsr:ns-instance-opdata/nsr:nsr" +
+        return self.project.add_project(("D,/nsr:ns-instance-opdata/nsr:nsr" +
             "[nsr:ns-instance-config-ref='{}']".format(self.nsr_id) +
             "/nsr:monitoring-param" +
-            ("[nsr:id='{}']".format(self.monp_id) if self.monp_id else ""))
-
-
-
+            ("[nsr:id='{}']".format(self.monp_id) if self.monp_id else "")))

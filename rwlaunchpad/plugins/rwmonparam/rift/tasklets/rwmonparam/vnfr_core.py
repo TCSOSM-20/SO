@@ -616,29 +616,29 @@ class VnfMonitorDtsHandler(mano_dts.DtsHandler):
     XPATH = "D,/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:monitoring-param"
 
     @classmethod
-    def from_vnf_data(cls, tasklet, vnfr_msg, vnfd_msg):
-        handler = cls(tasklet.log, tasklet.dts, tasklet.loop,
+    def from_vnf_data(cls, project, vnfr_msg, vnfd_msg):
+        handler = cls(project.log, project.dts, project.loop, project,
                 vnfr_msg.id, vnfr_msg.mgmt_interface.ip_address,
                 vnfd_msg.monitoring_param, vnfd_msg.http_endpoint)
 
         return handler
 
-    def __init__(self, log, dts, loop, vnfr_id, mgmt_ip, params, endpoints):
-        super().__init__(log, dts, loop)
+    def __init__(self, log, dts, loop, project, vnfr_id, mgmt_ip, params, endpoints):
+        super().__init__(log, dts, loop, project)
 
         self._mgmt_ip = mgmt_ip
         self._vnfr_id = vnfr_id
 
         mon_params = []
         for mon_param in params:
-            param = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MonitoringParam.from_dict(
+            param = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MonitoringParam.from_dict(
                     mon_param.as_dict()
                     )
             mon_params.append(param)
 
         http_endpoints = []
         for endpoint in endpoints:
-            endpoint = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_HttpEndpoint.from_dict(
+            endpoint = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_HttpEndpoint.from_dict(
                     endpoint.as_dict()
                     )
             http_endpoints.append(endpoint)
@@ -674,10 +674,10 @@ class VnfMonitorDtsHandler(mano_dts.DtsHandler):
 
     def xpath(self, param_id=None):
         """ Monitoring params xpath """
-        return("D,/vnfr:vnfr-catalog" +
+        return self.project.add_project(("D,/vnfr:vnfr-catalog" +
                "/vnfr:vnfr[vnfr:id='{}']".format(self._vnfr_id) +
                "/vnfr:monitoring-param" +
-               ("[vnfr:id='{}']".format(param_id) if param_id else ""))
+               ("[vnfr:id='{}']".format(param_id) if param_id else "")))
 
     @property
     def msg(self):

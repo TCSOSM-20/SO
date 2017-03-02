@@ -38,7 +38,7 @@ class VnfrCatalogSubscriber(core.AbstractOpdataSubscriber):
         return rwdts.Flag.SUBSCRIBER|rwdts.Flag.DELTA_READY
 
     def get_xpath(self):
-        return "D,/vnfr:vnfr-catalog/vnfr:vnfr"
+        return self.project.add_project("D,/vnfr:vnfr-catalog/vnfr:vnfr")
 
 
 class VnfdCatalogSubscriber(core.AbstractConfigSubscriber):
@@ -48,4 +48,4 @@ class VnfdCatalogSubscriber(core.AbstractConfigSubscriber):
         return "id"
 
     def get_xpath(self):
-        return "C,/vnfd:vnfd-catalog/vnfd:vnfd"
+        return self.project.add_project("C,/vnfd:vnfd-catalog/vnfd:vnfd")

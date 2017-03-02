@@ -59,7 +59,7 @@ class TestExport(utest_package.PackageTestCase):
         self._vnfd_serializer = rift.package.convert.VnfdSerializer()
 
     def test_create_archive(self):
-        rw_vnfd_msg = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd(
+        rw_vnfd_msg = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd(
                 id="new_id", name="new_name", description="new_description"
                 )
         json_desc_str = self._rw_vnfd_serializer.to_json_string(rw_vnfd_msg)
@@ -80,11 +80,11 @@ class TestExport(utest_package.PackageTestCase):
             self.assertEqual(package.descriptor_msg, rw_vnfd_msg)
 
     def test_export_package(self):
-        rw_vnfd_msg = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd(
+        rw_vnfd_msg = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd(
                 id="new_id", name="new_name", description="new_description",
                 meta="THIS FIELD IS NOT IN REGULAR VNFD"
                 )
-        vnfd_msg = VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd()
+        vnfd_msg = VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
         vnfd_msg.from_dict(rw_vnfd_msg.as_dict(), ignore_missing_keys=True)
 
         self.assertNotEqual(rw_vnfd_msg, vnfd_msg)

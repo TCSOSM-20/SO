@@ -174,8 +174,8 @@ class NetworkResourceRequestMockEventHandler(object):
 
 
 class ResourceMgrMock(object):
-    VDU_REQUEST_XPATH = "D,/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data"
-    VLINK_REQUEST_XPATH = "D,/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data"
+    VDU_REQUEST_XPATH = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data"
+    VLINK_REQUEST_XPATH = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data"
 
     def __init__(self, dts, log, loop):
         self._log = log

@@ -33,4 +33,4 @@ class ROAccountConfigSubscriber(core.AbstractConfigSubscriber):
         return "name"
 
     def get_xpath(self):
-        return("C,/rw-launchpad:resource-orchestrator")
+        return self._project.add_project("C,/rw-launchpad:resource-orchestrator")

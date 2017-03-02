@@ -65,9 +65,9 @@ class ImageUploader(object):
         except Exception as e:
             raise ImageUploadError("Failed to upload image to catalog: %s" % str(e)) from e
 
-    def upload_image_to_cloud_accounts(self, image_name, image_checksum, cloud_accounts=None):
+    def upload_image_to_cloud_accounts(self, image_name, image_checksum, project, cloud_accounts=None):
         self._log.debug("uploading image %s to all cloud accounts", image_name)
-        upload_job = self._client.create_job_threadsafe(image_name, image_checksum, cloud_accounts)
+        upload_job = self._client.create_job_threadsafe(image_name, image_checksum, project, cloud_accounts)
         try:
             upload_job.wait_until_complete_threadsafe()
         except client.UploadJobError as e:

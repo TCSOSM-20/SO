@@ -223,7 +223,7 @@ def wait_unboard_transaction_finished(logger, transaction_id, timeout_secs=600, 
         raise DescriptorOnboardError(state)
 
 def create_nsr_from_nsd_id(nsd_id):
-      nsr = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+      nsr = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
       nsr.id = str(uuid.uuid4())
       nsr.name = "UTM-WIMS"
       nsr.short_name = "UTM-WIMS"
@@ -272,14 +272,14 @@ class TestLaunchpadStartStop(object):
                        "resource_type": "network",
                        "pool_type" : "dynamic",}]})
 
-        resource_mgr_proxy.merge_config('/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools', pools)
+        resource_mgr_proxy.merge_config('/rw-project:project/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools', pools)
 
     def test_configure_resource_orchestrator(self, so_proxy):
         cfg = RwConmanYang.RoEndpoint.from_dict({'ro_ip_address': '127.0.0.1',
                                                 'ro_port'      :  2022,
                                                 'ro_username'  : 'admin',
                                                 'ro_password'  : 'admin'})
-        so_proxy.merge_config('/rw-conman:cm-config', cfg)
+        so_proxy.merge_config('/rw-project:project/rw-conman:cm-config', cfg)
 
     def test_configure_service_orchestrator(self, nsm_proxy):
         cfg = RwNsmYang.SoEndpoint.from_dict({'cm_ip_address': '127.0.0.1',

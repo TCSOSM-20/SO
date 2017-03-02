@@ -195,21 +195,18 @@ class DescriptorPackageArchiveExporter(object):
 
 
 class ExportRpcHandler(mano_dts.AbstractRpcHandler):
-    def __init__(self, log, dts, loop, application, store_map, exporter, catalog_map):
+    def __init__(self, application, catalog_map):
         """
         Args:
             application: UploaderApplication
-            store_map: dict containing VnfdStore & NsdStore
-            exporter : DescriptorPackageArchiveExporter
             calalog_map: Dict containing Vnfds and Nsd onboarding.
         """
-        super().__init__(log, dts, loop)
+        super().__init__(application.log, application.dts, application.loop)
 
         self.application = application
-        self.store_map = store_map
-        self.exporter = exporter
+        self.store_map = application.package_store_map
+        self.exporter = application.exporter
         self.catalog_map = catalog_map
-        self.log = log
 
     @property
     def xpath(self):
@@ -240,7 +237,7 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
 
         # Parse the IDs
         desc_id = msg.package_id
-        catalog = self.catalog_map[desc_type]
+        catalog = self.catalog_map[desc_type](project=msg.project_name)
 
         if desc_id not in catalog:
             raise ValueError("Unable to find package ID: {}".format(desc_id))

@@ -73,7 +73,7 @@ class YangNsd(ToscaResource):
                 self.inputs.append({
                     self.NAME:
                     self.map_yang_name_to_tosca(
-                        val.replace('/nsd:nsd-catalog/nsd:nsd/nsd:', ''))})
+                        val.replace('/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:', ''))})
             if len(param):
                 self.log.warn(_("{0}, Did not process the following for "
                                 "input param {1}: {2}").

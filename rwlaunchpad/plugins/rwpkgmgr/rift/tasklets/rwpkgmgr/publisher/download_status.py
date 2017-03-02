@@ -28,13 +28,14 @@ import rift.downloader as url_downloader
 
 class DownloadStatusPublisher(mano_dts.DtsHandler, url_downloader.DownloaderProtocol):
 
-    def __init__(self, log, dts, loop):
-        super().__init__(log, dts, loop)
+    def __init__(self, log, dts, loop, project):
+        super().__init__(log, dts, loop, project)
         self.tasks = {}
 
     def xpath(self, download_id=None):
-        return ("D,/rw-pkg-mgmt:download-jobs/rw-pkg-mgmt:job" +
-            ("[download-id='{}']".format(download_id) if download_id else ""))
+        return self._project.add_project("D,/rw-pkg-mgmt:download-jobs/rw-pkg-mgmt:job" +
+                                         ("[download-id='{}']".
+                                          format(download_id) if download_id else ""))
 
     @asyncio.coroutine
     def register(self):
@@ -43,6 +44,12 @@ class DownloadStatusPublisher(mano_dts.DtsHandler, url_downloader.DownloaderProt
 
         assert self.reg is not None
 
+    def dergister(self):
+        self._log.debug("De-registering download status for project {}".
+                        format(self.project.name))
+        if self.reg:
+            self.reg.deregister()
+            self.reg = None
 
     def on_download_progress(self, download_job_msg):
         """callback that triggers update.

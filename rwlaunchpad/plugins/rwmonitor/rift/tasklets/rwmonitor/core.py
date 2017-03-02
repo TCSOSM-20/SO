@@ -231,7 +231,7 @@ class NfviMetrics(object):
         self._account = account
         self._plugin = plugin
         self._timestamp = 0
-        self._metrics = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur_NfviMetrics()
+        self._metrics = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur_NfviMetrics()
         self._vdur = vdur
         self._vim_id = vdur.vim_id
         self._updating = None
@@ -305,7 +305,7 @@ class NfviMetrics(object):
 
             try:
                 # Create uninitialized metric structure
-                vdu_metrics = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur_NfviMetrics()
+                vdu_metrics = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur_NfviMetrics()
 
                 # VCPU
                 vdu_metrics.vcpu.total = self.vdur.vm_flavor.vcpu_count
@@ -549,17 +549,19 @@ class Monitor(object):
     different sub-systems that are used to monitor the NFVI.
     """
 
-    def __init__(self, loop, log, config):
+    def __init__(self, loop, log, config, project):
         """Create a Monitor object
 
         Arguments:
-            loop   - an event loop
-            log    - the logger used by this object
-            config - an instance of InstanceConfiguration
+            loop    - an event loop
+            log     - the logger used by this object
+            config  - an instance of InstanceConfiguration
+            project - an instance of the project
 
         """
         self._loop = loop
         self._log = log
+        self._project = project
 
         self._cloud_accounts = dict()
         self._nfvi_plugins = NfviMetricsPluginManager(log)
@@ -579,6 +581,10 @@ class Monitor(object):
     def log(self):
         """The event log used by this object"""
         return self._log
+
+    @property
+    def project(self):
+        return self._project
 
     @property
     def cache(self):

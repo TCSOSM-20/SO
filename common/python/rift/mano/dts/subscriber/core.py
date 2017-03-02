@@ -1,6 +1,6 @@
 """
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -27,6 +27,9 @@ import asyncio
 
 from gi.repository import (RwDts as rwdts, ProtobufC)
 import rift.tasklets
+from rift.mano.utils.project import (
+    get_add_delete_update_cfgs,
+    )
 
 from ..core import DtsHandler
 
@@ -35,11 +38,11 @@ class SubscriberDtsHandler(DtsHandler):
     """A common class for all subscribers.
     """
     @classmethod
-    def from_tasklet(cls, tasklet, callback=None):
+    def from_project(cls, proj, callback=None):
         """Convenience method to build the object from tasklet
 
         Args:
-            tasklet (rift.tasklets.Tasklet): Tasklet
+            proj (rift.mano.utils.project.ManoProject): Project
             callback (None, optional): Callable, which will be invoked on
                     subscriber changes.
 
@@ -48,15 +51,15 @@ class SubscriberDtsHandler(DtsHandler):
                 msg: The Gi Object msg from DTS
                 action(rwdts.QueryAction): Action type
         """
-        return cls(tasklet.log, tasklet.dts, tasklet.loop, callback=callback)
+        return cls(proj.log, proj.dts, proj.loop, proj, callback=callback)
 
-    def __init__(self, log, dts, loop, callback=None):
-        super().__init__(log, dts, loop)
+    def __init__(self, log, dts, loop, project, callback=None):
+        super().__init__(log, dts, loop, project)
         self.callback = callback
 
     def get_reg_flags(self):
         """Default set of REG flags, can be over-ridden by sub classes.
-        
+
         Returns:
             Set of rwdts.Flag types.
         """
@@ -70,7 +73,7 @@ class AbstractOpdataSubscriber(SubscriberDtsHandler):
 
     Opdata subscriber can be created in one step by subclassing and implementing
     the MANDATORY get_xpath() method
-    
+
     """
     @abc.abstractmethod
     def get_xpath(self):
@@ -84,6 +87,12 @@ class AbstractOpdataSubscriber(SubscriberDtsHandler):
     def register(self):
         """Triggers the registration
         """
+
+        if self.reg:
+            self._log.warning("RPC already registered for project {}".
+                              format(self._project.name))
+            return
+
         xacts = {}
 
         def on_commit(xact_info):
@@ -121,16 +130,13 @@ class AbstractOpdataSubscriber(SubscriberDtsHandler):
                 )
 
         self.reg = yield from self.dts.register(
-                xpath=self.get_xpath(),
+                xpath=self.project.add_project(self.get_xpath()),
                 flags=self.get_reg_flags(),
                 handler=handler)
 
         # yield from reg_event.wait()
 
         assert self.reg is not None
-
-    def deregister(self):
-        self.reg.deregister()
 
 
 class AbstractConfigSubscriber(SubscriberDtsHandler):
@@ -139,7 +145,7 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
 
     Config subscriber can be created in one step by subclassing and implementing
     the MANDATORY get_xpath() method
-    
+
     """
     KEY = "msgs"
 
@@ -151,41 +157,21 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
     def key_name(self):
         pass
 
-    def get_add_delete_update_cfgs(self, dts_member_reg, xact, key_name):
-        # Unforunately, it is currently difficult to figure out what has exactly
-        # changed in this xact without Pbdelta support (RIFT-4916)
-        # As a workaround, we can fetch the pre and post xact elements and
-        # perform a comparison to figure out adds/deletes/updates
-        xact_cfgs = list(dts_member_reg.get_xact_elements(xact))
-        curr_cfgs = list(dts_member_reg.elements)
-
-        xact_key_map = {getattr(cfg, key_name): cfg for cfg in xact_cfgs}
-        curr_key_map = {getattr(cfg, key_name): cfg for cfg in curr_cfgs}
-
-        # Find Adds
-        added_keys = set(xact_key_map) - set(curr_key_map)
-        added_cfgs = [xact_key_map[key] for key in added_keys]
-
-        # Find Deletes
-        deleted_keys = set(curr_key_map) - set(xact_key_map)
-        deleted_cfgs = [curr_key_map[key] for key in deleted_keys]
-
-        # Find Updates
-        updated_keys = set(curr_key_map) & set(xact_key_map)
-        updated_cfgs = [xact_key_map[key] for key in updated_keys if xact_key_map[key] != curr_key_map[key]]
-
-        return added_cfgs, deleted_cfgs, updated_cfgs
-
     @asyncio.coroutine
     def register(self):
         """ Register for VNFD configuration"""
+
+        if self.reg:
+            self._log.warning("RPC already registered for project {}".
+                              format(self._project.name))
+            return
 
         def on_apply(dts, acg, xact, action, scratch):
             """Apply the  configuration"""
             is_recovery = xact.xact is None and action == rwdts.AppconfAction.INSTALL
 
 
-            add_cfgs, delete_cfgs, update_cfgs = self.get_add_delete_update_cfgs(
+            add_cfgs, delete_cfgs, update_cfgs = get_add_delete_update_cfgs(
                     dts_member_reg=self.reg,
                     xact=xact,
                     key_name=self.key_name())
@@ -207,9 +193,6 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
         acg_hdl = rift.tasklets.AppConfGroup.Handler(on_apply=on_apply)
         with self.dts.appconf_group_create(handler=acg_hdl) as acg:
             self.reg = acg.register(
-                xpath=self.get_xpath(),
+                xpath=self.project.add_project(self.get_xpath()),
                 flags=self.get_reg_flags(),
                 on_prepare=on_prepare)
-
-    def deregister(self):
-        self.reg.deregister()

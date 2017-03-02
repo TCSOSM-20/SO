@@ -39,7 +39,7 @@ model.load_schema_ypbc(VnfdYang.get_schema())
 def configure_vld(proxy, vld_xml_hdl):
     vld_xml = vld_xml_hdl.read()
     logger.debug("Attempting to deserialize XML into VLD protobuf: %s", vld_xml)
-    vld = VldYang.YangData_Vld_VldCatalog_Vld()
+    vld = VldYang.YangData_RwProject_Project_VldCatalog_Vld()
     vld.from_xml_v2(model, vld_xml)
 
     logger.debug("Sending VLD to netconf: %s", vld)
@@ -49,7 +49,7 @@ def configure_vld(proxy, vld_xml_hdl):
 def configure_vnfd(proxy, vnfd_xml_hdl):
     vnfd_xml = vnfd_xml_hdl.read()
     logger.debug("Attempting to deserialize XML into VNFD protobuf: %s", vnfd_xml)
-    vnfd = VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd()
+    vnfd = VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
     vnfd.from_xml_v2(model, vnfd_xml)
 
     logger.debug("Sending VNFD to netconf: %s", vnfd)
@@ -59,7 +59,7 @@ def configure_vnfd(proxy, vnfd_xml_hdl):
 def configure_nsd(proxy, nsd_xml_hdl):
     nsd_xml = nsd_xml_hdl.read()
     logger.debug("Attempting to deserialize XML into NSD protobuf: %s", nsd_xml)
-    nsd = NsdYang.YangData_Nsd_NsdCatalog_Nsd()
+    nsd = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
     nsd.from_xml_v2(model, nsd_xml)
 
     logger.debug("Sending NSD to netconf: %s", nsd)

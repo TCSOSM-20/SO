@@ -51,6 +51,10 @@ import rift.package.store
 import rift.package.cloud_init
 import rift.package.script
 import rift.mano.dts as mano_dts
+from rift.mano.utils.project import (
+    ManoProject,
+    ProjectHandler,
+    )
 
 
 class VMResourceError(Exception):
@@ -162,7 +166,8 @@ class VDURecordState(enum.Enum):
 
 class VcsComponent(object):
     """ VCS Component within the VNF descriptor """
-    def __init__(self, dts, log, loop, cluster_name, vcs_handler, component, mangled_name):
+    def __init__(self, dts, log, loop, cluster_name,
+                 vcs_handler, component, mangled_name):
         self._dts = dts
         self._log = log
         self._loop = loop
@@ -184,7 +189,7 @@ class VcsComponent(object):
     @property
     def path(self):
         """ The path for this object """
-        return("D,/rw-manifest:manifest" +
+        return ("D,/rw-manifest:manifest" +
                "/rw-manifest:operational-inventory" +
                "/rw-manifest:component" +
                "[rw-manifest:component-name = '{}']").format(self.name)
@@ -269,6 +274,7 @@ class VirtualDeploymentUnitRecord(object):
                  dts,
                  log,
                  loop,
+                 project,
                  vdud,
                  vnfr,
                  mgmt_intf,
@@ -280,6 +286,7 @@ class VirtualDeploymentUnitRecord(object):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._vdud = vdud
         self._vnfr = vnfr
         self._mgmt_intf = mgmt_intf
@@ -298,7 +305,8 @@ class VirtualDeploymentUnitRecord(object):
         self._rm_regh = None
         self._vm_resp = None
         self._vdud_cloud_init = None
-        self._vdur_console_handler = VnfrConsoleOperdataDtsHandler(dts, log, loop, self._vnfr._vnfm, self._vnfr.vnfr_id, self._vdur_id,self.vdu_id)
+        self._vdur_console_handler = VnfrConsoleOperdataDtsHandler(
+            dts, log, loop, self._vnfr._vnfm, self._vnfr.vnfr_id, self._vdur_id,self.vdu_id)
 
     @asyncio.coroutine
     def vdu_opdata_register(self):
@@ -479,14 +487,15 @@ class VirtualDeploymentUnitRecord(object):
             placement_groups.append(group.as_dict())
         vdur_dict['placement_groups_info'] = placement_groups
 
-        return RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur.from_dict(vdur_dict)
+        return RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur.from_dict(vdur_dict)
 
     @property
     def resmgr_path(self):
         """ path for resource-mgr"""
-        return ("D,/rw-resource-mgr:resource-mgmt" +
-                "/vdu-event" +
-                "/vdu-event-data[event-id='{}']".format(self._request_id))
+        xpath = self._project.add_project("D,/rw-resource-mgr:resource-mgmt" +
+                                          "/vdu-event" +
+                                          "/vdu-event-data[event-id='{}']".format(self._request_id))
+        return xpath
 
     @property
     def vm_flavor_msg(self):
@@ -541,15 +550,19 @@ class VirtualDeploymentUnitRecord(object):
 
         if availability_zones:
             if len(availability_zones) > 1:
-                self._log.error("Can not launch VDU: %s in multiple availability zones. Requested Zones: %s", self.name, availability_zones)
-                raise VNFMPlacementGroupError("Can not launch VDU: {} in multiple availability zones. Requsted Zones".format(self.name, availability_zones))
+                self._log.error("Can not launch VDU: %s in multiple availability zones. " +
+                                "Requested Zones: %s", self.name, availability_zones)
+                raise VNFMPlacementGroupError("Can not launch VDU: {} in multiple availability" +
+                                              " zones. Requsted Zones".format(self.name, availability_zones))
             else:
                 vm_create_msg_dict['availability_zone'] = availability_zones[0]
 
         if server_groups:
             if len(server_groups) > 1:
-                self._log.error("Can not launch VDU: %s in multiple Server Group. Requested Groups: %s", self.name, server_groups)
-                raise VNFMPlacementGroupError("Can not launch VDU: {} in multiple Server Groups. Requsted Groups".format(self.name, server_groups))
+                self._log.error("Can not launch VDU: %s in multiple Server Group. " +
+                                "Requested Groups: %s", self.name, server_groups)
+                raise VNFMPlacementGroupError("Can not launch VDU: {} in multiple " +
+                                              "Server Groups. Requsted Groups".format(self.name, server_groups))
             else:
                 vm_create_msg_dict['server_group'] = server_groups[0]
 
@@ -702,7 +715,7 @@ class VirtualDeploymentUnitRecord(object):
             self._rm_regh = None
 
         if self._vdur_console_handler is not None:
-            self._log.error("Deregistering vnfr vdur registration handle")
+            self._log.debug("Deregistering vnfr vdur registration handle")
             self._vdur_console_handler._regh.deregister()
             self._vdur_console_handler._regh = None
 
@@ -995,10 +1008,12 @@ class VlRecordState(enum.Enum):
 
 class InternalVirtualLinkRecord(object):
     """ Internal Virtual Link record """
-    def __init__(self, dts, log, loop, ivld_msg, vnfr_name, cloud_account_name, ip_profile=None):
+    def __init__(self, dts, log, loop, project,
+                 ivld_msg, vnfr_name, cloud_account_name, ip_profile=None):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._ivld_msg = ivld_msg
         self._vnfr_name = vnfr_name
         self._cloud_account_name = cloud_account_name
@@ -1028,7 +1043,8 @@ class InternalVirtualLinkRecord(object):
 
     def vlr_path(self):
         """ VLR path for this VLR instance"""
-        return "D,/vlr:vlr-catalog/vlr:vlr[vlr:id = '{}']".format(self.vlr_id)
+        return self._project.add_project("D,/vlr:vlr-catalog/vlr:vlr[vlr:id = '{}']".
+                                         format(self.vlr_id))
 
     def create_vlr(self):
         """ Create the VLR record which will be instantiated """
@@ -1053,7 +1069,7 @@ class InternalVirtualLinkRecord(object):
 
         vlr_dict.update(vld_copy_dict)
 
-        vlr = RwVlrYang.YangData_Vlr_VlrCatalog_Vlr.from_dict(vlr_dict)
+        vlr = RwVlrYang.YangData_RwProject_Project_VlrCatalog_Vlr.from_dict(vlr_dict)
         return vlr
 
     @asyncio.coroutine
@@ -1150,6 +1166,7 @@ class VirtualNetworkFunctionRecord(object):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = vnfm._project
         self._cluster_name = cluster_name
         self._vnfr_msg = vnfr_msg
         self._vnfr_id = vnfr_msg.id
@@ -1202,7 +1219,8 @@ class VirtualNetworkFunctionRecord(object):
     @staticmethod
     def vnfd_xpath(vnfd_id):
         """ VNFD xpath associated with this VNFR """
-        return "C,/vnfd:vnfd-catalog/vnfd:vnfd[vnfd:id = '{}']".format(vnfd_id)
+        return ("C,/vnfd:vnfd-catalog/vnfd:vnfd[vnfd:id = '{}']".
+                format(vnfd_id))
 
     @property
     def vnfd_ref_count(self):
@@ -1283,7 +1301,7 @@ class VirtualNetworkFunctionRecord(object):
     def get_nsr_config(self):
         ### Need access to NS instance configuration for runtime resolution.
         ### This shall be replaced when deployment flavors are implemented
-        xpath = "C,/nsr:ns-instance-config"
+        xpath = self._project.add_project("C,/nsr:ns-instance-config")
         results = yield from self._dts.query_read(xpath, rwdts.XactFlag.MERGE)
 
         for result in results:
@@ -1333,7 +1351,7 @@ class VirtualNetworkFunctionRecord(object):
         vnfd_fields = ["short_name", "vendor", "description", "version"]
         vnfd_copy_dict = {k: v for k, v in self.vnfd.as_dict().items() if k in vnfd_fields}
 
-        mgmt_intf = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MgmtInterface()
+        mgmt_intf = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MgmtInterface()
         ip_address, port = self.mgmt_intf_info()
 
         if ip_address is not None:
@@ -1353,8 +1371,8 @@ class VirtualNetworkFunctionRecord(object):
 
         vnfr_dict.update(vnfd_copy_dict)
 
-        vnfr_msg = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
-        vnfr_msg.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict())
+        vnfr_msg = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
+        vnfr_msg.vnfd = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict())
 
         vnfr_msg.create_time = self._create_time
         vnfr_msg.uptime = int(time.time()) - self._create_time
@@ -1375,13 +1393,13 @@ class VirtualNetworkFunctionRecord(object):
             vnfr_msg.dashboard_url = self.dashboard_url
 
         for cpr in self._cprs:
-            new_cp = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_ConnectionPoint.from_dict(cpr.as_dict())
+            new_cp = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_ConnectionPoint.from_dict(cpr.as_dict())
             vnfr_msg.connection_point.append(new_cp)
 
         if self._vnf_mon is not None:
             for monp in self._vnf_mon.msg:
                 vnfr_msg.monitoring_param.append(
-                    VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MonitoringParam.from_dict(monp.as_dict()))
+                    VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MonitoringParam.from_dict(monp.as_dict()))
 
         if self._vnfr.vnf_configuration is not None:
             vnfr_msg.vnf_configuration.from_dict(self._vnfr.vnf_configuration.as_dict())
@@ -1390,7 +1408,7 @@ class VirtualNetworkFunctionRecord(object):
                 vnfr_msg.vnf_configuration.config_access.mgmt_ip_address = ip_address
 
         for group in self._vnfr_msg.placement_groups_info:
-            group_info = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_PlacementGroupsInfo()
+            group_info = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_PlacementGroupsInfo()
             group_info.from_dict(group.as_dict())
             vnfr_msg.placement_groups_info.append(group_info)
 
@@ -1420,7 +1438,7 @@ class VirtualNetworkFunctionRecord(object):
     @property
     def xpath(self):
         """ path for this  VNFR """
-        return("D,/vnfr:vnfr-catalog"
+        return self._project.add_project("D,/vnfr:vnfr-catalog"
                "/vnfr:vnfr[vnfr:id='{}']".format(self.vnfr_id))
 
     @asyncio.coroutine
@@ -1495,7 +1513,7 @@ class VirtualNetworkFunctionRecord(object):
         for group_info in nsr_config.vnfd_placement_group_maps:
             if group_info.placement_group_ref == input_group.name and \
                group_info.vnfd_id_ref == self.vnfd_id:
-                group = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur_PlacementGroupsInfo()
+                group = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur_PlacementGroupsInfo()
                 group_dict = {k:v for k,v in
                               group_info.as_dict().items()
                               if (k != 'placement_group_ref' and k !='vnfd_id_ref')}
@@ -1510,7 +1528,7 @@ class VirtualNetworkFunctionRecord(object):
         placement_groups = []
         ### Step-1: Get VNF level placement groups
         for group in self._vnfr_msg.placement_groups_info:
-            #group_info = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur_PlacementGroupsInfo()
+            #group_info = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur_PlacementGroupsInfo()
             #group_info.from_dict(group.as_dict())
             placement_groups.append(group)
 
@@ -1524,10 +1542,11 @@ class VirtualNetworkFunctionRecord(object):
                     group_info = self.resolve_placement_group_cloud_construct(group,
                                                                               nsr_config)
                     if group_info is None:
-                        self._log.info("Could not resolve cloud-construct for placement group: %s", group.name)
-                        ### raise VNFMPlacementGroupError("Could not resolve cloud-construct for placement group: {}".format(group.name))
+                        self._log.info("Could not resolve cloud-construct for " +
+                                       "placement group: %s", group.name)
                     else:
-                        self._log.info("Successfully resolved cloud construct for placement group: %s for VDU: %s in VNF: %s (Member Index: %s)",
+                        self._log.info("Successfully resolved cloud construct for " +
+                                       "placement group: %s for VDU: %s in VNF: %s (Member Index: %s)",
                                        str(group_info),
                                        vdu.name,
                                        self.vnf_name,
@@ -1579,6 +1598,7 @@ class VirtualNetworkFunctionRecord(object):
                 dts=self._dts,
                 log=self._log,
                 loop=self._loop,
+                project = self._project,
                 vdud=vdu,
                 vnfr=vnfr,
                 mgmt_intf=self.has_mgmt_interface(vdu),
@@ -1725,8 +1745,7 @@ class VirtualNetworkFunctionRecord(object):
 
     def vlr_xpath(self, vlr_id):
         """ vlr xpath """
-        return(
-            "D,/vlr:vlr-catalog/"
+        return self._project.add_project("D,/vlr:vlr-catalog/"
             "vlr:vlr[vlr:id = '{}']".format(vlr_id))
 
     def ext_vlr_by_id(self, vlr_id):
@@ -1816,6 +1835,7 @@ class VirtualNetworkFunctionRecord(object):
     @asyncio.coroutine
     def instantiate(self, xact, restart_mode=False):
         """ instantiate this VNF """
+        self._log.info("Instantiate VNF {}: {}".format(self._vnfr_id, self._state))
         self.set_state(VirtualNetworkFunctionRecordState.VL_INIT_PHASE)
         self._rw_vnfd = yield from self._vnfm.fetch_vnfd(self._vnfd_id)
 
@@ -1831,7 +1851,7 @@ class VirtualNetworkFunctionRecord(object):
                 cp_copy_dict = {k: v for k, v in cp.as_dict().items() if k in cp_fields}
                 cpr_dict = {}
                 cpr_dict.update(cp_copy_dict)
-                return VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_ConnectionPoint.from_dict(cpr_dict)
+                return VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_ConnectionPoint.from_dict(cpr_dict)
 
             self._log.debug("Fetching VLRs for VNFR id = %s, cps = %s",
                             self._vnfr_id, self._vnfr.connection_point)
@@ -1843,7 +1863,7 @@ class VirtualNetworkFunctionRecord(object):
 
                 vlr_path = self.vlr_xpath(cp.vlr_ref)
                 self._log.debug("Fetching VLR with path = %s", vlr_path)
-                res_iter = yield from self._dts.query_read(self.vlr_xpath(cp.vlr_ref),
+                res_iter = yield from self._dts.query_read(vlr_path,
                                                            rwdts.XactFlag.MERGE)
                 for i in res_iter:
                     r = yield from i
@@ -1866,16 +1886,16 @@ class VirtualNetworkFunctionRecord(object):
         yield from self.publish_inventory(xact)
 
         # Publish inventory
-        self._log.debug("VNFR-ID %s: Creating VLs", self._vnfr_id)
+        self._log.debug("Create VLs {}: {}".format(self._vnfr_id, self._state))
         yield from self.create_vls()
 
         # publish the VNFR
-        self._log.debug("VNFR-ID %s: Publish VNFR", self._vnfr_id)
+        self._log.debug("Publish VNFR {}: {}".format(self._vnfr_id, self._state))
         yield from self.publish(xact)
 
 
         # instantiate VLs
-        self._log.debug("VNFR-ID %s: Instantiate VLs", self._vnfr_id)
+        self._log.debug("Instantiate VLs {}: {}".format(self._vnfr_id, self._state))
         try:
             yield from self.instantiate_vls(xact, restart_mode)
         except Exception as e:
@@ -1886,7 +1906,7 @@ class VirtualNetworkFunctionRecord(object):
         self.set_state(VirtualNetworkFunctionRecordState.VM_INIT_PHASE)
 
         # instantiate VDUs
-        self._log.debug("VNFR-ID %s: Create VDUs", self._vnfr_id)
+        self._log.debug("Create VDUs {}: {}".format(self._vnfr_id, self._state))
         yield from self.create_vdus(self, restart_mode)
 
         try:
@@ -1897,12 +1917,13 @@ class VirtualNetworkFunctionRecord(object):
             yield from self.publish(xact)
 
         # publish the VNFR
-        self._log.debug("VNFR-ID %s: Publish VNFR", self._vnfr_id)
+        self._log.debug("VNFR {}: Publish VNFR with state {}".
+                        format(self._vnfr_id, self._state))
         yield from self.publish(xact)
 
         # instantiate VDUs
         # ToDo: Check if this should be prevented during restart
-        self._log.debug("VNFR-ID %s: Instantiate VDUs", self._vnfr_id)
+        self._log.debug("Instantiate VDUs {}: {}".format(self._vnfr_id, self._state))
         _ = self._loop.create_task(self.instantiate_vdus(xact, self))
 
         # publish the VNFR
@@ -1982,6 +2003,14 @@ class VnfdDtsHandler(object):
         """ DTS registration handle """
         return self._regh
 
+    def deregister(self):
+        '''De-register from DTS'''
+        self._log.debug("De-register VNFD DTS handler for project {}".
+                        format(self._project))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
+
     @asyncio.coroutine
     def register(self):
         """ Register for VNFD configuration"""
@@ -2014,14 +2043,14 @@ class VnfdDtsHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        self._log.debug(
-            "Registering for VNFD config using xpath: %s",
-            VnfdDtsHandler.XPATH,
-            )
+        xpath = self._vnfm._project.add_project(VnfdDtsHandler.XPATH)
+        self._log.debug("Registering for VNFD config using xpath: {}".
+                        format(xpath))
+
         acg_hdl = rift.tasklets.AppConfGroup.Handler(on_apply=on_apply)
         with self._dts.appconf_group_create(handler=acg_hdl) as acg:
             self._regh = acg.register(
-                xpath=VnfdDtsHandler.XPATH,
+                xpath=xpath,
                 flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY,
                 on_prepare=on_prepare)
 
@@ -2043,6 +2072,14 @@ class VcsComponentDtsHandler(object):
     def regh(self):
         """ DTS registration handle """
         return self._regh
+
+    def deregister(self):
+        '''De-register from DTS'''
+        self._log.debug("De-register VCS DTS handler for project {}".
+                        format(self._project))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
     @asyncio.coroutine
     def register(self):
@@ -2069,11 +2106,16 @@ class VcsComponentDtsHandler(object):
                         VcsComponentDtsHandler.XPATH, xact, path, msg)
 
 class VnfrConsoleOperdataDtsHandler(object):
-    """ registers 'D,/vnfr:vnfr-console/vnfr:vnfr[id]/vdur[id]' and handles CRUD from DTS"""
+    """
+    Registers 'D,/rw-project:project/vnfr:vnfr-console/vnfr:vnfr[id]/vdur[id]'
+    and handles CRUD from DTS
+    """
+
     @property
     def vnfr_vdu_console_xpath(self):
         """ path for resource-mgr"""
-        return ("D,/rw-vnfr:vnfr-console/rw-vnfr:vnfr[rw-vnfr:id='{}']/rw-vnfr:vdur[vnfr:id='{}']".format(self._vnfr_id,self._vdur_id))
+        return self._project.add_project("D,/rw-vnfr:vnfr-console/rw-vnfr:vnfr[rw-vnfr:id='{}']" +
+                                         "/rw-vnfr:vdur[vnfr:id='{}']".format(self._vnfr_id,self._vdur_id))
 
     def __init__(self, dts, log, loop, vnfm, vnfr_id, vdur_id, vdu_id):
         self._dts = dts
@@ -2085,6 +2127,16 @@ class VnfrConsoleOperdataDtsHandler(object):
         self._vnfr_id = vnfr_id
         self._vdur_id = vdur_id
         self._vdu_id = vdu_id
+
+        self._project = vnfm._project
+
+    def deregister(self):
+        '''De-register from DTS'''
+        self._log.debug("De-register VNFR console DTS handler for project {}".
+                        format(self._project))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
     @asyncio.coroutine
     def register(self):
@@ -2100,7 +2152,7 @@ class VnfrConsoleOperdataDtsHandler(object):
                 )
 
             if action == rwdts.QueryAction.READ:
-                schema = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur.schema()
+                schema = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
                 self._log.debug("VDU Opdata path is {}".format(path_entry))
                 try:
@@ -2117,7 +2169,7 @@ class VnfrConsoleOperdataDtsHandler(object):
                         return
                     with self._dts.transaction() as new_xact:
                         resp = yield from vdur.read_resource(new_xact)
-                        vdur_console = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur()
+                        vdur_console = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur()
                         vdur_console.id = self._vdur_id
                         if resp.console_url:
                             vdur_console.console_url = resp.console_url
@@ -2126,7 +2178,7 @@ class VnfrConsoleOperdataDtsHandler(object):
                         self._log.debug("Recevied console URL for vdu {} is {}".format(self._vdu_id,vdur_console))
                 except Exception:
                     self._log.exception("Caught exception while reading VDU %s", self._vdu_id)
-                    vdur_console = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur()
+                    vdur_console = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur()
                     vdur_console.id = self._vdur_id
                     vdur_console.console_url = 'none'
 
@@ -2151,7 +2203,7 @@ class VnfrConsoleOperdataDtsHandler(object):
 
 
 class VnfrDtsHandler(object):
-    """ registers 'D,/vnfr:vnfr-catalog/vnfr:vnfr' and handles CRUD from DTS"""
+    """ registers 'D,/rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr' and handles CRUD from DTS"""
     XPATH = "D,/vnfr:vnfr-catalog/vnfr:vnfr"
 
     def __init__(self, dts, log, loop, vnfm):
@@ -2161,6 +2213,7 @@ class VnfrDtsHandler(object):
         self._vnfm = vnfm
 
         self._regh = None
+        self._project = vnfm._project
 
     @property
     def regh(self):
@@ -2171,6 +2224,14 @@ class VnfrDtsHandler(object):
     def vnfm(self):
         """ Return VNF manager instance """
         return self._vnfm
+
+    def deregister(self):
+        '''De-register from DTS'''
+        self._log.debug("De-register VNFR DTS handler for project {}".
+                        format(self._project))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
     @asyncio.coroutine
     def register(self):
@@ -2233,7 +2294,7 @@ class VnfrDtsHandler(object):
                     vnfr.set_state(VirtualNetworkFunctionRecordState.FAILED)
                     yield from vnfr.publish(None)
             elif action == rwdts.QueryAction.DELETE:
-                schema = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.schema()
+                schema = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
                 vnfr = self._vnfm.get_vnfr(path_entry.key00.id)
 
@@ -2252,7 +2313,7 @@ class VnfrDtsHandler(object):
                     self._log.error("Caught exception while deleting vnfr %s", path_entry.key00.id)
 
             elif action == rwdts.QueryAction.UPDATE:
-                schema = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.schema()
+                schema = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
                 vnfr = None
                 try:
@@ -2280,14 +2341,15 @@ class VnfrDtsHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        self._log.debug("Registering for VNFR using xpath: %s",
-                        VnfrDtsHandler.XPATH,)
+        xpath = self._project.add_project(VnfrDtsHandler.XPATH)
+        self._log.debug("Registering for VNFR using xpath: {}".
+                        format(xpath))
 
         hdl = rift.tasklets.DTS.RegistrationHandler(on_commit=on_commit,
                                                     on_prepare=on_prepare,)
         handlers = rift.tasklets.Group.Handler(on_event=on_event,)
         with self._dts.group_create(handler=handlers) as group:
-            self._regh = group.register(xpath=VnfrDtsHandler.XPATH,
+            self._regh = group.register(xpath=xpath,
                                         handler=hdl,
                                         flags=(rwdts.Flag.PUBLISHER |
                                                rwdts.Flag.NO_PREP_READ |
@@ -2295,10 +2357,11 @@ class VnfrDtsHandler(object):
                                                rwdts.Flag.DATASTORE),)
 
     @asyncio.coroutine
-    def create(self, xact, path, msg):
+    def create(self, xact, xpath, msg):
         """
         Create a VNFR record in DTS with path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Creating VNFR xact = %s, %s:%s",
                         xact, path, msg)
 
@@ -2307,10 +2370,11 @@ class VnfrDtsHandler(object):
                         xact, path, msg)
 
     @asyncio.coroutine
-    def update(self, xact, path, msg):
+    def update(self, xact, xpath, msg):
         """
         Update a VNFR record in DTS with path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Updating VNFR xact = %s, %s:%s",
                         xact, path, msg)
         self.regh.update_element(path, msg)
@@ -2318,10 +2382,11 @@ class VnfrDtsHandler(object):
                         xact, path, msg)
 
     @asyncio.coroutine
-    def delete(self, xact, path):
+    def delete(self, xact, xpath):
         """
         Delete a VNFR record in DTS with path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Deleting VNFR xact = %s, %s", xact, path)
         self.regh.delete_element(path)
         self._log.debug("Deleted VNFR xact = %s, %s", xact, path)
@@ -2349,6 +2414,14 @@ class VnfdRefCountDtsHandler(object):
         """ Return the NS manager instance """
         return self._vnfm
 
+    def deregister(self):
+        '''De-register from DTS'''
+        self._log.debug("De-register VNFD Ref DTS handler for project {}".
+                        format(self._project))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
+
     @asyncio.coroutine
     def register(self):
         """ Register for VNFD ref count read from dts """
@@ -2363,7 +2436,7 @@ class VnfdRefCountDtsHandler(object):
                 )
 
             if action == rwdts.QueryAction.READ:
-                schema = RwVnfrYang.YangData_Vnfr_VnfrCatalog_VnfdRefCount.schema()
+                schema = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_VnfdRefCount.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
                 vnfd_list = yield from self._vnfm.get_vnfd_refcount(path_entry.key00.vnfd_id_ref)
                 for xpath, msg in vnfd_list:
@@ -2378,7 +2451,8 @@ class VnfdRefCountDtsHandler(object):
 
         hdl = rift.tasklets.DTS.RegistrationHandler(on_prepare=on_prepare,)
         with self._dts.group_create() as group:
-            self._regh = group.register(xpath=VnfdRefCountDtsHandler.XPATH,
+            self._regh = group.register(xpath=self._vnfm._project.add_project(
+                VnfdRefCountDtsHandler.XPATH),
                                         handler=hdl,
                                         flags=rwdts.Flag.PUBLISHER,
                                         )
@@ -2506,16 +2580,18 @@ class VdurDatastore(object):
 
 class VnfManager(object):
     """ The virtual network function manager class """
-    def __init__(self, dts, log, loop, cluster_name):
+    def __init__(self, dts, log, loop, project, cluster_name):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._cluster_name = cluster_name
 
         self._vcs_handler = VcsComponentDtsHandler(dts, log, loop, self)
         self._vnfr_handler = VnfrDtsHandler(dts, log, loop, self)
         self._vnfr_ref_handler = VnfdRefCountDtsHandler(dts, log, loop, self)
-        self._nsr_handler = mano_dts.NsInstanceConfigSubscriber(log, dts, loop, callback=self.handle_nsr)
+        self._nsr_handler = mano_dts.NsInstanceConfigSubscriber(
+            log, dts, loop, project, callback=self.handle_nsr)
 
         self._dts_handlers = [VnfdDtsHandler(dts, log, loop, self),
                               self._vnfr_handler,
@@ -2541,6 +2617,11 @@ class VnfManager(object):
         """ Register all static DTS handlers """
         for hdl in self._dts_handlers:
             yield from hdl.register()
+
+    def deregister(self):
+        self.log.debug("De-register VNFM project {}".format(self.name))
+        for hdl in self._dts_handlers:
+            yield from hdl.deregister()
 
     @asyncio.coroutine
     def run(self):
@@ -2627,11 +2708,13 @@ class VnfManager(object):
     @asyncio.coroutine
     def fetch_vnfd(self, vnfd_id):
         """ Fetch VNFDs based with the vnfd id"""
-        vnfd_path = VirtualNetworkFunctionRecord.vnfd_xpath(vnfd_id)
+        vnfd_path = self._project.add_project(
+            VirtualNetworkFunctionRecord.vnfd_xpath(vnfd_id))
         self._log.debug("Fetch vnfd with path %s", vnfd_path)
         vnfd = None
 
-        res_iter = yield from self._dts.query_read(vnfd_path, rwdts.XactFlag.MERGE)
+        res_iter = yield from self._dts.query_read(vnfd_path,
+                                                   rwdts.XactFlag.MERGE)
 
         for ent in res_iter:
             res = yield from ent
@@ -2690,8 +2773,8 @@ class VnfManager(object):
 
     def vnfd_refcount_xpath(self, vnfd_id):
         """ xpath for ref count entry """
-        return (VnfdRefCountDtsHandler.XPATH +
-                "[rw-vnfr:vnfd-id-ref = '{}']").format(vnfd_id)
+        return self._project.add_project(VnfdRefCountDtsHandler.XPATH +
+                                         "[rw-vnfr:vnfd-id-ref = '{}']").format(vnfd_id)
 
     @asyncio.coroutine
     def get_vnfd_refcount(self, vnfd_id):
@@ -2699,17 +2782,42 @@ class VnfManager(object):
         vnfd_list = []
         if vnfd_id is None or vnfd_id == "":
             for vnfd in self._vnfds_to_vnfr.keys():
-                vnfd_msg = RwVnfrYang.YangData_Vnfr_VnfrCatalog_VnfdRefCount()
+                vnfd_msg = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_VnfdRefCount()
                 vnfd_msg.vnfd_id_ref = vnfd
                 vnfd_msg.instance_ref_count = self._vnfds_to_vnfr[vnfd]
                 vnfd_list.append((self.vnfd_refcount_xpath(vnfd), vnfd_msg))
         elif vnfd_id in self._vnfds_to_vnfr:
-                vnfd_msg = RwVnfrYang.YangData_Vnfr_VnfrCatalog_VnfdRefCount()
+                vnfd_msg = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_VnfdRefCount()
                 vnfd_msg.vnfd_id_ref = vnfd_id
                 vnfd_msg.instance_ref_count = self._vnfds_to_vnfr[vnfd_id]
                 vnfd_list.append((self.vnfd_refcount_xpath(vnfd_id), vnfd_msg))
 
         return vnfd_list
+
+
+class VnfmProject(ManoProject):
+
+    def __init__(self, name, tasklet, **kw):
+        super(VnfmProject, self).__init__(tasklet.log, name)
+        self.update(tasklet)
+
+        self._vnfm = None
+
+    @asyncio.coroutine
+    def register (self):
+        try:
+            vm_parent_name = self._tasklet.tasklet_info.get_parent_vm_parent_instance_name()
+            assert vm_parent_name is not None
+            self._vnfm = VnfManager(self._dts, self.log, self.loop, self, vm_parent_name)
+            yield from self._vnfm.run()
+        except Exception:
+            print("Caught Exception in VNFM init:", sys.exc_info()[0])
+            raise
+
+    def deregister(self):
+        self._log.debug("De-register project {} for VnfmProject".
+                        format(self.name))
+        self._vnfm.deregister()
 
 
 class VnfmTasklet(rift.tasklets.Tasklet):
@@ -2720,7 +2828,12 @@ class VnfmTasklet(rift.tasklets.Tasklet):
         self.rwlog.set_subcategory("vnfm")
 
         self._dts = None
-        self._vnfm = None
+        self._project_handler = None
+        self.projects = {}
+
+    @property
+    def dts(self):
+        return self._dts
 
     def start(self):
         try:
@@ -2754,14 +2867,9 @@ class VnfmTasklet(rift.tasklets.Tasklet):
     @asyncio.coroutine
     def init(self):
         """ Task init callback """
-        try:
-            vm_parent_name = self.tasklet_info.get_parent_vm_parent_instance_name()
-            assert vm_parent_name is not None
-            self._vnfm = VnfManager(self._dts, self.log, self.loop, vm_parent_name)
-            yield from self._vnfm.run()
-        except Exception:
-            print("Caught Exception in VNFM init:", sys.exc_info()[0])
-            raise
+        self.log.debug("creating project handler")
+        self.project_handler = ProjectHandler(self, VnfmProject)
+        self.project_handler.register()
 
     @asyncio.coroutine
     def run(self):

@@ -42,22 +42,22 @@ class VnfrMonitoringParamSubscriber(mano_dts.AbstractOpdataSubscriber):
         monp_id (str): Monitoring Param ID
         vnfr_id (str): VNFR ID
     """
-    def __init__(self, log, dts, loop, vnfr_id, monp_id, callback=None):
-        super().__init__(log, dts, loop, callback)
+    def __init__(self, log, dts, loop, project, vnfr_id, monp_id, callback=None):
+        super().__init__(log, dts, loop, project, callback)
         self.vnfr_id = vnfr_id
         self.monp_id = monp_id
 
     def get_xpath(self):
-        return("D,/vnfr:vnfr-catalog" +
+        return self.project.add_project(("D,/vnfr:vnfr-catalog" +
                "/vnfr:vnfr[vnfr:id='{}']".format(self.vnfr_id) +
                "/vnfr:monitoring-param" +
-               "[vnfr:id='{}']".format(self.monp_id))
+               "[vnfr:id='{}']".format(self.monp_id)))
 
 
 class NsrMonitoringParam():
     """Class that handles NS Mon-param data.
     """
-    MonParamMsg = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_MonitoringParam
+    MonParamMsg = NsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr_MonitoringParam
     MISSING = None
     DEFAULT_AGGREGATION_TYPE = "AVERAGE"
 
@@ -66,7 +66,7 @@ class NsrMonitoringParam():
         """Convenience class that constructs NSMonitoringParam objects
         
         Args:
-            nsd (RwNsdYang.YangData_Nsd_NsdCatalog_Nsd): Nsd object
+            nsd (RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd): Nsd object
             constituent_vnfrs (list): List of constituent vnfr objects of NSR
             store (SubscriberStore): Store object instance
         
@@ -76,8 +76,6 @@ class NsrMonitoringParam():
         Also handles legacy NSD descriptor which has no mon-param defines. In
         such cases the mon-params are created from VNFD's mon-param config.
         """
-        MonParamMsg = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_MonitoringParam
-
         mon_params = []
         for mon_param_msg in nsd.monitoring_param:
             mon_params.append(NsrMonitoringParam(
@@ -278,16 +276,17 @@ class NsrMonitoringParamPoller(mano_dts.DtsHandler):
     def from_handler(cls, handler, monp, callback):
         """Convenience class to build NsrMonitoringParamPoller object.
         """
-        return cls(handler.log, handler.dts, handler.loop, monp, callback)
+        return cls(handler.log, handler.dts, handler.loop, handler.project,
+                   monp, callback)
 
-    def __init__(self, log, dts, loop, monp, callback=None):
+    def __init__(self, log, dts, loop, project, monp, callback=None):
         """
         Args:
             monp (NsrMonitoringParam): Param object
             callback (None, optional): Callback to be triggered after value has
                 been aggregated.
         """
-        super().__init__(log, dts, loop)
+        super().__init__(log, dts, loop, project)
 
         self.monp = monp
         self.subscribers = []
@@ -341,7 +340,8 @@ class NsrMonitoringParamPoller(mano_dts.DtsHandler):
         for vnfr_id, monp_id in self.monp.vnfr_ids:
             callback = functools.partial(self.update_value, vnfr_id=vnfr_id)
             self.subscribers.append(VnfrMonitoringParamSubscriber(
-                self.loop, self.dts, self.loop, vnfr_id, monp_id, callback=callback))
+                self.loop, self.dts, self.loop, self.project,
+                vnfr_id, monp_id, callback=callback))
 
     @asyncio.coroutine
     def start(self):
@@ -356,14 +356,14 @@ class NsrMonitoringParamPoller(mano_dts.DtsHandler):
 class NsrMonitorDtsHandler(mano_dts.DtsHandler):
     """ NSR monitoring class """
 
-    def __init__(self, log, dts, loop, nsr, constituent_vnfrs, store):
+    def __init__(self, log, dts, loop, project, nsr, constituent_vnfrs, store):
         """
         Args:
-            nsr (RwNsrYang.YangData_Nsr_NsInstanceOpdata_Nsr): NSR object
+            nsr (RwNsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr): NSR object
             constituent_vnfrs (list): list of VNFRs in NSR
             store (SubscriberStore): Store instance
         """
-        super().__init__(log, dts, loop)
+        super().__init__(log, dts, loop, project)
 
         self.nsr = nsr
         self.store = store
@@ -371,7 +371,7 @@ class NsrMonitorDtsHandler(mano_dts.DtsHandler):
         self.mon_params_pollers = []
 
     def xpath(self, param_id=None):
-        return ("D,/nsr:ns-instance-opdata/nsr:nsr" +
+        return self.project.add_project("D,/nsr:ns-instance-opdata/nsr:nsr" +
             "[nsr:ns-instance-config-ref='{}']".format(self.nsr.ns_instance_config_ref) +
             "/nsr:monitoring-param" +
             ("[nsr:id='{}']".format(param_id) if param_id else ""))

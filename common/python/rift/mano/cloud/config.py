@@ -21,11 +21,13 @@ import rw_peas
 import gi
 gi.require_version('RwDts', '1.0')
 import rift.tasklets
+from rift.mano.utils.project import get_add_delete_update_cfgs
 
 from gi.repository import (
     RwcalYang as rwcal,
     RwDts as rwdts,
     ProtobufC,
+    RwCloudYang,
     )
 
 from . import accounts
@@ -36,32 +38,6 @@ class CloudAccountNotFound(Exception):
 
 class CloudAccountError(Exception):
     pass
-
-
-def get_add_delete_update_cfgs(dts_member_reg, xact, key_name):
-    # Unforunately, it is currently difficult to figure out what has exactly
-    # changed in this xact without Pbdelta support (RIFT-4916)
-    # As a workaround, we can fetch the pre and post xact elements and
-    # perform a comparison to figure out adds/deletes/updates
-    xact_cfgs = list(dts_member_reg.get_xact_elements(xact))
-    curr_cfgs = list(dts_member_reg.elements)
-
-    xact_key_map = {getattr(cfg, key_name): cfg for cfg in xact_cfgs}
-    curr_key_map = {getattr(cfg, key_name): cfg for cfg in curr_cfgs}
-
-    # Find Adds
-    added_keys = set(xact_key_map) - set(curr_key_map)
-    added_cfgs = [xact_key_map[key] for key in added_keys]
-
-    # Find Deletes
-    deleted_keys = set(curr_key_map) - set(xact_key_map)
-    deleted_cfgs = [curr_key_map[key] for key in deleted_keys]
-
-    # Find Updates
-    updated_keys = set(curr_key_map) & set(xact_key_map)
-    updated_cfgs = [xact_key_map[key] for key in updated_keys if xact_key_map[key] != curr_key_map[key]]
-
-    return added_cfgs, deleted_cfgs, updated_cfgs
 
 
 class CloudAccountConfigCallbacks(object):
@@ -101,12 +77,13 @@ class CloudAccountConfigCallbacks(object):
 
 
 class CloudAccountConfigSubscriber(object):
-    XPATH = "C,/rw-project:project/rw-cloud:cloud/rw-cloud:account"
+    XPATH = "C,/rw-cloud:cloud/rw-cloud:account"
 
-    def __init__(self, dts, log, rwlog_hdl, cloud_callbacks):
+    def __init__(self, dts, log, rwlog_hdl, project, cloud_callbacks):
         self._dts = dts
         self._log = log
         self._rwlog_hdl = rwlog_hdl
+        self._project = project
         self._reg = None
 
         self.accounts = {}
@@ -144,9 +121,16 @@ class CloudAccountConfigSubscriber(object):
         self.delete_account(account_msg.name)
         self.add_account(account_msg)
 
+    def deregister(self):
+        self._log.debug("Project {}: De-register cloud account handler".
+                        format(self._project))
+        if self._reg:
+            self._reg.deregister()
+            self._reg = None
+
     def register(self):
         @asyncio.coroutine
-        def apply_config(dts, acg, xact, action, _):
+        def apply_config(dts, acg, xact, action, scratch):
             self._log.debug("Got cloud account apply config (xact: %s) (action: %s)", xact, action)
 
             if xact.xact is None:
@@ -188,12 +172,16 @@ class CloudAccountConfigSubscriber(object):
             """ Prepare callback from DTS for Cloud Account """
 
             action = xact_info.query_action
+
+            xpath = ks_path.to_xpath(RwCloudYang.get_schema())
+
             self._log.debug("Cloud account on_prepare config received (action: %s): %s",
                             xact_info.query_action, msg)
 
             if action in [rwdts.QueryAction.CREATE, rwdts.QueryAction.UPDATE]:
                 if msg.name in self.accounts:
-                    self._log.debug("Cloud account already exists. Invoking update request")
+                    self._log.debug("Cloud account {} already exists. " \
+                                    "Invoking update request".format(msg.name))
 
                     # Since updates are handled by a delete followed by an add, invoke the
                     # delete prepare callbacks to give clients an opportunity to reject.
@@ -241,9 +229,10 @@ class CloudAccountConfigSubscriber(object):
                         on_apply=apply_config,
                         )
 
+        xpath = self._project.add_project(CloudAccountConfigSubscriber.XPATH)
         with self._dts.appconf_group_create(acg_handler) as acg:
             self._reg = acg.register(
-                    xpath=CloudAccountConfigSubscriber.XPATH,
+                    xpath=xpath,
                     flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
                     on_prepare=on_prepare,
                     )

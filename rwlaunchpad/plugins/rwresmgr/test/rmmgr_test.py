@@ -441,7 +441,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def configure_compute_resource_pools(self, dts, resource_type, cloud_type):
-        pool_xpath = "C,/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
+        pool_xpath = "C,/rw-project:project/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
         msg = self.get_compute_pool_msg("virtual-compute", resource_type, cloud_type)
         self.log.info("Configuring compute-resource-pool: %s",msg)
         yield from dts.query_create(pool_xpath,
@@ -451,7 +451,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def configure_network_resource_pools(self, dts, resource_type, cloud_type):
-        pool_xpath = "C,/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
+        pool_xpath = "C,/rw-project:project/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
         msg = self.get_network_pool_msg("virtual-network", resource_type, cloud_type)
         self.log.info("Configuring network-resource-pool: %s",msg)
         yield from dts.query_create(pool_xpath,
@@ -460,7 +460,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def verify_resource_pools_config(self, dts):
-        pool_records_xpath = "D,/rw-resource-mgr:resource-pool-records"
+        pool_records_xpath = "D,/rw-project:project/rw-resource-mgr:resource-pool-records"
         self.log.debug("Verifying test_create_resource_pools results")
         res_iter = yield from dts.query_read(pool_records_xpath,)
         for result in res_iter:
@@ -491,7 +491,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def reserve_network_resources(self, name, dts, cloud_type):
-        network_xpath = "D,/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data[event-id='{}']"
+        network_xpath = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data[event-id='{}']"
         msg,xpath = self.get_network_reserve_msg(name, cloud_type, network_xpath)
         self.log.debug("Sending create event to network-event xpath %s with msg: %s" % (xpath, msg))
         yield from dts.query_create(xpath, 0, msg)
@@ -500,7 +500,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def reserve_compute_resources(self, name, dts, cloud_type, vlinks = []):
-        compute_xpath = "D,/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data[event-id='{}']"
+        compute_xpath = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data[event-id='{}']"
         msg,xpath = self.get_compute_reserve_msg(name, cloud_type, compute_xpath, vlinks)
         self.log.debug("Sending create event to compute-event xpath %s with msg: %s" % (xpath, msg))
         yield from dts.query_create(xpath, 0, msg)

@@ -106,6 +106,7 @@ class ScalingCriteria:
             log,
             dts,
             loop,
+            project,
             nsr_id,
             monp_id,
             scaling_criteria,
@@ -143,6 +144,7 @@ class ScalingCriteria:
                 self.log,
                 self.dts,
                 self.loop,
+                project,
                 self.nsr_id,
                 self.monp_id,
                 callback=self.add_value)
@@ -236,6 +238,7 @@ class ScalingPolicy(ScalingCriteria.Delegate):
             log,
             dts,
             loop,
+            project,
             nsr_id,
             nsd_id,
             scaling_group_name,
@@ -258,6 +261,7 @@ class ScalingPolicy(ScalingCriteria.Delegate):
         self.loop = loop
         self.log = log
         self.dts = dts
+        self.project = project
         self.nsd_id = nsd_id
         self.nsr_id = nsr_id
         self.scaling_group_name = scaling_group_name
@@ -270,6 +274,7 @@ class ScalingPolicy(ScalingCriteria.Delegate):
                                 self.log,
                                 self.dts,
                                 self.loop,
+                                self.project,
                                 self.nsr_id,
                                 callback=self.handle_nsr_monp)
 
@@ -311,6 +316,7 @@ class ScalingPolicy(ScalingCriteria.Delegate):
                         self.log,
                         self.dts,
                         self.loop,
+                        self.project,
                         self.nsr_id,
                         monp.id,
                         cri,

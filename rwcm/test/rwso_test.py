@@ -240,11 +240,11 @@ class RWSOTestCase(unittest.TestCase):
         self.log.debug("STARTING - test_create_resource_pools")
         tinfo = self.new_tinfo('poolconfig')
         dts = rift.tasklets.DTS(tinfo, self.schema, self.loop)
-        pool_xpath = "C,/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
-        pool_records_xpath = "D,/rw-resource-mgr:resource-pool-records"
+        pool_xpath = "C,/rw-project:project/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
+        pool_records_xpath = "D,/rw-project:project/rw-resource-mgr:resource-pool-records"
         account_xpath = "C,/rw-launchpad:cloud-account"
-        compute_xpath = "D,/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data[event-id='{}']"
-        network_xpath = "D,/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data[event-id='{}']"
+        compute_xpath = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data[event-id='{}']"
+        network_xpath = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data[event-id='{}']"
 
         @asyncio.coroutine
         def configure_cloud_account():

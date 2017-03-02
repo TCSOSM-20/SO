@@ -172,7 +172,7 @@ def ping_pong_nsd_package_file():
 
 
 def create_nsr_from_nsd_id(nsd_id):
-    nsr = RwNsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+    nsr = RwNsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
     nsr.id = str(uuid.uuid4())
     nsr.name = "pingpong_{}".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
     nsr.short_name = "nsr_short_name"
@@ -181,8 +181,8 @@ def create_nsr_from_nsd_id(nsd_id):
     nsr.admin_status = "ENABLED"
     nsr.cloud_account = "openstack"
 
-    param = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter()
-    param.xpath = '/nsd:nsd-catalog/nsd:nsd/nsd:vendor'
+    param = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter()
+    param.xpath = '/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:vendor'
     param.value = "rift-o-matic"
 
     nsr.input_parameter.append(param)

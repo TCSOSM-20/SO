@@ -42,8 +42,9 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
     """
         Juju implementation of the riftcm_config_plugin.RiftCMConfigPluginBase
     """
-    def __init__(self, dts, log, loop, account):
-        riftcm_config_plugin.RiftCMConfigPluginBase.__init__(self, dts, log, loop, account)
+    def __init__(self, dts, log, loop, project, account):
+        riftcm_config_plugin.RiftCMConfigPluginBase.__init__(self, dts, log, loop,
+                                                             project, account)
         self._name = account.name
         self._type = 'juju'
         self._ip_address = account.juju.ip_address

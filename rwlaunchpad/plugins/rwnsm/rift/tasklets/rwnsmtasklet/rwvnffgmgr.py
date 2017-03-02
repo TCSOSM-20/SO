@@ -61,19 +61,25 @@ class VnffgrUpdateFailed(Exception):
 
 class VnffgMgr(object):
     """ Implements the interface to backend plugins to fetch topology """
-    def __init__(self, dts, log, log_hdl, loop):
+    def __init__(self, dts, log, log_hdl, loop, project):
         self._account = {}
         self._dts = dts
         self._log = log
         self._log_hdl = log_hdl
         self._loop = loop
+        self._project = project
         self._sdn = {}
-        self._sdn_handler = SDNAccountDtsHandler(self._dts,self._log,self)
+        self._sdn_handler = SDNAccountDtsHandler(self._dts, self._log, self)
         self._vnffgr_list = {}
 
     @asyncio.coroutine
     def register(self):
         yield from self._sdn_handler.register()
+
+    def deregister(self):
+        self._log.debug("Project {} de-register vnffgmgr".
+                        format(self._project.name))
+        self._sdn_handler.deregister()
 
     def set_sdn_account(self,account):
         if (account.name in self._account):
@@ -323,14 +329,16 @@ class VnffgMgr(object):
         del self._vnffgr_list[vnffgr_id]
 
 class SDNAccountDtsHandler(object):
-    XPATH = "C,/rw-project:project/rw-sdn:sdn/rw-sdn:account"
+    XPATH = "C,/rw-sdn:sdn/rw-sdn:account"
 
     def __init__(self, dts, log, parent):
         self._dts = dts
         self._log = log
         self._parent = parent
+        self._project = self._parent._project
 
         self._sdn_account = {}
+        self._reg = None
 
     def _set_sdn_account(self, account):
         self._log.info("Setting sdn account: {}".format(account))
@@ -380,9 +388,11 @@ class SDNAccountDtsHandler(object):
                     if msg.has_field("account_type"):
                         errmsg = "Cannot update SDN account's account-type."
                         self._log.error(errmsg)
-                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
-                                                   SDNAccountDtsHandler.XPATH,
-                                                   errmsg)
+                        xact_info.send_error_xpath(
+                            RwTypes.RwStatus.FAILURE,
+                            self._project.add_project(SDNAccountDtsHandler.XPATH),
+                            errmsg
+                        )
                         raise SdnAccountError(errmsg)
 
                     # Update the sdn account record
@@ -392,9 +402,11 @@ class SDNAccountDtsHandler(object):
                     if not msg.has_field('account_type'):
                         errmsg = "New SDN account must contain account-type field."
                         self._log.error(errmsg)
-                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
-                                                   SDNAccountDtsHandler.XPATH,
-                                                   errmsg)
+                        xact_info.send_error_xpath(
+                            RwTypes.RwStatus.FAILURE,
+                            self._project.add_project(SDNAccountDtsHandler.XPATH),
+                            errmsg
+                        )
                         raise SdnAccountError(errmsg)
 
                     # Set the sdn account record
@@ -403,20 +415,23 @@ class SDNAccountDtsHandler(object):
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
 
-        self._log.debug("Registering for Sdn Account config using xpath: %s",
-                        SDNAccountDtsHandler.XPATH,
-                        )
+        xpath = self._project.add_project(SDNAccountDtsHandler.XPATH)
+        self._log.debug("Registering for Sdn Account config using xpath: {}".
+                        format(xpath))
 
         acg_handler = rift.tasklets.AppConfGroup.Handler(
                         on_apply=apply_config,
                         )
 
         with self._dts.appconf_group_create(acg_handler) as acg:
-            acg.register(
-                    xpath=SDNAccountDtsHandler.XPATH,
-                    flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY,
-                    on_prepare=on_prepare
-                    )
+            self._reg = acg.register(
+                xpath=xpath,
+                flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY,
+                on_prepare=on_prepare
+            )
 
-
-
+    def deregister(self):
+        self._log.debug("De-register SDN Account handler in vnffg for project".
+                        format(self._project.name))
+        self._reg.deregister()
+        self._reg = None

@@ -47,8 +47,8 @@ if sys.version_info < (3, 4, 4):
 
 class NsrDtsHandler(object):
     """ The network service DTS handler """
-    NSR_XPATH = "C,/nsr:ns-instance-config/nsr:nsr"
-    SCALE_INSTANCE_XPATH = "C,/nsr:ns-instance-config/nsr:nsr/nsr:scaling-group/nsr:instance"
+    NSR_XPATH = "C,/rw-project:project/nsr:ns-instance-config/nsr:nsr"
+    SCALE_INSTANCE_XPATH = "C,/rw-project:project/nsr:ns-instance-config/nsr:nsr/nsr:scaling-group/nsr:instance"
 
     def __init__(self, dts, log, loop, nsm):
         self._dts = dts
@@ -66,12 +66,12 @@ class NsrDtsHandler(object):
 
     def get_scale_group_instances(self, nsr_id, group_name):
         def nsr_id_from_keyspec(ks):
-            nsr_path_entry = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr.schema().keyspec_to_entry(ks)
+            nsr_path_entry = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr.schema().keyspec_to_entry(ks)
             nsr_id = nsr_path_entry.key00.id
             return nsr_id
 
         def group_name_from_keyspec(ks):
-            group_path_entry = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup.schema().keyspec_to_entry(ks)
+            group_path_entry = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_ScalingGroup.schema().keyspec_to_entry(ks)
             group_name = group_path_entry.key00.scaling_group_name_ref
             return group_name
 
@@ -95,12 +95,12 @@ class NsrDtsHandler(object):
         """ Register for Nsr create/update/delete/read requests from dts """
 
         def nsr_id_from_keyspec(ks):
-            nsr_path_entry = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr.schema().keyspec_to_entry(ks)
+            nsr_path_entry = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr.schema().keyspec_to_entry(ks)
             nsr_id = nsr_path_entry.key00.id
             return nsr_id
 
         def group_name_from_keyspec(ks):
-            group_path_entry = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup.schema().keyspec_to_entry(ks)
+            group_path_entry = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_ScalingGroup.schema().keyspec_to_entry(ks)
             group_name = group_path_entry.key00.scaling_group_name_ref
             return group_name
 
@@ -327,11 +327,11 @@ class NsrDtsHandler(object):
 class XPaths(object):
     @staticmethod
     def nsr_config(nsr_id=None):
-        return ("C,/nsr:ns-instance-config/nsr:nsr" +
+        return ("C,/rw-project:project/nsr:ns-instance-config/nsr:nsr" +
                 ("[nsr:id='{}']".format(nsr_id) if nsr_id is not None else ""))
 
     def scaling_group_instance(nsr_id, group_name, instance_id):
-        return ("C,/nsr:ns-instance-config/nsr:nsr" +
+        return ("C,/rw-project:project/nsr:ns-instance-config/nsr:nsr" +
                 "[nsr:id='{}']".format(nsr_id) +
                 "/nsr:scaling-group" +
                 "[nsr:scaling-group-name-ref='{}']".format(group_name) +
@@ -377,7 +377,7 @@ class NsrHandlerTestCase(rift.test.dts.AbstractDTSTest):
             block = xact.block_create()
             block.add_query_update(
                 XPaths.nsr_config(nsr1_uuid),
-                NsrYang.YangData_Nsr_NsInstanceConfig_Nsr(id=nsr1_uuid, name="fu"),
+                NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr(id=nsr1_uuid, name="fu"),
                 flags=rwdts.XactFlag.ADVISE | rwdts.XactFlag.TRACE,
                 )
             yield from block.execute(now=True)
@@ -388,7 +388,7 @@ class NsrHandlerTestCase(rift.test.dts.AbstractDTSTest):
             block = xact.block_create()
             block.add_query_update(
                     XPaths.scaling_group_instance(nsr1_uuid, "group", 1234),
-                    NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup_Instance(id=1234),
+                    NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_ScalingGroup_Instance(id=1234),
                     flags=rwdts.XactFlag.ADVISE | rwdts.XactFlag.TRACE,
                     )
             yield from block.execute(now=True)
@@ -409,7 +409,7 @@ class NsrHandlerTestCase(rift.test.dts.AbstractDTSTest):
             block = xact.block_create()
             block.add_query_create(
                     XPaths.scaling_group_instance(nsr1_uuid, "group", 12345),
-                    NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup_Instance(id=12345),
+                    NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_ScalingGroup_Instance(id=12345),
                     flags=rwdts.XactFlag.ADVISE | rwdts.XactFlag.TRACE,
                     )
             yield from block.execute(now=True)
@@ -427,7 +427,7 @@ class NsrHandlerTestCase(rift.test.dts.AbstractDTSTest):
             block = xact.block_create()
             block.add_query_update(
                 XPaths.nsr_config(nsr2_uuid),
-                NsrYang.YangData_Nsr_NsInstanceConfig_Nsr(id=nsr2_uuid, name="fu2"),
+                NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr(id=nsr2_uuid, name="fu2"),
                 flags=rwdts.XactFlag.ADVISE | rwdts.XactFlag.TRACE,
                 )
             yield from block.execute(now=True)

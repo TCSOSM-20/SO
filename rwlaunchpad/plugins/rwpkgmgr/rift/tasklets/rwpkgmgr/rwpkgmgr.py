@@ -32,11 +32,31 @@ from gi.repository import (
         RwDts as rwdts,
         RwPkgMgmtYang)
 import rift.tasklets
-
+from rift.mano.utils.project import (
+    ManoProject,
+    ProjectHandler,
+)
 
 from . import rpc
 from .proxy import filesystem
 from . import publisher as pkg_publisher
+
+
+class PackageManagerProject(ManoProject):
+
+    def __init__(self, name, tasklet, **kw):
+        super(PackageManagerProject, self).__init__(tasklet.log, name)
+        self.update(tasklet)
+
+        self.job_handler = pkg_publisher.DownloadStatusPublisher(
+            self._log, self._dts, self._loop, self)
+
+    @asyncio.coroutine
+    def register (self):
+        yield from self.job_handler.register()
+
+    def deregister (self):
+        yield from self.job_handler.deregister()
 
 
 class PackageManagerTasklet(rift.tasklets.Tasklet):
@@ -46,6 +66,10 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
             self.rwlog.set_category("rw-mano-log")
             self.endpoint_rpc = None
             self.schema_rpc = None
+
+            self._project_handler = None
+            self.projects = {}
+
         except Exception as e:
             self.log.exception(e)
 
@@ -64,14 +88,12 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
         proxy = filesystem.FileSystemProxy(self.loop, self.log)
 
         args = [self.log, self.dts, self.loop]
-        self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
-
         args.append(proxy)
         self.endpoint_rpc = rpc.EndpointDiscoveryRpcHandler(*args)
         self.schema_rpc = rpc.SchemaRpcHandler(*args)
         self.delete_rpc = rpc.PackageDeleteOperationsRpcHandler(*args)
 
-        args.append(self.job_handler)
+        args.append(self)
         self.pkg_op = rpc.PackageOperationsRpcHandler(*args)
 
     def stop(self):
@@ -85,8 +107,11 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
         yield from self.endpoint_rpc.register()
         yield from self.schema_rpc.register()
         yield from self.pkg_op.register()
-        yield from self.job_handler.register()
         yield from self.delete_rpc.register()
+
+        self.log.debug("creating project handler")
+        self.project_handler = ProjectHandler(self, PackageManagerProject)
+        self.project_handler.register()
 
     @asyncio.coroutine
     def run(self):

@@ -260,6 +260,7 @@ module rw-pkg-mgmt
         description "Valid ID to track the status of the task";
         type string;
       }
+      uses manotypes:rpc-project-name;
     }
   }
 
@@ -277,6 +278,7 @@ module rw-pkg-mgmt
         description "Valid ID to track the status of the task";
         type string;
       }
+      uses manotypes:rpc-project-name;
     }
   }
 
@@ -316,6 +318,8 @@ module rw-pkg-mgmt
         description "Valid ID to track the status of the task";
         type string;
       }
+
+      uses manotypes:rpc-project-name;
     }
   }
 
@@ -333,6 +337,7 @@ module rw-pkg-mgmt
         description "Valid ID to track the status of the task";
         type string;
       }
+      uses manotypes:rpc-project-name;
     }
   }
 
@@ -354,6 +359,8 @@ module rw-pkg-mgmt
         description "Trace in case of a failure";
         type string;
       }
+
+      uses manotypes:rpc-project-name;
     }
   }
 

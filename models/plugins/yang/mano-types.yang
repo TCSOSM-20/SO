@@ -1200,9 +1200,11 @@ module mano-types
       }
 
       leaf http-endpoint-ref {
-        type leafref {
-          path "../../http-endpoint/path";
-        }
+        // TODO (Philip): Fix this
+        // type leafref {
+        //   path "../../http-endpoint/path";
+        // }
+        type string;
       }
 
       leaf json-query-method {

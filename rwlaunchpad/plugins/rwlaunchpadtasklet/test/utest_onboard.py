@@ -218,7 +218,7 @@ class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
 
     @rift.test.dts.async_test
     def test_onboard_nsd(self):
-        nsd_msg = NsdYang.YangData_Nsd_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
         yield from self._loop.run_in_executor(None, self._onboarder.onboard, nsd_msg)
         self.assertEqual(self._handler_info.last_request_message, nsd_msg)
         self.assertEqual(self._handler_info.last_descriptor_type, "nsd")
@@ -226,7 +226,7 @@ class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
 
     @rift.test.dts.async_test
     def test_update_nsd(self):
-        nsd_msg = NsdYang.YangData_Nsd_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
         yield from self._loop.run_in_executor(None, self._onboarder.update, nsd_msg)
         self.assertEqual(self._handler_info.last_request_message, nsd_msg)
         self.assertEqual(self._handler_info.last_descriptor_type, "nsd")
@@ -234,7 +234,7 @@ class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
 
     @rift.test.dts.async_test
     def test_bad_descriptor_type(self):
-        nsd_msg = NsdYang.YangData_Nsd_NsdCatalog()
+        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog()
         with self.assertRaises(TypeError):
             yield from self._loop.run_in_executor(None, self._onboarder.update, nsd_msg)
 
@@ -246,7 +246,7 @@ class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
         # Use a port not used by the instantiated server
         new_port = self._port - 1
         self._onboarder.port = new_port
-        nsd_msg = NsdYang.YangData_Nsd_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
 
         with self.assertRaises(onboard.OnboardError):
             yield from self._loop.run_in_executor(None, self._onboarder.onboard, nsd_msg)
@@ -259,7 +259,7 @@ class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
         # Set the timeout to something minimal to speed up test
         self._onboarder.timeout = .1
 
-        nsd_msg = NsdYang.YangData_Nsd_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
 
         # Force the request to timeout by running the call synchronously so the
         with self.assertRaises(onboard.OnboardError):

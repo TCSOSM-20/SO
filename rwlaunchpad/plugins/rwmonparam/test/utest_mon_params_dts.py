@@ -50,7 +50,7 @@ import utest_mon_params
 class MonParamMsgGenerator(object):
     def __init__(self, num_messages=1):
         ping_path = r"/api/v1/ping/stats"
-        self._endpoint_msg = vnfryang.YangData_Vnfr_VnfrCatalog_Vnfr_HttpEndpoint.from_dict({
+        self._endpoint_msg = vnfryang.YangData_RwProject_Project_VnfrCatalog_Vnfr_HttpEndpoint.from_dict({
             'path': ping_path,
             'https': 'true',
             'polling_interval_secs': 1,
@@ -61,7 +61,7 @@ class MonParamMsgGenerator(object):
 
         self._mon_param_msgs = []
         for i in range(1, num_messages):
-            self._mon_param_msgs.append(vnfryang.YangData_Vnfr_VnfrCatalog_Vnfr_MonitoringParam.from_dict({
+            self._mon_param_msgs.append(vnfryang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MonitoringParam.from_dict({
                 'id': '%s' % i,
                 'name': 'param_num_%s' % i,
                 'json_query_method': "NAMEKEY",
@@ -127,7 +127,7 @@ class MonParamsDtsTestCase(rift.test.dts.AbstractDTSTest):
     def setup_mock_store(self, aggregation_type, monps, legacy=False):
         store = mock.MagicMock()
 
-        mock_vnfd =  RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd.from_dict({
+        mock_vnfd =  RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd.from_dict({
             'id': "1",
             'monitoring_param': [
                 {'description': 'no of ping requests',
@@ -151,14 +151,14 @@ class MonParamsDtsTestCase(rift.test.dts.AbstractDTSTest):
             })
         store.get_vnfd = mock.MagicMock(return_value=mock_vnfd)
 
-        mock_vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict({
+        mock_vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr.from_dict({
             'id': '1',
             'monitoring_param': ([monp.as_dict() for monp in monps] if not legacy else [])
             })
-        mock_vnfr.vnfd = vnfryang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict({'id': '1'})
+        mock_vnfr.vnfd = vnfryang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vnfd.from_dict({'id': '1'})
         store.get_vnfr = mock.MagicMock(return_value=mock_vnfr)
 
-        mock_nsr = RwNsrYang.YangData_Nsr_NsInstanceOpdata_Nsr.from_dict({
+        mock_nsr = RwNsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr.from_dict({
             'ns_instance_config_ref': "1",
             'name_ref': "Foo",
             'constituent_vnfr_ref': [{'vnfr_id': mock_vnfr.id}],
@@ -182,7 +182,7 @@ class MonParamsDtsTestCase(rift.test.dts.AbstractDTSTest):
                      'vnfd_monitoring_param_ref': '2'}]
                 }]
 
-        mock_nsd = RwNsdYang.YangData_Nsd_NsdCatalog_Nsd.from_dict({
+        mock_nsd = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd.from_dict({
             'id': str(uuid.uuid1()),
             'monitoring_param': (monp if not legacy else [])
             })

@@ -1,6 +1,6 @@
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ class CloudAccountDtsOperdataHandler(object):
 
     def _register_show_status(self):
         def get_xpath(cloud_name=None):
-            return "D,/rw-cloud:cloud/account{}/connection-status".format(
+            return "D,/rw-project:project/rw-cloud:cloud/account{}/connection-status".format(
                     "[name='%s']" % cloud_name if cloud_name is not None else ''
                     )
 

@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -51,6 +51,14 @@ module rwsdn
     prefix "yang";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
 
   revision 2014-12-30 {
     description
@@ -82,7 +90,7 @@ module rwsdn
     }
   }
 
-  uses connection-status;
+  // uses connection-status;
 
   typedef sdn-account-type {
     description "SDN account type";
@@ -147,70 +155,106 @@ module rwsdn
     }
   }
 
-  container sdn-accounts {
-    list sdn-account-list {
-      rwpb:msg-new SDNAccount;
-      key "name";
+  augment "/rw-project:project" {
+    container sdn-accounts {
+      list sdn-account-list {
+        rwpb:msg-new SDNAccount;
+        key "name";
 
-      leaf name {
-        type string;
+        leaf name {
+          type string;
+        }
+
+        uses sdn-provider-auth;
+        uses connection-status;
       }
-
-      uses sdn-provider-auth;
-      uses connection-status;
     }
   }
 
-  container vnffgs {
-    list vnffg-chain {
-      key "name";
-      rwpb:msg-new VNFFGChain;
+  augment "/rw-project:project" {
+    container vnffgs {
+      list vnffg-chain {
+        key "name";
+        rwpb:msg-new VNFFGChain;
 
-      leaf name {
-        type string;
-      }
-
-      list vnf-chain-path {
-        key "order";
-        leaf order {
-          type uint32;
-          description " Order of the VNF in VNFFG chain";
-        }
-        leaf service-function-type {
+        leaf name {
           type string;
         }
-        leaf nsh-aware {
-          type boolean;
-        }
-        leaf transport-type {
-          type string;
-        }
-        list vnfr-ids {
-          key "vnfr-id";
-          leaf vnfr-id {
-            type yang:uuid;
+
+        list vnf-chain-path {
+          key "order";
+          leaf order {
+            type uint32;
+            description " Order of the VNF in VNFFG chain";
           }
-          leaf vnfr-name {
+          leaf service-function-type {
+            type string;
+          }
+          leaf nsh-aware {
+            type boolean;
+          }
+          leaf transport-type {
+            type string;
+          }
+          list vnfr-ids {
+            key "vnfr-id";
+            leaf vnfr-id {
+              type yang:uuid;
+            }
+            leaf vnfr-name {
+              type string;
+            }
+            leaf mgmt-address {
+              type inet:ip-address;
+            }
+            leaf mgmt-port {
+              type inet:port-number;
+            }
+            list vdu-list {
+              key "vm-id port-id";
+              leaf port-id {
+                rwpb:field-inline "true";
+                rwpb:field-string-max 64;
+                type string;
+              }
+              leaf vm-id {
+                rwpb:field-inline "true";
+                rwpb:field-string-max 64;
+                type string;
+              }
+              leaf name {
+                type string;
+              }
+              leaf address {
+                type inet:ip-address;
+              }
+              leaf port {
+                type inet:port-number;
+              }
+            }
+            leaf sff-name {
+              description "SFF name useful for non OVS based SFF";
+              type string;
+            }
+          }
+        }
+        list sff {
+          rwpb:msg-new VNFFGSff;
+          key "name";
+          leaf name {
+            type string;
+          }
+          leaf function-type {
             type string;
           }
           leaf mgmt-address {
             type inet:ip-address;
           }
           leaf mgmt-port {
-              type inet:port-number;
+            type inet:port-number;
           }
-          list vdu-list {
-            key "vm-id port-id";
-            leaf port-id {
-              rwpb:field-inline "true";
-              rwpb:field-string-max 64;
-              type string;
-            }
-            leaf vm-id {
-              rwpb:field-inline "true";
-              rwpb:field-string-max 64;
-              type string;
-            }
+          list dp-endpoints {
+            key "name";
             leaf name {
               type string;
             }
@@ -221,179 +265,150 @@ module rwsdn
               type inet:port-number;
             }
           }
-          leaf sff-name {
-            description "SFF name useful for non OVS based SFF";
-            type string;
-          } 
+          list vnfr-list {
+            key "vnfr-name";
+            leaf vnfr-name {
+              type string;
+            }
+          }
+        }
+        leaf classifier-name {
+          type string;
         }
       }
-      list sff {
-        rwpb:msg-new VNFFGSff;
-        key "name"; 
+    }
+  }
+
+  augment "/rw-project:project" {
+    container vnffg-rendered-paths {
+      rwpb:msg-new VNFFGRenderedPaths;
+      list vnffg-rendered-path {
+        key "name";
+        rwpb:msg-new VNFFGRenderedPath;
+        config false;
         leaf name {
           type string;
         }
-        leaf function-type {
-          type string;
+        leaf path-id {
+          description
+            "Unique Identifier for the service path";
+          type uint32;
         }
-        leaf mgmt-address {
-          type inet:ip-address;
-        }
-        leaf mgmt-port {
-          type inet:port-number;
-        }
-        list dp-endpoints {
-          key "name";
-          leaf name {
-           type string;
-          } 
-          leaf address {
-            type inet:ip-address;
+        list rendered-path-hop {
+          key "hop-number";
+          leaf hop-number {
+            type uint8;
           }
-          leaf port {
-            type inet:port-number;
+          leaf service-index {
+            description
+              "Location within the service path";
+            type uint8;
           }
-        }
-        list vnfr-list {
-          key "vnfr-name";
           leaf vnfr-name {
             type string;
           }
+          container service-function-forwarder {
+            leaf name {
+              description
+                "Service Function Forwarder name";
+              type string;
+            }
+            leaf ip-address {
+              description
+                "Service Function Forwarder Data Plane IP address";
+              type inet:ip-address;
+            }
+            leaf port {
+              description
+                "Service Function Forwarder Data Plane port";
+              type inet:port-number;
+            }
+          }
         }
-      }
-      leaf classifier-name {
-        type string;
       }
     }
   }
 
-  container vnffg-rendered-paths {
-    rwpb:msg-new VNFFGRenderedPaths;
-    list vnffg-rendered-path {
-      key "name";
-      rwpb:msg-new VNFFGRenderedPath;
-      config false;
-      leaf name {
-        type string;
-      }
-      leaf path-id {
-          description
-              "Unique Identifier for the service path";
-        type uint32;
-      }
-      list rendered-path-hop {
-        key "hop-number";
-        leaf hop-number {
-          type uint8;
-        }
-        leaf service-index {
-            description
-                "Location within the service path";
-          type uint8;
-        }
-        leaf vnfr-name {
+  augment "/rw-project:project" {
+    container vnffg-classifiers {
+      list vnffg-classifier {
+        key "name";
+        rwpb:msg-new VNFFGClassifier;
+
+        leaf name {
           type string;
         }
-        container service-function-forwarder {
-          leaf name { 
-            description
-                "Service Function Forwarder name";
+        leaf rsp-name {
+          type string;
+        }
+        leaf port-id {
+          rwpb:field-inline "true";
+          rwpb:field-string-max 64;
+          type string;
+        }
+        leaf vm-id {
+          rwpb:field-inline "true";
+          rwpb:field-string-max 64;
+          type string;
+        }
+        leaf sff-name {
+          type string;
+        }
+        container vnffg-metadata {
+          leaf ctx1 {
             type string;
           }
-          leaf ip-address {
-            description
-                "Service Function Forwarder Data Plane IP address";
-            type inet:ip-address;
-          }  
-          leaf port {
-            description
-                "Service Function Forwarder Data Plane port";
-            type inet:port-number;
-          }  
+          leaf ctx2 {
+            type string;
+          }
+          leaf ctx3 {
+            type string;
+          }
+          leaf ctx4 {
+            type string;
+          }
         }
-      }
-    }
-  }
-
-
-  container vnffg-classifiers {
-    list vnffg-classifier {
-      key "name";
-      rwpb:msg-new VNFFGClassifier;
-
-      leaf name {
-        type string;
-      }
-      leaf rsp-name {
-        type string;
-      }
-      leaf port-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
-      }
-      leaf vm-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
-      }
-      leaf sff-name {
-        type string;
-      }
-      container vnffg-metadata {
-        leaf ctx1 {
-          type string;
-        }
-        leaf ctx2 {
-          type string;
-        }
-        leaf ctx3 {
-          type string;
-        }
-        leaf ctx4 {
-          type string;
-        }
-      }
-      list match-attributes {
-        description
+        list match-attributes {
+          description
             "List of match attributes.";
-        key "name";
-        leaf name {
-          description
+          key "name";
+          leaf name {
+            description
               "Name for the Access list";
-          type string;  
-        }
+            type string;
+          }
 
-        leaf ip-proto {
-          description
+          leaf ip-proto {
+            description
               "IP Protocol.";
-          type uint8;
-        }
+            type uint8;
+          }
 
-        leaf source-ip-address {
-          description
+          leaf source-ip-address {
+            description
               "Source IP address.";
-          type inet:ip-prefix;
-        }
+            type inet:ip-prefix;
+          }
 
-        leaf destination-ip-address {
-          description
+          leaf destination-ip-address {
+            description
               "Destination IP address.";
-          type inet:ip-prefix;
-        }
+            type inet:ip-prefix;
+          }
 
-        leaf source-port {
-          description
+          leaf source-port {
+            description
               "Source port number.";
-          type inet:port-number;
-        }
+            type inet:port-number;
+          }
 
-        leaf destination-port {
-          description
+          leaf destination-port {
+            description
               "Destination port number.";
-          type inet:port-number;
-        }
-      } //match-attributes
+            type inet:port-number;
+          }
+        } //match-attributes
+      }
     }
   }
 

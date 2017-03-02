@@ -1,7 +1,7 @@
 
 /*
  *
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -31,11 +31,15 @@ module rw-staging-mgmt-annotation
     prefix tailf;
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
   tailf:annotate "/rw-staging-mgmt:create-staging-area" {
      tailf:actionpoint rw_actionpoint;
   }
 
-  tailf:annotate "/rw-staging-mgmt:staging-areas" {
+  tailf:annotate "/rw-project:project/rw-staging-mgmt:staging-areas" {
     tailf:callpoint rw_callpoint;
   }
 

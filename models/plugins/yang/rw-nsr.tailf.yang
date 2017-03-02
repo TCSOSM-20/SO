@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -35,11 +35,15 @@ module rw-nsr-annotation
     prefix nsr;
   }
 
-  tailf:annotate "/nsr:ns-instance-opdata/nsr:nsr/rw-nsr:operational-events" {
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  tailf:annotate "/rw-project:project/nsr:ns-instance-opdata/nsr:nsr/rw-nsr:operational-events" {
     tailf:callpoint rw_callpoint;
   }
 
-  tailf:annotate "/nsr:ns-instance-opdata/rw-nsr:nsd-ref-count" {
+  tailf:annotate "/rw-project:project/nsr:ns-instance-opdata/rw-nsr:nsd-ref-count" {
     tailf:callpoint rw_callpoint;
   }
 }

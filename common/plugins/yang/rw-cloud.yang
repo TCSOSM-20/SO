@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -36,36 +36,51 @@ module rw-cloud
     prefix "rw-sdn";
   }
 
+  import mano-types {
+    prefix "manotypes";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-09-14 {
     description
       "Initial revision.";
   }
 
-  container cloud {
-    rw-pb-ext:msg-new CloudConfig;
-    list account {
-      rw-pb-ext:msg-new CloudAccount;
-      description "Configure Cloud Accounts";
+  augment "/rw-project:project" {
+    container cloud {
+      rw-pb-ext:msg-new CloudConfig;
+      list account {
+        rw-pb-ext:msg-new CloudAcc;
+        description "Configure Cloud Accounts";
 
-      max-elements 16;
-      key "name";
+        max-elements 16;
+        key "name";
 
-      leaf name {
-        mandatory true;
-        type string {
+        leaf name {
+          mandatory true;
+          type string {
             length "1..255";
+          }
         }
-      }
 
-      leaf sdn-account {
-        description "Configured SDN account associated with this cloud account";
-        type leafref {
-          path "/rw-sdn:sdn/rw-sdn:account/rw-sdn:name";
+        leaf sdn-account {
+          description "Configured SDN account associated with this cloud account";
+          type leafref {
+            path "../../../rw-sdn:sdn/rw-sdn:account/rw-sdn:name";
+          }
         }
-      }
 
-      uses rwcal:provider-auth;
-      uses rwcal:connection-status;
+        uses rwcal:provider-auth;
+        uses rwcal:connection-status;
+      }
     }
   }
 
@@ -78,6 +93,8 @@ module rw-cloud
           "The cloud account name to update connection status for";
         type string;
       }
+
+      uses manotypes:rpc-project-name;
     }
   }
 

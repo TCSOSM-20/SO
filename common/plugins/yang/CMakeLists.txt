@@ -1,5 +1,5 @@
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 ##
 # Yang targets
 ##
+
 rift_add_yang_target(
   TARGET rwcloud_yang
   YANG_FILES rw-cloud.yang rw-sdn.yang
@@ -27,8 +28,13 @@ rift_add_yang_target(
   LIBRARIES
     rwsdn_yang_gen
     rwcal_yang_gen
+    rwproject_yang_gen
+    mano-types_yang_gen
   DEPENDS
     rwcal_yang
+    rwsdn_yang
+    rwproject_yang
+    mano-types_yang
 )
 
 rift_add_yang_target(
@@ -37,6 +43,8 @@ rift_add_yang_target(
   COMPONENT ${PKG_LONG_NAME}
   LIBRARIES
     rwcal_yang_gen
+    rwproject_yang_gen
   DEPENDS
     rwcal_yang
+    rwproject_yang
 )

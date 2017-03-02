@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -75,6 +75,15 @@ module rw-conman
     prefix "rw-config-agent";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-10-27 {
     description
       "Initial revision.";
@@ -128,27 +137,29 @@ module rw-conman
     }
   }
   
-  container cm-config {
-    description "Service Orchestrator specific configuration";
-    rwpb:msg-new "SoConfig";
-    rwcli:new-mode "cm-config";
+  augment "/rw-project:project" {
+    container cm-config {
+      description "Service Orchestrator specific configuration";
+      rwpb:msg-new "SoConfig";
+      rwcli:new-mode "cm-config";
 
-    container ro-endpoint {
-      description "Resource Orchestrator endpoint ip address";
-      rwpb:msg-new "RoEndpoint";
-      uses ro-endpoint;
-    }
-    
-    //uses vnf-cfg-items;
-
-    list nsr {
-      key "id";
-      leaf id {
-        description "Indicates NSR bringup complete, now initiate configuration of the NSR";
-        type yang:uuid;
+      container ro-endpoint {
+        description "Resource Orchestrator endpoint ip address";
+        rwpb:msg-new "RoEndpoint";
+        uses ro-endpoint;
       }
-    }
-  }// cm-config
+    
+      //uses vnf-cfg-items;
+
+      list nsr {
+        key "id";
+        leaf id {
+          description "Indicates NSR bringup complete, now initiate configuration of the NSR";
+          type yang:uuid;
+        }
+      }
+    }// cm-config
+  }
   
   // =================== SHOW ==================
   typedef record-state {
@@ -185,76 +196,78 @@ module rw-conman
 
   // This is also used by RO (Resource Orchestrator) to indicate NSR is ready
   // It will only fill in IDs
-  container cm-state {
-    rwpb:msg-new "CmOpdata";
-    config false;
-    description "CM NS & VNF states";
+  augment "/rw-project:project" {
+    container cm-state {
+      rwpb:msg-new "CmOpdata";
+      config false;
+      description "CM NS & VNF states";
 
-    leaf states {
-      description "CM various states";
-      type string;
-    }
+      leaf states {
+        description "CM various states";
+        type string;
+      }
     
-    list cm-nsr {
-      description "List of NS Records";
-      key "id";
-      leaf id {
-        type yang:uuid;
-      }
-      leaf name {
-        description "NSR name.";
-        type string;
-      }
-      leaf state {
-        description "State of NSR";
-        type record-state;
-      }
-      leaf state-details {
-        description "Details of the state of NSR, in case of errors";
-        type string;
-      }
-      
-      list cm-vnfr {
-        description "List of VNF Records within NS Record";
+      list cm-nsr {
+        description "List of NS Records";
         key "id";
         leaf id {
           type yang:uuid;
         }
         leaf name {
-          description "VNFR name.";
+          description "NSR name.";
           type string;
         }
         leaf state {
-          description "Last known state of this VNFR";
+          description "State of NSR";
           type record-state;
         }
-        container mgmt-interface {
-          leaf ip-address {
-            type inet:ip-address;
-          }
-          leaf port {
-            type inet:port-number;
-          }
-        }
-        leaf cfg-type {
+        leaf state-details {
+          description "Details of the state of NSR, in case of errors";
           type string;
         }
-        leaf cfg-location {
-          type inet:uri;
-        }
-        list connection-point {
-          key "name";
+      
+        list cm-vnfr {
+          description "List of VNF Records within NS Record";
+          key "id";
+          leaf id {
+            type yang:uuid;
+          }
           leaf name {
-            description "Connection Point name";
+            description "VNFR name.";
             type string;
           }
-          leaf ip-address {
-            description "IP address assigned to this connection point";
-            type inet:ip-address;
+          leaf state {
+            description "Last known state of this VNFR";
+            type record-state;
           }
-        }
-      } // list VNFR
-    } // list NSR
-  } // cm-state
-  
+          container mgmt-interface {
+            leaf ip-address {
+              type inet:ip-address;
+            }
+            leaf port {
+              type inet:port-number;
+            }
+          }
+          leaf cfg-type {
+            type string;
+          }
+          leaf cfg-location {
+            type inet:uri;
+          }
+          list connection-point {
+            key "name";
+            leaf name {
+              description "Connection Point name";
+              type string;
+            }
+            leaf ip-address {
+              description "IP address assigned to this connection point";
+              type inet:ip-address;
+            }
+          }
+        } // list VNFR
+      } // list NSR
+    } // cm-state
+  }
+
 } // rw-conman

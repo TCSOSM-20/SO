@@ -1,7 +1,7 @@
 
 /*
  *
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -102,42 +102,53 @@ module rw-launchpad
     prefix "manotypes";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-09-14 {
     description
       "Initial revision.";
   }
 
-  container datacenters {
-    description "OpenMano data centers";
+  augment "/rw-project:project" {
+    container datacenters {
+      description "OpenMano data centers";
 
-    rwpb:msg-new DataCenters;
-    config false;
+      rwpb:msg-new DataCenters;
+      config false;
 
-    list ro-accounts {
-      description
+      list ro-accounts {
+        description
           "A list of OpenMano cloud accounts that have data centers associated
           with them";
 
-      rwpb:msg-new ROAccount;
-      key "name";
-
-      leaf name {
-        description "The name of the cloud account";
-        type leafref {
-          path "/rw-launchpad:resource-orchestrator/rw-launchpad:name";
-        }
-      }
-
-      list datacenters {
-        rwpb:msg-new DataCenter;
-        leaf uuid {
-          description "The UUID of the data center";
-          type yang:uuid;
-        }
+        rwpb:msg-new ROAccount;
+        key "name";
 
         leaf name {
-          description "The name of the data center";
-          type string;
+          description "The name of the cloud account";
+          type leafref {
+            path "../../../rw-launchpad:resource-orchestrator/rw-launchpad:name";
+          }
+        }
+
+        list datacenters {
+          rwpb:msg-new DataCenter;
+          leaf uuid {
+            description "The UUID of the data center";
+            type yang:uuid;
+          }
+
+          leaf name {
+            description "The name of the data center";
+            type string;
+          }
         }
       }
     }
@@ -151,66 +162,70 @@ module rw-launchpad
     }
   }
 
-  container resource-orchestrator {
-    rwpb:msg-new ResourceOrchestrator;
+  augment "/rw-project:project" {
+    container resource-orchestrator {
+      rwpb:msg-new ResourceOrchestrator;
 
-    leaf name {
-       type string;
-    }
-
-    leaf account-type {
-      type resource-orchestrator-account-type;
-    }
-
-    choice resource-orchestrator {
-      description
-        "The resource orchestrator to use by the Launchpad";
-      default rift-ro;
-
-      case rift-ro {
-        description
-          "Use the RIFT.io resource orchestrator";
-
-        container rift-ro {
-          leaf rift-ro {
-            type empty;
-          }
-        }
+      leaf name {
+        type string;
       }
 
-      case openmano {
+      leaf account-type {
+        type resource-orchestrator-account-type;
+      }
+
+      choice resource-orchestrator {
         description
-          "Use OpenMano as RO";
+          "The resource orchestrator to use by the Launchpad";
+        default rift-ro;
 
-        container openmano {
-          leaf host {
-            type string;
-            default "localhost";
-          }
+        case rift-ro {
+          description
+            "Use the RIFT.io resource orchestrator";
 
-          leaf port {
-            type uint16;
-            default 9090;
-          }
-
-          leaf tenant-id {
-            type string {
-              length "36";
+          container rift-ro {
+            leaf rift-ro {
+              type empty;
             }
-            mandatory true;
+          }
+        }
+
+        case openmano {
+          description
+            "Use OpenMano as RO";
+
+          container openmano {
+            leaf host {
+              type string;
+              default "localhost";
+            }
+
+            leaf port {
+              type uint16;
+              default 9090;
+            }
+
+            leaf tenant-id {
+              type string {
+                length "36";
+              }
+              mandatory true;
+            }
           }
         }
       }
     }
   }
 
-  container launchpad-config {
-    leaf public-ip {
-      description
+  augment "/rw-project:project" {
+    container launchpad-config {
+      leaf public-ip {
+        description
           "An IP address that can, at least, be reached by the host that the
           launchpad is running on. This is not a mandatory but is required for
           alarms to function correctly.";
-      type string;
+        type string;
+      }
     }
   }
 }

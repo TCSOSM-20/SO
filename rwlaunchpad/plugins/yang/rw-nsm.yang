@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -91,6 +91,15 @@ module rw-nsm
     prefix "rw-config-agent";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-10-07 {
     description
       "Initial revision.";
@@ -119,15 +128,17 @@ module rw-nsm
     }
   }
 
-  container ro-config {
-    description "Resource Orchestrator endpoint ip address";
-    rwpb:msg-new "roConfig";
-    rwcli:new-mode "ro-config";
+  augment "/rw-project:project" {
+    container ro-config {
+      description "Resource Orchestrator endpoint ip address";
+      rwpb:msg-new "roConfig";
+      rwcli:new-mode "ro-config";
 
-    container cm-endpoint {
-      description "Service Orchestrator endpoint ip address";
-      rwpb:msg-new "SoEndpoint";
-      uses cm-endpoint;
+      container cm-endpoint {
+        description "Service Orchestrator endpoint ip address";
+        rwpb:msg-new "SoEndpoint";
+        uses cm-endpoint;
+      }
     }
   }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -30,10 +30,12 @@ import gi
 gi.require_version('RwYang', '1.0')
 gi.require_version('RwVnfdYang', '1.0')
 gi.require_version('RwNsdYang', '1.0')
+gi.require_version('RwProjectYang', '1.0')
 from gi.repository import (
     RwYang,
     RwVnfdYang,
     RwNsdYang,
+    RwProjectYang,
     )
 
 logging.basicConfig(level=logging.WARNING)
@@ -115,7 +117,7 @@ class RiftNS(RiftManoDescriptor):
         return vnf_name
 
     def openmano2rift(self, vnf_list):
-        self.descriptor = RwNsdYang.YangData_Nsd_NsdCatalog()
+        self.descriptor = RwNsdYang.YangData_RwProject_Project_NsdCatalog()
         openmano_nsd = self.openmano.dictionary
         self.name = openmano_nsd['name']
         nsd = self.descriptor.nsd.add()
@@ -167,7 +169,7 @@ class RiftNS(RiftManoDescriptor):
                         if topo_node['type'] == 'VNF':
                             cpref = vld.vnfd_connection_point_ref.add()
                             cpref.from_dict(dict(
-                                member_vnf_index_ref=vnf_member_index_dict[node_key],
+                                member_vnf_index_ref=str(vnf_member_index_dict[node_key]),
                                 vnfd_id_ref=self.get_vnfd_id(vnf_list, topo_node['VNF model']),
                                 #vnfd_id_ref=topo_node['VNF model'],
                                 vnfd_connection_point_ref=node[node_key],
@@ -203,7 +205,7 @@ class RiftVnfd(RiftManoDescriptor):
         return None
 
     def openmano2rift(self):
-        self.descriptor = RwVnfdYang.YangData_Vnfd_VnfdCatalog()
+        self.descriptor = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog()
         vnfd = self.descriptor.vnfd.add()
         self.vnfd = vnfd
         vnfd.id = str(uuid.uuid1())
@@ -468,7 +470,7 @@ def main(argv=sys.argv[1:]):
     ns_list = create_ns_from_yaml_files(args.yaml_file_hdls, vnf_list)
 
     writer = DescriptorFileWriter(
-        module_list=['nsd', 'rw-nsd', 'vnfd', 'rw-vnfd'],
+        module_list=['rw-project', 'nsd', 'rw-nsd', 'vnfd', 'rw-vnfd'],
         output_dir=args.outdir,
         output_format=args.format,
         )

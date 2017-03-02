@@ -36,6 +36,7 @@ rw-nsd
 rw-nsm
 rw-nsr
 rw-pb-ext
+rw-project
 rw-resource-mgr
 rw-restportforward
 rwsdn

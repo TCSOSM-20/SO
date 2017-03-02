@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -32,11 +32,15 @@ module rw-resource-mgr-annotation
     prefix tailf;
   }
 
-  tailf:annotate "/rw-resource-mgr:resource-pool-records" {
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  tailf:annotate "/rw-project:project/rw-resource-mgr:resource-pool-records" {
     tailf:callpoint rw_callpoint;
   }
 
-  tailf:annotate "/rw-resource-mgr:resource-mgmt" {
+  tailf:annotate "/rw-project:project/rw-resource-mgr:resource-mgmt" {
     tailf:callpoint rw_callpoint;
   }
 }

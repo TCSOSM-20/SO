@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -47,8 +47,17 @@ module rw-nsr
     prefix "rw-sdn";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
   import ietf-yang-types {
     prefix "yang";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2015-09-10 {
@@ -103,7 +112,7 @@ module rw-nsr
       leaf nsd-id-ref {
         description "Reference to NSD";
         type leafref {
-          path "/nsd:nsd-catalog/nsd:nsd/nsd:id";
+          path "../../../nsd:nsd-catalog/nsd:nsd/nsd:id";
         }
       }
       leaf instance-ref-count {
@@ -125,7 +134,7 @@ module rw-nsr
          All VDU's, Virtual Links, and provider networks will be requested
          using the cloud-account's associated CAL instance";
       type leafref {
-        path "/rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
+        path "../../../rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
       }
     }
 
@@ -153,7 +162,7 @@ module rw-nsr
             All VDU's, Virtual Links, and provider networks will be requested
             using the cloud-account's associated CAL instance";
         type leafref {
-          path "/rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
+          path "../../../../rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
         }
       }
 
@@ -172,7 +181,8 @@ module rw-nsr
           The configuration for this VNF will be driven using the specified config
           agent account";
         type leafref {
-          path "/rw-config-agent:config-agent/rw-config-agent:account/rw-config-agent:name";
+          path "../../../../rw-config-agent:config-agent/" +
+            "rw-config-agent:account/rw-config-agent:name";
         }
       }
     }
@@ -196,7 +206,7 @@ module rw-nsr
             All VDU's, Virtual Links, and provider networks will be requested
             using the cloud-account's associated CAL instance";
         type leafref {
-          path "/rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
+          path "../../../../rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
         }
       }
 
@@ -212,15 +222,112 @@ module rw-nsr
   }
 
 
-  augment /nsr:ns-instance-config/nsr:nsr {
+  augment /rw-project:project/nsr:ns-instance-config/nsr:nsr {
     uses rw-ns-instance-config;
   }
 
   augment /nsr:start-network-service/nsr:input{
-    uses rw-ns-instance-config;
+    leaf cloud-account {
+      description
+        "The configured cloud account which the NSR is instantiated within.
+         All VDU's, Virtual Links, and provider networks will be requested
+         using the cloud-account's associated CAL instance";
+      type leafref {
+        path "/rw-project:project[rw-project:name=current()/../" +
+          "nsr:project-name]/rw-cloud:cloud/rw-cloud:account" +
+          "/rw-cloud:name";
+      }
+    }
+
+    leaf om-datacenter {
+      description
+        "Openmano datacenter name to use when instantiating
+         the network service.  This is only used when openmano
+         is selected as the cloud account.  This should be superceded
+         by multiple cloud accounts when that becomes available.";
+      type string;
+    }
+
+    list vnf-cloud-account-map {
+      description
+          "Mapping VNF to Cloud Account where VNF will be instantiated";
+
+      key "member-vnf-index-ref";
+      leaf member-vnf-index-ref {
+        type uint64;
+      }
+
+      leaf cloud-account {
+        description
+            "The configured cloud account where VNF is instantiated within.
+            All VDU's, Virtual Links, and provider networks will be requested
+            using the cloud-account's associated CAL instance";
+        type leafref {
+          path "/rw-project:project[rw-project:name=current()/../../" +
+            "nsr:project-name]/rw-cloud:cloud/rw-cloud:account/" +
+            "rw-cloud:name";
+        }
+      }
+
+      leaf om-datacenter {
+        description
+            "Openmano datacenter name to use when instantiating
+            the network service.  This is only used when openmano
+            is selected as the cloud account.  This should be superceded
+            by multiple cloud accounts when that becomes available.";
+        type string;
+      }
+
+      leaf config-agent-account {
+        description
+          "The configured config agent account to use for instantiating this VNF.
+          The configuration for this VNF will be driven using the specified config
+          agent account";
+        type leafref {
+          path "/rw-project:project[rw-project:name=current()/../.." +
+            "/nsr:project-name]/rw-config-agent:config-agent/" +
+            "rw-config-agent:account/rw-config-agent:name";
+        }
+      }
+    }
+
+    list vl-cloud-account-map {
+      description
+          "Mapping VL to Cloud Account where VL will be instantiated";
+
+      key "vld-id-ref";
+
+      leaf vld-id-ref {
+        description
+            "A reference to a vld.
+            leafref path ../../nsd/vld/id";
+        type string;
+      }
+
+      leaf-list cloud-accounts {
+        description
+            "The configured list of cloud accounts where VL is instantiated.
+            All VDU's, Virtual Links, and provider networks will be requested
+            using the cloud-account's associated CAL instance";
+        type leafref {
+          path "/rw-project:project[rw-project:name=current()/../../" +
+            "nsr:project-name]/rw-cloud:cloud/rw-cloud:account/" +
+            "rw-cloud:name";
+        }
+      }
+
+      leaf-list om-datacenters {
+        description
+            "Openmano datacenter names to use when instantiating
+            the VLs. This is only used when openmano
+            is selected as the cloud account.  This should be superceded
+            by multiple cloud accounts when that becomes available.";
+        type string;
+      }
+    }
   }
 
-  augment /nsr:ns-instance-opdata/nsr:nsr {
+  augment /rw-project:project/nsr:ns-instance-opdata/nsr:nsr {
     uses manotypes:action-param;
     uses manotypes:control-param;
 
@@ -229,7 +336,7 @@ module rw-nsr
         "The SDN account associted with the cloud account using which an
          NS was instantiated.";
       type leafref {
-        path "/rw-sdn:sdn/rw-sdn:account/rw-sdn:name";
+        path "../../../rw-sdn:sdn/rw-sdn:account/rw-sdn:name";
       }
     }
 
@@ -381,11 +488,11 @@ module rw-nsr
     uses operational-events;
   }
 
-  augment /nsr:ns-instance-opdata {
+  augment /rw-project:project/nsr:ns-instance-opdata {
     uses nsd-ref-count;
   }
 
-  augment /nsr:ns-instance-opdata/nsr:nsr/nsr:vlr {
+  augment /rw-project:project/nsr:ns-instance-opdata/nsr:nsr/nsr:vlr {
     leaf assigned-subnet {
       description "Subnet added for the VL";
       type string;
@@ -394,7 +501,7 @@ module rw-nsr
       description
         "The configured cloud account in which the VL is instantiated within.";
       type leafref {
-        path "/rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
+        path "../../../../rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
       }
     }
     leaf om-datacenter {
@@ -407,14 +514,14 @@ module rw-nsr
     }
   }
 
-  augment /nsr:ns-instance-opdata/nsr:nsr/nsr:constituent-vnfr-ref {
+  augment /rw-project:project/nsr:ns-instance-opdata/nsr:nsr/nsr:constituent-vnfr-ref {
     leaf cloud-account {
       description
         "The configured cloud account in which the VNF is instantiated within.
          All VDU's, Virtual Links, and provider networks will be requested
          using the cloud-account's associated CAL instance";
       type leafref {
-        path "/rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
+        path "../../../../rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
       }
     }
     leaf om-datacenter {
@@ -427,7 +534,7 @@ module rw-nsr
     }
   }
 
-  augment /nsr:ns-instance-config {
+  augment /rw-project:project/nsr:ns-instance-config {
     leaf nfvi-polling-period {
       description
         "Defines the period (secons) that the NFVI metrics are polled at";

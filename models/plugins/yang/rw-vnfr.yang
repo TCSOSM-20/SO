@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -51,6 +51,15 @@ module rw-vnfr
 
   import ietf-inet-types {
     prefix "inet";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2015-09-10 {
@@ -141,7 +150,7 @@ module rw-vnfr
     }
   }
 
-  augment /vnfr:vnfr-catalog/vnfr:vnfr {
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr {
     uses manotypes:action-param;
     uses manotypes:control-param;
 
@@ -150,7 +159,7 @@ module rw-vnfr
         "The cloud account to use when requesting resources for
          this vnf";
       type leafref {
-        path "/rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
+        path "../../../rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
       }
     }
 
@@ -235,7 +244,7 @@ module rw-vnfr
     }
   }
 
-  augment /vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vdur {
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vdur {
     leaf vm-pool {
       description
         "The pool from which this vm was allocated from";
@@ -258,7 +267,7 @@ module rw-vnfr
            Also using a state machine is not something that
            is well described in MANO.";
       type leafref {
-        path "/vnfr:vnfr-catalog/vnfr:vnfr/rw-vnfr:component/rw-vnfr:component-name";
+        path "../../rw-vnfr:component/rw-vnfr:component-name";
       }
     }
 
@@ -270,6 +279,7 @@ module rw-vnfr
       type string;
     }
   }
+
   grouping vnfd-ref-count {
     list vnfd-ref-count {
       key "vnfd-id-ref";
@@ -278,7 +288,7 @@ module rw-vnfr
       leaf vnfd-id-ref {
         description "Reference to VNFD";
         type leafref {
-          path "/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:id";
+          path "../../../vnfd:vnfd-catalog/vnfd:vnfd/vnfd:id";
         }
       }
       leaf instance-ref-count {
@@ -292,28 +302,31 @@ module rw-vnfr
       }
     }
   }
-  augment /vnfr:vnfr-catalog {
+
+  augment /rw-project:project/vnfr:vnfr-catalog {
     uses vnfd-ref-count;
   }
 
-  container vnfr-console {
-    config false;
-    list vnfr {
-      key "id";
-      leaf id {
-        description "Identifier for the VNFR.";
-        type yang:uuid;
-      }
-      list vdur {
-        description "List of Virtual Deployment Units";
+  augment /rw-project:project {
+    container vnfr-console {
+      config false;
+      list vnfr {
         key "id";
         leaf id {
-          description "Unique id for the VDU";
+          description "Identifier for the VNFR.";
           type yang:uuid;
         }
-        leaf console-url {
-          description "Console URL for this VDU, if available";
-          type inet:uri;
+        list vdur {
+          description "List of Virtual Deployment Units";
+          key "id";
+          leaf id {
+            description "Unique id for the VDU";
+            type yang:uuid;
+          }
+          leaf console-url {
+            description "Console URL for this VDU, if available";
+            type inet:uri;
+          }
         }
       }
     }

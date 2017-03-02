@@ -1,6 +1,6 @@
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -323,7 +323,7 @@ class VnffgMgr(object):
         del self._vnffgr_list[vnffgr_id]
 
 class SDNAccountDtsHandler(object):
-    XPATH = "C,/rw-sdn:sdn/rw-sdn:account"
+    XPATH = "C,/rw-project:project/rw-sdn:sdn/rw-sdn:account"
 
     def __init__(self, dts, log, parent):
         self._dts = dts

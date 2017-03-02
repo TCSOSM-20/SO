@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,11 +27,15 @@ module rw-cloud-annotation
     prefix rw-cloud;
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
   import tailf-common {
     prefix tailf-common;
   }
 
-  tailf-common:annotate "/rw-cloud:cloud/rw-cloud:account/rw-cloud:connection-status" {
+  tailf-common:annotate "/rw-project:project/rw-cloud:cloud/rw-cloud:account/rw-cloud:connection-status" {
     tailf-common:callpoint rw_callpoint;
   }
 

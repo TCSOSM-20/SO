@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -775,7 +775,7 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
     @asyncio.coroutine
     def configure_cloud_account(self, dts, cloud_type, cloud_name="cloud1"):
         account = self.get_cal_account(cloud_type, cloud_name)
-        account_xpath = "C,/rw-cloud:cloud/rw-cloud:account[rw-cloud:name='{}']".format(cloud_name)
+        account_xpath = "C,/rw-project:project/rw-cloud:cloud/rw-cloud:account[rw-cloud:name='{}']".format(cloud_name)
         self.log.info("Configuring cloud-account: %s", account)
         yield from dts.query_create(account_xpath,
                                     rwdts.XactFlag.ADVISE,

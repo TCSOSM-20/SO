@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -432,7 +432,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def configure_cloud_account(self, dts, acct_type):
-        account_xpath = "C,/rw-cloud:cloud/account"
+        account_xpath = "C,/rw-project:project/rw-cloud:cloud/account"
         msg = self.get_cloud_account_msg(acct_type)
         self.log.info("Configuring cloud-account: %s",msg)
         yield from dts.query_create(account_xpath,

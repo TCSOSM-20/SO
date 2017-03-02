@@ -1,6 +1,6 @@
 /*
  *
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -51,6 +51,15 @@ module rw-pkg-mgmt
 
   import mano-types {
     prefix "manotypes";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2016-06-01 {
@@ -175,27 +184,29 @@ module rw-pkg-mgmt
     }
   }
 
-  container download-jobs {
-    rwpb:msg-new DownloadJobs;
-    description "Download jobs";
-    config false;
+  augment "/rw-project:project" {
+    container download-jobs {
+      rwpb:msg-new DownloadJobs;
+      description "Download jobs";
+      config false;
 
-    list job {
-      rwpb:msg-new DownloadJob;
-      key "download-id";
+      list job {
+        rwpb:msg-new DownloadJob;
+        key "download-id";
 
-      leaf download-id {
-        description "Unique UUID";
-        type string;
+        leaf download-id {
+          description "Unique UUID";
+          type string;
+        }
+
+        leaf url {
+          description "URL of the download";
+          type string;
+        }
+
+        uses package-file-identifer;
+        uses download-task-status;
       }
-
-      leaf url {
-        description "URL of the download";
-        type string;
-      }
-
-      uses package-file-identifer;
-      uses download-task-status;
     }
   }
 
@@ -204,6 +215,7 @@ module rw-pkg-mgmt
 
     input {
       uses package-identifer;
+
     }
 
     output {
@@ -222,6 +234,8 @@ module rw-pkg-mgmt
         description "Type of the package";
         type manotypes:package-type;
       }
+
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -238,6 +252,7 @@ module rw-pkg-mgmt
     input {
       uses package-identifer;
       uses external-url-data;
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -254,6 +269,7 @@ module rw-pkg-mgmt
     input {
       uses package-identifer;
       uses external-url-data;
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -269,6 +285,7 @@ module rw-pkg-mgmt
 
     input {
       uses package-identifer;
+      uses manotypes:rpc-project-name;
 
       leaf export-schema {
         description "Schema to export";
@@ -287,7 +304,6 @@ module rw-pkg-mgmt
         type export-format;
         default YAML;
       }
-
     }
 
     output {
@@ -309,6 +325,7 @@ module rw-pkg-mgmt
     input {
       uses package-file-identifer;
       uses external-url-data;
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -324,6 +341,7 @@ module rw-pkg-mgmt
 
     input {
       uses package-file-identifer;
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -336,7 +354,6 @@ module rw-pkg-mgmt
         description "Trace in case of a failure";
         type string;
       }
-
     }
   }
 

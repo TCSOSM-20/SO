@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -28,8 +28,21 @@ module rw-sdn
     prefix "rwpb";
   }
 
+  import mano-types {
+    prefix "manotypes";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
   import rwsdn {
     prefix "rwsdn";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2015-09-14 {
@@ -37,16 +50,18 @@ module rw-sdn
       "Initial revision.";
   }
 
-  container sdn {
-    list account {
-      rwpb:msg-new SDNAccountConfig;
-      key "name";
-      leaf name {
-	type string;
-      }
+  augment "/rw-project:project" {
+    container sdn {
+      list account {
+        rwpb:msg-new SDNAccountConfig;
+        key "name";
+        leaf name {
+          type string;
+        }
 
-      uses rwsdn:sdn-provider-auth;
-      uses rwsdn:connection-status;
+        uses rwsdn:sdn-provider-auth;
+        uses rwsdn:connection-status;
+      }
     }
   }
 
@@ -59,6 +74,8 @@ module rw-sdn
           "The sdn account name to update connection status for";
         type string;
       }
+
+      uses manotypes:rpc-project-name;
     }
   }
 }

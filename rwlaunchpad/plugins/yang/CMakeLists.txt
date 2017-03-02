@@ -1,5 +1,5 @@
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -71,11 +71,13 @@ rift_add_yang_target(
     rw_conman_yang_gen
     rwconfig_agent_yang_gen
     mano-types_yang_gen
+    rwproject_yang_gen
   DEPENDS
     mano_yang
     rwcloud_yang
     rw_conman_yang
     rwconfig_agent_yang
     mano-types_yang
+    rwproject_yang
 )
 

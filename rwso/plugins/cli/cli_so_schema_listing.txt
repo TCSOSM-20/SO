@@ -1,4 +1,5 @@
 rw-base
+rw-project
 rw-mgmtagt
 rw-manifest
 rw-vcs

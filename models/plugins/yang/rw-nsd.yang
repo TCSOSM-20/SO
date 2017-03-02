@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -35,6 +35,15 @@ module rw-nsd
     prefix "manotypes";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-09-10 {
     description
       "Initial revision. This YANG file augments
@@ -43,7 +52,7 @@ module rw-nsd
       "Derived from earlier versions of base YANG files";
   }
 
-  augment /nsd:nsd-catalog/nsd:nsd {
+  augment /rw-project:project/nsd:nsd-catalog/nsd:nsd {
     uses manotypes:control-param;
     uses manotypes:action-param;
     leaf meta {

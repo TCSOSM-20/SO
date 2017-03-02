@@ -1,0 +1,88 @@
+/*
+ *
+ *   Copyright 2017 RIFT.IO Inc
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ *
+ */
+
+module rw-project
+{
+  namespace "http://riftio.com/ns/riftware-1.0/rw-project";
+  prefix "rw-project";
+
+  revision 2017-02-08 {
+    description
+      "Initial revision. This YANG file defines the
+       projects fo MANO to support Role Based Access
+       Control (RBAC)";
+    reference
+      "Derived from earlier versions of base YANG files";
+  }
+
+  list project {
+    description
+        "Configuration for individual Projects.  RIFT.ware applications
+        and Projects are expected to augment this list in order to add
+        configuration for Projects that is specific to the product or
+        application.  As such, this list contains minimal data defined
+        in this yang module.  When augmenting this element, other yang
+        modules should prefer to define containers with the same name
+        as the augmenting module.  (Augmenting RIFT.ware modules should
+        prefer to augment without the rw prefix [for new features], or
+        should prefer to augment the augmented container of an existing
+        augment.";
+
+    key name;
+    leaf name {
+      description "Name of the Project.";
+      type string {
+        length "1..255";
+      }
+    }
+
+    leaf description {
+      description "Information about Project";
+      type string;
+    }
+
+    container project-config {
+
+      description "Project management related configuration.";
+
+      // list user {
+      //   description
+      //     "The list of Users who have been assigned Roles within this
+      //     Project.";
+
+      //   key user-name user-domain;
+      //   uses rw-rbac-base:user-key;
+
+      //   list role {
+      //     description
+      //       "The list of Roles the User has been assigned.";
+
+      //     key role key;
+      //     uses rw-rbac-base:role-instance;
+      //   }
+      // }
+    }
+
+    container project-state {
+
+      config false;
+
+      description "Project management operational data";
+    }
+  }
+}

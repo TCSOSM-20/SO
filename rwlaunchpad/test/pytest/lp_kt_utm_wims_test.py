@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -261,7 +261,7 @@ class TestLaunchpadStartStop(object):
         cloud_account.openstack.tenant = 'demo'
         cloud_account.openstack.mgmt_network = 'private'
 
-        cloud_proxy.merge_config("/rw-cloud:cloud-account", cloud_account)
+        cloud_proxy.merge_config("/rw-project:project/rw-cloud:cloud-account", cloud_account)
 
     def test_configure_pools(self, resource_mgr_proxy):
         pools = RwResourceMgrYang.ResourcePools.from_dict({

@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -37,6 +37,15 @@ module vnfd
 
   import ietf-inet-types {
     prefix "inet";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2015-09-10 {
@@ -527,15 +536,17 @@ module vnfd
       }
   }
 
-  container vnfd-catalog {
-    description
+  augment "/rw-project:project" {
+    container vnfd-catalog {
+      description
         "Virtual Network Function Descriptor (VNFD).";
 
-    list vnfd {
-      key "id";
+      list vnfd {
+        key "id";
 
-      uses vnfd-descriptor;
-     }
+        uses vnfd-descriptor;
+      }
+    }
   }
 }
 

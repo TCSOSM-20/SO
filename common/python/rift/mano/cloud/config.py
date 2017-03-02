@@ -1,6 +1,6 @@
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -101,7 +101,7 @@ class CloudAccountConfigCallbacks(object):
 
 
 class CloudAccountConfigSubscriber(object):
-    XPATH = "C,/rw-cloud:cloud/rw-cloud:account"
+    XPATH = "C,/rw-project:project/rw-cloud:cloud/rw-cloud:account"
 
     def __init__(self, dts, log, rwlog_hdl, cloud_callbacks):
         self._dts = dts

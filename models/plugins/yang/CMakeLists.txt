@@ -1,5 +1,5 @@
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -34,10 +34,22 @@ set(source_yang_files
   )
 
 rift_add_yang_target(
+  TARGET rwproject_yang
+  YANG_FILES
+    rw-project.yang
+  GIR_PATHS ${CMAKE_CURRENT_BINARY_DIR}
+  COMPONENT ${PKG_LONG_NAME}
+  )
+
+rift_add_yang_target(
   TARGET mano-types_yang
   YANG_FILES
     mano-types.yang
   COMPONENT ${PKG_LONG_NAME}
+  LIBRARIES
+    rwproject_yang_gen
+  DEPENDS
+    rwproject_yang
   )
 
 rift_add_yang_target(
@@ -51,9 +63,11 @@ rift_add_yang_target(
     rwcloud_yang_gen
     rwconfig_agent_yang_gen
     mano-types_yang_gen
+    rwproject_yang_gen
   DEPENDS
     rwcloud_yang
     rwconfig_agent_yang
+    rwproject_yang
   )
 
 #rift_gen_yang_tree(mano-pyang-trees

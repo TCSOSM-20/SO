@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -41,6 +41,15 @@ module rw-vnfd
     prefix "manotypes";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-09-10 {
     description
       "Initial revision. This YANG file augments
@@ -49,7 +58,7 @@ module rw-vnfd
       "Derived from earlier versions of base YANG files";
   }
 
-  augment /vnfd:vnfd-catalog/vnfd:vnfd {
+  augment /rw-project:project/vnfd:vnfd-catalog/vnfd:vnfd {
     uses manotypes:control-param;
     uses manotypes:action-param;
     leaf meta {
@@ -96,7 +105,7 @@ module rw-vnfd
     } // list component
   }
 
-  augment /vnfd:vnfd-catalog/vnfd:vnfd/vnfd:vdu {
+  augment /rw-project:project/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:vdu {
     leaf vcs-component-ref {
       description
           "This defines the software components using the
@@ -109,7 +118,7 @@ module rw-vnfd
            Also using a state machine is not something that
            is well described in MANO.";
       type leafref {
-        path "/vnfd:vnfd-catalog/vnfd:vnfd/rw-vnfd:component/rw-vnfd:component-name";
+        path "../../rw-vnfd:component/rw-vnfd:component-name";
       }
     }
   }

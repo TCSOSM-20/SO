@@ -53,6 +53,13 @@ module rw-pkg-mgmt
     prefix "manotypes";
   }
 
+  import rw-vnfd {
+    prefix "rwvnfd";
+  }
+  import rw-nsd {
+    prefix "rwnsd";
+  }
+
   revision 2016-06-01 {
     description
       "Initial revision.";

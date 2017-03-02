@@ -110,6 +110,8 @@ class PackageFilesystemStore(object):
         Raises:
             PackageStoreError- The package could not be retrieved
         """
+        self.refresh()
+
         if package_id not in self._package_dirs:
             msg = "Package %s not found in %s" % (package_id, self._root_dir)
             raise PackageNotFoundError(msg)

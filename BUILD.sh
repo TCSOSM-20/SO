@@ -149,8 +149,9 @@ if [[ $PLATFORM == ub16 ]]; then
     curl http://repos.riftio.com/public/xenial-riftware-public-key | sudo apt-key add -
     # the old mkcontainer always enabled release which can be bad
     # so remove it
-    sudo rm -f /etc/apt/sources.list.d/release
-    sudo curl -o /etc/apt/sources.list.d/${PLATFORM_REPOSITORY}.list http://buildtracker.riftio.com/repo_file/ub16/${PLATFORM_REPOSITORY}/ 
+    sudo rm -f /etc/apt/sources.list.d/release.list /etc/apt/sources.list.d/rbac.list /etc/apt/sources.list.d/OSM.list
+    # always use the same file name so that updates will overwrite rather than enable a second repo
+    sudo curl -o /etc/apt/sources.list.d/RIFT.list http://buildtracker.riftio.com/repo_file/ub16/${PLATFORM_REPOSITORY}/ 
     sudo apt-get update
         
     # and install the tools
@@ -180,14 +181,20 @@ fi
 
 if [[ $PLATFORM == ub16 ]]; then
     # install the RIFT platform code:
-    sudo apt-get install -y --allow-downgrades rw.toolchain-rwbase=${PLATFORM_VERSION} \
-	 rw.toolchain-rwtoolchain=${PLATFORM_VERSION} \
-	 rw.core.mgmt-mgmt=${PLATFORM_VERSION} \
-	 rw.core.util-util=${PLATFORM_VERSION} \
-	 rw.core.rwvx-rwvx=${PLATFORM_VERSION} \
-	 rw.core.rwvx-rwdts=${PLATFORM_VERSION} \
-	 rw.automation.core-RWAUTO=${PLATFORM_VERSION} \
-         rw.core.rwvx-rwha-1.0=${PLATFORM_VERSION}
+    # remove these packages since some files moved from one to the other, and one was obsoleted
+    # ignore failures
+
+    PACKAGES="rw.toolchain-rwbase rw.toolchain-rwtoolchain rw.core.mgmt-mgmt rw.core.util-util \
+	            rw.core.rwvx-rwvx rw.core.rwvx-rwdts rw.automation.core-RWAUTO rw.core.rwvx-rwha-1.0"
+    for package in $PACKAGES; do
+        apt remove -y $package || true
+    done
+
+    packages=""
+    for package in $PACKAGES; do
+        packages="$packages $package=${PLATFORM_VERSION}"
+    done
+    sudo apt-get install -y --allow-downgrades $packages
 
     sudo apt-get install python-cinderclient
     

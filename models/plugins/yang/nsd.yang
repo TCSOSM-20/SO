@@ -262,16 +262,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-              "A reference to a vnfd. This is a
-               leafref to path:
-                   ../../nsd:constituent-vnfd
-                   + [nsd:id = current()/../nsd:id-ref]
-                   + /nsd:vnfd-id-ref
-               NOTE: An issue with confd is preventing the
-               use of xpath. Seems to be an issue with leafref
-               to leafref, whose target is in a different module.
-               Once that is resovled this will switched to use
-               leafref";
+              "A reference to a vnfd";
           type leafref {
             path "../../../constituent-vnfd" +
                  "[member-vnf-index = current()/../member-vnf-index-ref]" +
@@ -640,16 +631,7 @@ module nsd
 
            leaf vnfd-id-ref {
              description
-                 "A reference to a vnfd. This is a
-                  leafref to path:
-                      ../../../../nsd:constituent-vnfd
-                      + [nsd:id = current()/../nsd:id-ref]
-                      + /nsd:vnfd-id-ref
-                  NOTE: An issue with confd is preventing the
-                  use of xpath. Seems to be an issue with leafref
-                  to leafref, whose target is in a different module.
-                  Once that is resovled this will switched to use
-                  leafref";
+                 "A reference to a vnfd";
              type leafref {
                 path "../../../../constituent-vnfd" +
                      "[member-vnf-index = current()/../member-vnf-index-ref]" +
@@ -659,16 +641,7 @@ module nsd
 
            leaf vnfd-connection-point-ref {
              description
-                 "A reference to a connection point name
-                  in a vnfd. This is a leafref to path:
-                      /vnfd:vnfd-catalog/vnfd:vnfd
-                      + [vnfd:id = current()/../nsd:vnfd-id-ref]
-                      + /vnfd:connection-point/vnfd:name
-                  NOTE: An issue with confd is preventing the
-                  use of xpath. Seems to be an issue with leafref
-                  to leafref, whose target is in a different module.
-                  Once that is resovled this will switched to use
-                  leafref";
+                 "A reference to a connection point name";
              type leafref {
                path "/vnfd:vnfd-catalog/vnfd:vnfd" +
                     "[vnfd:id = current()/../vnfd-id-ref]/" +
@@ -713,16 +686,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-              "A reference to a vnfd. This is a
-                  leafref to path:
-                      ../../../nsd:constituent-vnfd
-                      + [nsd:id = current()/../nsd:id-ref]
-                      + /nsd:vnfd-id-ref
-                  NOTE: An issue with confd is preventing the
-                  use of xpath. Seems to be an issue with leafref
-                  to leafref, whose target is in a different module.
-                  Once that is resovled this will switched to use
-                  leafref";
+              "A reference to a vnfd";
           type leafref {
               path "../../../constituent-vnfd" +
                    "[member-vnf-index = current()/../member-vnf-index-ref]" +
@@ -732,16 +696,7 @@ module nsd
 
         leaf vnfd-connection-point-ref {
           description
-              "A reference to a connection point name
-                  in a vnfd. This is a leafref to path:
-                      /vnfd:vnfd-catalog/vnfd:vnfd
-                      + [vnfd:id = current()/../nsd:vnfd-id-ref]
-                      + /vnfd:connection-point/vnfd:name
-                  NOTE: An issue with confd is preventing the
-                  use of xpath. Seems to be an issue with leafref
-                  to leafref, whose target is in a different module.
-                  Once that is resovled this will switched to use
-                  leafref";
+              "A reference to a connection point name";
           type leafref {
               path "/vnfd:vnfd-catalog/vnfd:vnfd" +
                    "[vnfd:id = current()/../vnfd-id-ref]/" +
@@ -819,16 +774,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-             "A reference to a vnfd. This is a
-              leafref to path:
-                  ../../../../nsd:constituent-vnfd
-                  + [nsd:id = current()/../nsd:id-ref]
-                  + /nsd:vnfd-id-ref
-              NOTE: An issue with confd is preventing the
-              use of xpath. Seems to be an issue with leafref
-              to leafref, whose target is in a different module.
-              Once that is resolved this will switched to use
-              leafref";
+             "A reference to a vnfd. This is a leafref";
 
           type leafref {
             path "../../../constituent-vnfd" +
@@ -890,8 +836,83 @@ module nsd
       }
     }
 
-    uses manotypes:ns-service-primitive;
+    list service-primitive {
+      description
+          "Network service level service primitives.";
 
+      key "name";
+
+      leaf name {
+        description
+            "Name of the service primitive.";
+        type string;
+      }
+
+      list parameter {
+        description
+            "List of parameters for the service primitive.";
+
+        key "name";
+        uses manotypes:primitive-parameter;
+      }
+
+      uses manotypes:ui-primitive-group;
+
+      list vnf-primitive-group {
+        description
+            "List of service primitives grouped by VNF.";
+
+        key "member-vnf-index-ref";
+        leaf member-vnf-index-ref {
+          description
+              "Reference to member-vnf within constituent-vnfds";
+          type leafref {
+             path "../../../constituent-vnfd/member-vnf-index";
+          }
+        }
+
+        leaf vnfd-id-ref {
+          description
+              "A reference to a vnfd. This is a leafref";
+
+          type leafref {
+             path "../../../constituent-vnfd" +
+                "[member-vnf-index = current()/../member-vnf-index-ref]" + "/vnfd-id-ref";
+          }
+        }
+
+        leaf vnfd-name {
+          description
+              "Name of the VNFD";
+          type leafref {
+              path "/vnfd:vnfd-catalog/vnfd:vnfd"
+                    + "[vnfd:id = current()/../vnfd-id-ref]"
+                    + "/vnfd:name";
+          }
+        }
+
+        list primitive {
+          key "index";
+
+          leaf index {
+            description "Index of this primitive";
+            type uint32;
+          }
+
+          leaf name {
+            description "Name of the primitive in the VNF primitive ";
+            type string;
+          }
+        }
+      }
+
+      leaf user-defined-script {
+        description
+            "A user defined script.";
+        type string;
+      }
+    }
+ 
     list initial-config-primitive {
       rwpb:msg-new NsdInitialConfigPrimitive;
       description

@@ -398,12 +398,6 @@ module vnfd
               connection points.";
 
           uses common-connection-point;
-
-          leaf internal-vld-ref {
-            type leafref {
-              path "../../../internal-vld/id";
-            }
-          }
         }
 
         list internal-interface {

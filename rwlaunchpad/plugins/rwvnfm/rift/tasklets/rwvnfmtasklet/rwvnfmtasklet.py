@@ -2102,7 +2102,7 @@ class VnfrConsoleOperdataDtsHandler(object):
             if action == rwdts.QueryAction.READ:
                 schema = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
-                self._log.debug("VDU Opdata path is {}".format(path_entry))
+                self._log.debug("VDU Opdata path is {}".format(path_entry.key00.id))
                 try:
                     vnfr = self._vnfm.get_vnfr(self._vnfr_id)
                 except VnfRecordError as e:

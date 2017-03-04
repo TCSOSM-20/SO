@@ -736,7 +736,7 @@ class ConfigManagerConfig(object):
                         if k in vdu:
                             d[k] = vdu[k]
                     vdu_data.append(d)
-                v['vdur'].append(vdu_data)
+                v['vdur'] = vdu_data
 
                 inp['vnfr'][vnfr['member_vnf_index_ref']] = v
 

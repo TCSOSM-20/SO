@@ -87,7 +87,7 @@ class UrlTestCase(unittest.TestCase):
             1. Cancel for a download and clean up of the downloaded file.
             2. Model attributes (Process percent, detail, status)
         """
-        url = "http://speedtest.ftp.otenet.gr/files/test1Mb.db"
+        url = "http://speedtest.ftp.otenet.gr/files/test10Mb.db"
         url_dwld = downloader.UrlDownloader(url)
         loop = asyncio.get_event_loop()
         fut = loop.run_in_executor(None, url_dwld.download)

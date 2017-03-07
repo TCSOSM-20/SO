@@ -21,7 +21,7 @@ import json
 from gi.repository import (
     RwDts as rwdts,
     RwTypes,
-    RwVnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     RwYang
     )
 import rift.tasklets
@@ -281,7 +281,7 @@ class VnfdPublisher(object):
 
             data = vnfd.to_json(model)
 
-            key = "vnfd:vnfd-catalog"
+            key = "project-vnfd:vnfd-catalog"
             newdict = json.loads(data)
             if key in newdict:
                 data = json.dumps(newdict[key])

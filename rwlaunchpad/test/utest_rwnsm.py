@@ -26,7 +26,7 @@ import uuid
 import xmlrunner
 
 from gi.repository import (
-        NsdYang,
+        ProjectNsdYang as NsdYang,
         NsrYang,
         )
 
@@ -57,15 +57,15 @@ class TestGiXpath(unittest.TestCase):
                 )
 
         # Retrieve the NSD using and xpath expression
-        xpath = '/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id={}]'.format(nsd_id)
+        xpath = '/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id={}]'.format(nsd_id)
         nsd = rwxpath.getxattr(nsd_catalog, xpath)
 
         self.assertEqual(nsd_id, nsd.id)
 
         # Modified the name of the NSD using an xpath expression
-        rwxpath.setxattr(nsd_catalog, xpath + "/nsd:name", "test-name")
+        rwxpath.setxattr(nsd_catalog, xpath + "/project-nsd:name", "test-name")
 
-        name = rwxpath.getxattr(nsd_catalog, xpath + "/nsd:name")
+        name = rwxpath.getxattr(nsd_catalog, xpath + "/project-nsd:name")
         self.assertEqual("test-name", name)
 
     def test_nsd_scalar_fields(self):
@@ -77,16 +77,16 @@ class TestGiXpath(unittest.TestCase):
         nsd = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
 
         # Check that the unset fields are in fact set to None
-        self.assertEqual(None, rwxpath.getxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name"))
-        self.assertEqual(None, rwxpath.getxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name"))
+        self.assertEqual(None, rwxpath.getxattr(nsd, "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:name"))
+        self.assertEqual(None, rwxpath.getxattr(nsd, "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:short-name"))
 
         # Set the values of the 'name' and 'short-name' fields
-        rwxpath.setxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name", "test-name")
-        rwxpath.setxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name", "test-short-name")
+        rwxpath.setxattr(nsd, "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:name", "test-name")
+        rwxpath.setxattr(nsd, "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:short-name", "test-short-name")
 
         # Check that the 'name' and 'short-name' fields are correctly set
-        self.assertEqual(nsd.name, rwxpath.getxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name"))
-        self.assertEqual(nsd.short_name, rwxpath.getxattr(nsd, "/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name"))
+        self.assertEqual(nsd.name, rwxpath.getxattr(nsd, "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:name"))
+        self.assertEqual(nsd.short_name, rwxpath.getxattr(nsd, "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:short-name"))
 
 
 class TestInputParameterSubstitution(unittest.TestCase):
@@ -122,7 +122,7 @@ class TestInputParameterSubstitution(unittest.TestCase):
         # Define which parameters may be modified
         nsd.input_parameter_xpath.append(
                 NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_InputParameterXpath(
-                    xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name",
+                    xpath="/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:name",
                     label="NSD Name",
                     )
                 )
@@ -131,11 +131,11 @@ class TestInputParameterSubstitution(unittest.TestCase):
         nsr_config = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
         nsr_config.input_parameter.extend([
             NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
-                xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name",
+                xpath="/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:name",
                 value="alice",
                 ),
             NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
-                xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
+                xpath="/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:short-name",
                 value="alice",
                 ),
             ])
@@ -160,11 +160,11 @@ class TestInputParameterSubstitution(unittest.TestCase):
         # Define which parameters may be modified
         nsd.input_parameter_xpath.extend([
                 NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_InputParameterXpath(
-                    xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name",
+                    xpath="/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:name",
                     label="NSD Name",
                     ),
                 NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_InputParameterXpath(
-                    xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
+                    xpath="/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:short-name",
                     label="NSD Short Name",
                     ),
                 ])
@@ -173,11 +173,11 @@ class TestInputParameterSubstitution(unittest.TestCase):
         nsr_config = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
         nsr_config.input_parameter.extend([
             NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
-                xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:name",
+                xpath="/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:name",
                 value="robert",
                 ),
             NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
-                xpath="/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:short-name",
+                xpath="/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:short-name",
                 value="bob",
                 ),
             ])

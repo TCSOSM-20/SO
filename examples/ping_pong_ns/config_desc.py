@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -25,7 +25,14 @@ import sys
 import gi
 gi.require_version('RwYang', '1.0')
 
-from gi.repository import NsdYang, VldYang, VnfdYang, RwYang
+# TODO (Philip): Relook at this code
+
+from gi.repository import (
+    NsdYang,
+    VldYang,
+    VnfdYang,
+    RwYang
+    )
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -49,7 +56,7 @@ def configure_vld(proxy, vld_xml_hdl):
 def configure_vnfd(proxy, vnfd_xml_hdl):
     vnfd_xml = vnfd_xml_hdl.read()
     logger.debug("Attempting to deserialize XML into VNFD protobuf: %s", vnfd_xml)
-    vnfd = VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
+    vnfd = VnfdYang.YangData_VnfdCatalog_Vnfd()
     vnfd.from_xml_v2(model, vnfd_xml)
 
     logger.debug("Sending VNFD to netconf: %s", vnfd)
@@ -59,7 +66,7 @@ def configure_vnfd(proxy, vnfd_xml_hdl):
 def configure_nsd(proxy, nsd_xml_hdl):
     nsd_xml = nsd_xml_hdl.read()
     logger.debug("Attempting to deserialize XML into NSD protobuf: %s", nsd_xml)
-    nsd = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
+    nsd = NsdYang.YangData_NsdCatalog_Nsd()
     nsd.from_xml_v2(model, nsd_xml)
 
     logger.debug("Sending NSD to netconf: %s", nsd)
@@ -86,7 +93,9 @@ def parse_args(argv=sys.argv[1:]):
             action="append",
             default=[],
             type=argparse.FileType(),
-            help="VLD XML File Path",
+            #help="VLD XML File Path",
+            # We do not support uploading VLD separately
+            help=argparse.SUPRESS,
             )
 
     parser.add_argument(

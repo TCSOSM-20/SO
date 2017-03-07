@@ -27,7 +27,7 @@ import argparse
 import subprocess
 
 import gi
-from gi.repository import RwVnfdYang
+from gi.repository import RwProjectVnfdYang as RwVnfdYang
 from gi.repository import RwVnfrYang
 
 import rift.auto.proxy

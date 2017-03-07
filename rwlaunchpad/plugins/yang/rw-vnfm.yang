@@ -47,8 +47,8 @@ module rw-vnfm
     prefix "rw-vns";
   }
 
-  import rw-vnfd {
-    prefix "rw-vnfd";
+  import rw-project-vnfd {
+    prefix "rw-project-vnfd";
   }
 
   import rw-vnfr {

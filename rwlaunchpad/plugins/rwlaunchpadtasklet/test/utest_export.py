@@ -42,10 +42,11 @@ import rift.package.store
 from rift.tasklets.rwlaunchpad import export
 
 import gi
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('ProjectVnfdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 from gi.repository import (
-        RwVnfdYang,
-        VnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
+        ProjectVnfdYang as VnfdYang,
         )
 
 import utest_package

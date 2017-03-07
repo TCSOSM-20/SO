@@ -33,12 +33,12 @@ import time
 import uuid
 
 from gi.repository import (
-    NsdYang,
+    ProjectNsdYang as NsdYang,
     NsrYang,
     RwNsrYang,
     VnfrYang,
     VldYang,
-    RwVnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     RwLaunchpadYang,
     RwBaseYang
 )
@@ -206,7 +206,7 @@ class TestMultiVmVnfTrafgenApp(object):
         nsd = catalog.nsd[0]
 
         input_parameters = []
-        descr_xpath = "/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id='%s']/nsd:description" % nsd.id
+        descr_xpath = "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id='%s']/project-nsd:description" % nsd.id
         descr_value = "New NSD Description"
         in_param_id = str(uuid.uuid4())
 

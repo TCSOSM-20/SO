@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016-2017 RIFT.IO Inc
+ *   Copyright 2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,10 +18,14 @@
  *
  */
 
-module vnfd
+module project-vnfd
 {
-  namespace "urn:ietf:params:xml:ns:yang:nfvo:vnfd";
-  prefix "vnfd";
+  namespace "http://riftio.com/ns/riftware-1.0/project-vnfd";
+  prefix "project-vnfd";
+
+  import rw-project {
+    prefix "rw-project";
+  }
 
   import vnfd-base {
     prefix "vnfd-base";
@@ -29,25 +33,23 @@ module vnfd
 
   revision 2017-02-28 {
     description
-      "Update model to support projects.";
-  }
-
-  revision 2015-09-10 {
-    description
       "Initial revision. This YANG file defines
-       the Virtual Network Function (VNF)";
+       the Virtual Network Function (VNF) descriptor
+       under a project";
     reference
       "Derived from earlier versions of base YANG files";
   }
 
-  container vnfd-catalog {
-    description
-      "Virtual Network Function Descriptor (VNFD).";
+  augment /rw-project:project {
+    container vnfd-catalog {
+      description
+        "Virtual Network Function Descriptor (VNFD).";
 
-    list vnfd {
-      key "id";
+      list vnfd {
+        key "id";
 
         uses vnfd-base:vnfd-descriptor;
+      }
     }
   }
 }

@@ -28,13 +28,13 @@ import yaml
 
 import gi
 gi.require_version('RwYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
-gi.require_version('RwNsdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
+gi.require_version('RwProjectNsdYang', '1.0')
 gi.require_version('RwProjectYang', '1.0')
 from gi.repository import (
     RwYang,
-    RwVnfdYang,
-    RwNsdYang,
+    RwProjectVnfdYang as RwVnfdYang,
+    RwProjectNsdYang as RwNsdYang,
     RwProjectYang,
     )
 
@@ -169,7 +169,7 @@ class RiftNS(RiftManoDescriptor):
                         if topo_node['type'] == 'VNF':
                             cpref = vld.vnfd_connection_point_ref.add()
                             cpref.from_dict(dict(
-                                member_vnf_index_ref=str(vnf_member_index_dict[node_key]),
+                                member_vnf_index_ref=vnf_member_index_dict[node_key],
                                 vnfd_id_ref=self.get_vnfd_id(vnf_list, topo_node['VNF model']),
                                 #vnfd_id_ref=topo_node['VNF model'],
                                 vnfd_connection_point_ref=node[node_key],
@@ -469,8 +469,9 @@ def main(argv=sys.argv[1:]):
     vnf_list = create_vnfs_from_yaml_files(args.yaml_file_hdls)
     ns_list = create_ns_from_yaml_files(args.yaml_file_hdls, vnf_list)
 
+    # TODO (Philip): Relook at the model generation
     writer = DescriptorFileWriter(
-        module_list=['rw-project', 'nsd', 'rw-nsd', 'vnfd', 'rw-vnfd'],
+        module_list=['rw-project', 'project-nsd', 'rw-project-nsd', 'project-vnfd', 'rw-project-vnfd'],
         output_dir=args.outdir,
         output_format=args.format,
         )

@@ -18,38 +18,37 @@
  *
  */
 
-module vnfd
+module rw-project-vnfd
 {
-  namespace "urn:ietf:params:xml:ns:yang:nfvo:vnfd";
-  prefix "vnfd";
+  namespace "http://riftio.com/ns/riftware-1.0/rw-project-vnfd";
+  prefix "rw-project-vnfd";
 
-  import vnfd-base {
-    prefix "vnfd-base";
+  import project-vnfd {
+    prefix "project-vnfd";
+  }
+
+  import rw-vnfd-base {
+    prefix "rw-vnfd-base";
+  }
+
+  import rw-project {
+    prefix "rw-project";
   }
 
   revision 2017-02-28 {
     description
-      "Update model to support projects.";
-  }
-
-  revision 2015-09-10 {
-    description
-      "Initial revision. This YANG file defines
-       the Virtual Network Function (VNF)";
+      "Initial revision. This YANG file augments
+       the base MANO VNFD";
     reference
       "Derived from earlier versions of base YANG files";
   }
 
-  container vnfd-catalog {
-    description
-      "Virtual Network Function Descriptor (VNFD).";
+  augment /rw-project:project/project-vnfd:vnfd-catalog/project-vnfd:vnfd {
+    uses rw-vnfd-base:rw-vnfd-ext;
+  }
 
-    list vnfd {
-      key "id";
-
-        uses vnfd-base:vnfd-descriptor;
-    }
+  augment /rw-project:project/project-vnfd:vnfd-catalog/project-vnfd:vnfd/project-vnfd:vdu {
+    uses rw-vnfd-base:vcs-component-ref;
   }
 }
-
 // vim: sw=2

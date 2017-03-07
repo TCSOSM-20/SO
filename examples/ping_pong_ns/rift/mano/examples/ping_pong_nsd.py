@@ -29,20 +29,17 @@ from xml.dom.minidom import parseString
 
 import gi
 gi.require_version('RwYang', '1.0')
-gi.require_version('RwProjectYang', '1.0')
 gi.require_version('RwVnfdYang', '1.0')
 gi.require_version('VnfdYang', '1.0')
+gi.require_version('RwVnfdYang', '1.0')
 gi.require_version('RwNsdYang', '1.0')
-gi.require_version('NsdYang', '1.0')
-
 
 from gi.repository import (
-    RwNsdYang,
-    NsdYang,
-    RwVnfdYang,
-    VnfdYang,
+    RwNsdYang as RwNsdYang,
+    NsdYang as NsdYang,
+    RwVnfdYang as RwVnfdYang,
+    VnfdYang as VnfdYang,
     RwYang,
-    RwProjectYang,
 )
 
 
@@ -101,31 +98,15 @@ class ManoDescriptor(object):
         for module in module_list:
             model.load_module(module)
 
-        # Need to extract the catalog part to dump as descriptor
-        if output_format in ['json', 'yaml']:
-            # Convert to yaml instead of directly using as_dict as
-            # this adds the namespaces correctly
-            ya = self.descriptor.to_yaml(model)
-            proj = yaml.load(ya)
-            desc = proj['rw-project:project'][0]
-
-            if output_format == 'json':
-                with open('%s/%s.json' % (outdir, self.name), "w") as fh:
-                    fh.write(simplejson.dumps(desc, indent=4))
-            elif output_format == 'yaml':
-                with open('%s/%s.yaml' % (outdir, self.name), "w") as fh:
-                    fh.write(yaml.dump(desc, default_flow_style=False))
-        elif output_format == 'xml':
-            # Converting from dict to xml does not provide the
-            # required output. So using the PBCM to_xml and then
-            # printing only from the catalog tag.
+        if output_format == 'json':
+            with open('%s/%s.json' % (outdir, self.name), "w") as fh:
+                fh.write(self.descriptor.to_json(model))
+        elif output_format.strip() == 'xml':
             with open('%s/%s.xml' % (outdir, self.name), "w") as fh:
-                proj = self.descriptor.to_xml_v2(model)
-                dom = parseString(proj)
-                desc = dom.getElementsByTagName("vnfd:vnfd-catalog")
-                if not desc:
-                    desc = dom.getElementsByTagName("nsd:nsd-catalog")
-                fh.write(desc[0].toprettyxml())
+                fh.write(self.descriptor.to_xml_v2(model))
+        elif output_format.strip() == 'yaml':
+            with open('%s/%s.yaml' % (outdir, self.name), "w") as fh:
+                fh.write(self.descriptor.to_yaml(model))
         else:
             raise Exception("Invalid output format for the descriptor")
 
@@ -151,7 +132,7 @@ class VirtualNetworkFunction(ManoDescriptor):
     def compose(self, image_name, cloud_init="", cloud_init_file="", endpoint=None, mon_params=[],
                 mon_port=8888, mgmt_port=8888, num_vlr_count=1, num_ivlr_count=1,
                 num_vms=1, image_md5sum=None, mano_ut=False):
-        self.descriptor = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog()
+        self.descriptor = RwVnfdYang.YangData_Vnfd_VnfdCatalog()
         self.id = str(uuid.uuid1())
         vnfd = self.descriptor.vnfd.add()
         vnfd.id = self.id
@@ -181,14 +162,14 @@ class VirtualNetworkFunction(ManoDescriptor):
             cp.name = '%s/cp%d' % (self.name, i)
 
         if endpoint is not None:
-            endp = VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd_HttpEndpoint(
+            endp = VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd_HttpEndpoint(
                     path=endpoint, port=mon_port, polling_interval_secs=2
                     )
             vnfd.http_endpoint.append(endp)
 
         # Monitoring params
         for monp_dict in mon_params:
-            monp = VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd_MonitoringParam.from_dict(monp_dict)
+            monp = VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd_MonitoringParam.from_dict(monp_dict)
             monp.http_endpoint_ref = endpoint
             vnfd.monitoring_param.append(monp)
 
@@ -324,7 +305,7 @@ class VirtualNetworkFunction(ManoDescriptor):
         dirpath = "%s/%s" % (outdir, self.name)
         if not os.path.exists(dirpath):
             os.makedirs(dirpath)
-        super(VirtualNetworkFunction, self).write_to_file(['rw-project', 'vnfd', 'rw-vnfd'],
+        super(VirtualNetworkFunction, self).write_to_file(['vnfd', 'rw-vnfd'],
                                                           dirpath,
                                                           output_format)
         self.add_scripts(outdir)
@@ -655,7 +636,7 @@ exit 0
         self._placement_groups.append(placement_group)
 
     def create_mon_params(self, vnfds):
-        NsdMonParam = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_MonitoringParam
+        NsdMonParam = NsdYang.YangData_Nsd_NsdCatalog_Nsd_MonitoringParam
         param_id = 1
         for vnfd_obj in vnfds:
             for mon_param in vnfd_obj.vnfd.monitoring_param:
@@ -684,7 +665,7 @@ exit 0
             use_ns_init_conf = False
             use_vnf_init_conf = False
 
-        self.descriptor = RwNsdYang.YangData_RwProject_Project_NsdCatalog()
+        self.descriptor = RwNsdYang.YangData_Nsd_NsdCatalog()
         self.id = str(uuid.uuid1())
         nsd = self.descriptor.nsd.add()
         self.nsd = nsd
@@ -696,8 +677,8 @@ exit 0
         nsd.description = 'Toy NS'
         nsd.version = '1.0'
         nsd.input_parameter_xpath.append(
-                NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd_InputParameterXpath(
-                    xpath="/nsd:nsd-catalog/nsd:nsd/nsd:vendor",
+                NsdYang.YangData_Nsd_NsdCatalog_Nsd_InputParameterXpath(
+                    xpath="/nsd-catalog/nsd/vendor",
                     )
                 )
 
@@ -722,7 +703,7 @@ exit 0
             vld.ip_profile_ref = 'InterVNFLink'
             for cp in cpgroup:
                 cpref = vld.vnfd_connection_point_ref.add()
-                cpref.member_vnf_index_ref = str(cp[0])
+                cpref.member_vnf_index_ref = cp[0]
                 cpref.vnfd_id_ref = cp[1]
                 cpref.vnfd_connection_point_ref = cp[2]
 
@@ -778,7 +759,7 @@ exit 0
             for member_vnfd in placement_group.vnfd_list:
                 member = group.member_vnfd.add()
                 member.vnfd_id_ref = member_vnfd.descriptor.vnfd[0].id
-                member.member_vnf_index_ref = str(vnfd_index_map[member_vnfd])
+                member.member_vnf_index_ref = vnfd_index_map[member_vnfd]
 
         # self.create_mon_params(vnfd_list)
 
@@ -823,7 +804,7 @@ exit 0
         if not os.path.exists(dirpath):
             os.makedirs(dirpath)
 
-        super(NetworkService, self).write_to_file(["rw-project", "nsd", "rw-nsd"],
+        super(NetworkService, self).write_to_file(["nsd", "rw-nsd"],
                                                   dirpath,
                                                   output_format)
 

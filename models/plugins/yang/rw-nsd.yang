@@ -23,23 +23,15 @@ module rw-nsd
   namespace "http://riftio.com/ns/riftware-1.0/rw-nsd";
   prefix "rw-nsd";
 
+  import rw-nsd-base {
+    prefix "rw-nsd-base";
+  }
+
   import nsd {
     prefix "nsd";
   }
 
-  import ietf-yang-types {
-    prefix "yang";
-  }
-
-  import mano-types {
-    prefix "manotypes";
-  }
-
-  import rw-project {
-    prefix "rw-project";
-  }
-
-  revision 2017-02-08 {
+  revision 2017-02-28 {
     description
       "Update model to support projects.";
   }
@@ -52,14 +44,8 @@ module rw-nsd
       "Derived from earlier versions of base YANG files";
   }
 
-  augment /rw-project:project/nsd:nsd-catalog/nsd:nsd {
-    uses manotypes:control-param;
-    uses manotypes:action-param;
-    leaf meta {
-      description
-        "Any meta-data needed by the UI";
-      type string;
-    }
+  augment /nsd:nsd-catalog/nsd:nsd {
+    uses rw-nsd-base:rw-nsd-ext;
   }
 }
 

@@ -17,7 +17,13 @@
 
 import pytest
 
-from gi.repository import NsrYang, RwNsrYang, RwVnfrYang, NsdYang, RwNsdYang
+from gi.repository import (
+    NsrYang,
+    RwNsrYang,
+    RwVnfrYang,
+    ProjectNsdYang as NsdYang,
+    RwProjectNsdYang as RwNsdYang
+    )
 import rift.auto.session
 
 @pytest.fixture(scope='module')

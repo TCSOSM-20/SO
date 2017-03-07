@@ -35,16 +35,26 @@ import uuid
 import gi
 gi.require_version('RwIwpYang', '1.0')
 gi.require_version('RwNsrYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 gi.require_version('RwCloudYang', '1.0')
 gi.require_version('RwBaseYang', '1.0')
 gi.require_version('RwResourceMgrYang', '1.0')
 gi.require_version('RwConmanYang', '1.0')
 gi.require_version('RwNsmYang', '1.0')
 
-
-
-from gi.repository import RwIwpYang, NsdYang, NsrYang, RwNsrYang, VldYang, RwVnfdYang, RwCloudYang, RwBaseYang, RwResourceMgrYang, RwConmanYang, RwNsmYang
+from gi.repository import (
+    RwIwpYang,
+    ProjectNsdYang as NsdYang,
+    NsrYang,
+    RwNsrYang,
+    VldYang,
+    RwProjectVnfdYang as RwVnfdYang,
+    RwCloudYang,
+    RwBaseYang,
+    RwResourceMgrYang,
+    RwConmanYang,
+    RwNsmYang
+    )
 
 logging.basicConfig(level=logging.DEBUG)
 

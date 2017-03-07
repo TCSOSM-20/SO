@@ -25,10 +25,10 @@ import xml.etree.ElementTree as etree
 
 from gi.repository import (
     RwYang,
-    NsdYang,
-    RwNsdYang,
-    VnfdYang,
-    RwVnfdYang,
+    ProjectNsdYang as NsdYang,
+    RwProjectNsdYang as RwNsdYang,
+    ProjectVnfdYang as VnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     VldYang,
     RwVldYang
 )

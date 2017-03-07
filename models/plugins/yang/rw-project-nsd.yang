@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016-2017 RIFT.IO Inc
+ *   Copyright 2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,37 +18,33 @@
  *
  */
 
-module vnfd
+module rw-project-nsd
 {
-  namespace "urn:ietf:params:xml:ns:yang:nfvo:vnfd";
-  prefix "vnfd";
+  namespace "http://riftio.com/ns/riftware-1.0/rw-project-nsd";
+  prefix "rw-project-nsd";
 
-  import vnfd-base {
-    prefix "vnfd-base";
+  import rw-nsd-base {
+    prefix "rw-nsd-base";
+  }
+
+  import project-nsd {
+    prefix "nsd";
+  }
+
+  import rw-project {
+    prefix "rw-project";
   }
 
   revision 2017-02-28 {
     description
-      "Update model to support projects.";
-  }
-
-  revision 2015-09-10 {
-    description
-      "Initial revision. This YANG file defines
-       the Virtual Network Function (VNF)";
+      "Initial revision. This YANG file augments
+       the base MANO NSD";
     reference
       "Derived from earlier versions of base YANG files";
   }
 
-  container vnfd-catalog {
-    description
-      "Virtual Network Function Descriptor (VNFD).";
-
-    list vnfd {
-      key "id";
-
-        uses vnfd-base:vnfd-descriptor;
-    }
+  augment /rw-project:project/nsd:nsd-catalog/nsd:nsd {
+    uses rw-nsd-base:rw-nsd-ext;
   }
 }
 

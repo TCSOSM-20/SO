@@ -502,7 +502,7 @@ class ConfigManagerConfig(object):
         if nsr_obj.cm_nsr['state'] != nsr_obj.state_to_string(conmanY.RecordState.INIT):
             self._log.debug("NSR(%s) is already processed, state=%s",
                             nsr_obj.nsr_name, nsr_obj.cm_nsr['state'])
-            yield from nsr_obj.publish_cm_state()
+            # yield from nsr_obj.publish_cm_state()
             return True
 
         cmdts_obj = self.cmdts_obj
@@ -1361,8 +1361,8 @@ class XPaths(object):
 
     @staticmethod
     def nsd_msg(k=None):
-        return ("C,/nsd:nsd-catalog/nsd:nsd" +
-                "[nsd:id = '{}']".format(k) if k is not None else "")
+        return ("C,/project-nsd:nsd-catalog/project-nsd:nsd" +
+                "[project-nsd:id = '{}']".format(k) if k is not None else "")
 
     @staticmethod
     def vnfr_opdata(k=None):
@@ -1371,8 +1371,8 @@ class XPaths(object):
 
     @staticmethod
     def vnfd(k=None):
-        return ("C,/vnfd:vnfd-catalog/vnfd:vnfd" +
-                ("[vnfd:id='{}']".format(k) if k is not None else ""))
+        return ("C,/project-vnfd:vnfd-catalog/project-vnfd:vnfd" +
+                ("[project-vnfd:id='{}']".format(k) if k is not None else ""))
 
     @staticmethod
     def config_agent(k=None):

@@ -31,12 +31,12 @@ module vnfr
     prefix "rwpb";
   }
 
-  import vnfd {
-    prefix "vnfd";
+  import vnfd-base {
+    prefix "vnfd-base";
   }
 
-  import nsd {
-    prefix "nsd";
+  import project-nsd {
+    prefix "project-nsd";
   }
 
   import vlr {
@@ -59,7 +59,7 @@ module vnfr
     prefix "rw-cloud";
   }
 
-  revision 2017-02-08 {
+  revision 2017-02-28 {
     description
       "Update model to support projects.";
   }
@@ -170,7 +170,7 @@ module vnfr
         leaf member-vnf-index-ref {
           description "Reference to member VNF index in Network service.";
           type leafref {
-            path "../../../nsd:nsd-catalog/nsd:nsd/nsd:constituent-vnfd/nsd:member-vnf-index";
+            path "../../../project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:constituent-vnfd/project-nsd:member-vnf-index";
           }
         }
 
@@ -223,7 +223,7 @@ module vnfr
 
         container vnfd {
           description "VNF descriptor used to instantiate this VNF";
-          uses vnfd:vnfd-descriptor;
+          uses vnfd-base:vnfd-descriptor;
         }
 
         // Use parameters provided here to configure this VNF
@@ -269,7 +269,7 @@ module vnfr
              different VNFs. The NFVO will use VLDs and VNFFGs at
              the network service level to construct network services.";
 
-          uses vnfd:common-connection-point;
+          uses vnfd-base:common-connection-point;
 
           leaf vlr-ref {
             description
@@ -390,7 +390,7 @@ module vnfr
                has only one VNFC, it may not have any internal
                connection points.";
 
-            uses vnfd:common-connection-point;
+            uses vnfd-base:common-connection-point;
 
             leaf ip-address {
               description

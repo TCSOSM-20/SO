@@ -1,6 +1,6 @@
 
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -19,7 +19,10 @@ import time
 
 from enum import Enum
 
-from gi.repository import NsdYang, NsrYang
+from gi.repository import (
+    ProjectNsdYang as NsdYang,
+    NsrYang
+    )
 
 
 class ScalingGroupIndexExists(Exception):

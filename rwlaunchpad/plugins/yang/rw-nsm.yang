@@ -43,30 +43,38 @@ module rw-nsm
     prefix "inet";
   }
 
-  import rw-nsd {
-    prefix "rw-nsd";
+  import rw-project-nsd {
+    prefix "rw-project-nsd";
   }
-  import nsd {
-    prefix "nsd";
+
+  import project-nsd {
+    prefix "project-nsd";
   }
+
   import rw-nsr {
     prefix "rw-nsr";
   }
+
   import vld {
     prefix "vld";
   }
+
   import rw-vlr {
     prefix "rw-vlr";
   }
+
   import rw-vns {
     prefix "rw-vns";
   }
-  import rw-vnfd {
-    prefix "rw-vnfd";
+
+  import rw-project-vnfd {
+    prefix "rw-project-vnfd";
   }
-  import vnfd {
-    prefix "vnfd";
+
+  import project-vnfd {
+    prefix "project-vnfd";
   }
+
   import rw-vnfr {
     prefix "rw-vnfr";
   }

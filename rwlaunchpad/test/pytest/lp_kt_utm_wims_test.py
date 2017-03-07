@@ -39,13 +39,13 @@ gi.require_version('RwCloudYang', '1.0')
 gi.require_version('RwIwpYang', '1.0')
 gi.require_version('RwNsmYang', '1.0')
 gi.require_version('RwNsrYang', '1.0')
-gi.require_version('RwNsrYang', '1.0')
+gi.require_version('ProjectNsdYang', '1.0')
 gi.require_version('RwResourceMgrYang', '1.0')
 gi.require_version('RwConmanYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 
 from gi.repository import (
-        NsdYang,
+        ProjectNsdYang as NsdYang,
         NsrYang,
         RwBaseYang,
         RwCloudYang,
@@ -55,7 +55,7 @@ from gi.repository import (
         RwNsrYang,
         RwResourceMgrYang,
         RwConmanYang,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         VldYang,
         )
 

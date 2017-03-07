@@ -17,7 +17,10 @@
 
 import pytest
 import uuid
-from gi.repository import NsdYang, VnfdYang
+from gi.repository import (
+    ProjectNsdYang as NsdYang,
+    ProjectVnfdYang as VnfdYang,
+    )
 from ..config import ConfigPrimitiveConvertor
 import yaml
 

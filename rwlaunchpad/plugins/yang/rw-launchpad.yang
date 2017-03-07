@@ -57,16 +57,16 @@ module rw-launchpad
     prefix "rwcal";
   }
 
-  import rw-vnfd {
-    prefix "rw-vnfd";
+  import rw-project-vnfd {
+    prefix "rw-project-vnfd";
   }
 
   import vld {
     prefix "vld";
   }
 
-  import rw-nsd {
-    prefix "rw-nsd";
+  import rw-project-nsd {
+    prefix "rw-project-nsd";
   }
 
   import rw-cloud {

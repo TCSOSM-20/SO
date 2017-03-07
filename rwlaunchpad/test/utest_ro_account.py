@@ -31,10 +31,10 @@ gi.require_version('RwDtsYang', '1.0')
 from gi.repository import (
         RwLaunchpadYang as launchpadyang,
         RwDts as rwdts,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         RwVnfrYang,
         RwNsrYang,
-        RwNsdYang,
+        RwProjectNsdYang as RwNsdYang,
         VnfrYang
         )
 

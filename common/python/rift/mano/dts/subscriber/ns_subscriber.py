@@ -49,7 +49,7 @@ class NsdCatalogSubscriber(core.AbstractConfigSubscriber):
         return "id"
 
     def get_xpath(self):
-        return self._project.add_project("C,/nsd:nsd-catalog/nsd:nsd")
+        return self._project.add_project("C,/project-nsd:nsd-catalog/project-nsd:nsd")
 
 
 class NsInstanceConfigSubscriber(core.AbstractConfigSubscriber):

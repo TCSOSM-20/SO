@@ -23,9 +23,9 @@ from toscaparser.common.exception import ValidationError
 
 try:
     import gi
-    gi.require_version('RwVnfdYang', '1.0')
+    gi.require_version('RwProjectVnfdYang', '1.0')
 
-    from gi.repository import RwVnfdYang
+    from gi.repository import RwProjectVnfdYang as RwVnfdYang
 except ImportError:
     pass
 except ValueError:

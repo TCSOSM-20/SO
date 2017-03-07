@@ -23,13 +23,13 @@ import subprocess
 import tempfile
 
 from gi.repository import (
-    NsdYang,
+    ProjectNsdYang as NsdYang,
     NsrYang,
     RwNsrYang,
     RwVnfrYang,
     VnfrYang,
     VldYang,
-    RwVnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     RwLaunchpadYang,
     RwBaseYang
 )

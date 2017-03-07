@@ -31,8 +31,8 @@ module rw-nsr
     prefix "nsr";
   }
 
-  import nsd {
-    prefix "nsd";
+  import project-nsd {
+    prefix "project-nsd";
   }
 
   import rw-cloud {
@@ -112,7 +112,7 @@ module rw-nsr
       leaf nsd-id-ref {
         description "Reference to NSD";
         type leafref {
-          path "../../../nsd:nsd-catalog/nsd:nsd/nsd:id";
+          path "../../../project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:id";
         }
       }
       leaf instance-ref-count {

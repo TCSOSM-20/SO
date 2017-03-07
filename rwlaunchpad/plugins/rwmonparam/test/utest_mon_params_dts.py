@@ -40,8 +40,8 @@ from gi.repository import (
         RwLaunchpadYang as launchpadyang,
         RwDts as rwdts,
         RwVnfrYang,
-        RwVnfdYang,
-        RwNsdYang
+        RwProjectVnfdYang as RwVnfdYang,
+        RwProjectNsdYang as RwNsdYang,
         )
 
 import utest_mon_params

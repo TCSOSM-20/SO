@@ -343,7 +343,7 @@ class OnboardPackage:
                                             js['error']))
 
         try:
-            nsd = js['nsd:nsd']
+            nsd = js['project-nsd:nsd']
         except KeyError as e:
             raise OnboardPkgNsdError("NSD ID {} provided is not valid".
                                      format(self._nsd_id))
@@ -415,7 +415,7 @@ class OnboardPackage:
 
                 self.log.debug("NSD list: {}".format(js))
                 print('List of NSDs on SO:\nName\tID')
-                for nsd in js['nsd:nsd']:
+                for nsd in js['project-nsd:nsd']:
                     print('{}\t{}'.format(nsd['name'], nsd['id']))
 
             except OnboardPkgCmdError as e:

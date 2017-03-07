@@ -41,18 +41,19 @@ import rift.mano.examples.ping_pong_nsd as ping_pong
 
 import gi
 gi.require_version('RwNsrYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('ProjectNsdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 gi.require_version('RwLaunchpadYang', '1.0')
 gi.require_version('RwBaseYang', '1.0')
 
 from gi.repository import (
-    NsdYang,
+    ProjectNsdYang as NsdYang,
     RwNsrYang,
     RwVnfrYang,
     NsrYang,
     VnfrYang,
     VldYang,
-    RwVnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     RwLaunchpadYang,
     RwBaseYang
 )
@@ -409,7 +410,7 @@ class TestPingPongStart(object):
         nsd = catalog.nsd[0]
 
         input_parameters = []
-        descr_xpath = "/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id='%s']/nsd:vendor" % nsd.id
+        descr_xpath = "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id='%s']/project-nsd:vendor" % nsd.id
         descr_value = "automation"
         in_param_id = str(uuid.uuid4())
 
@@ -597,7 +598,7 @@ class TestUpdateNsr(object):
         nsd = catalog.nsd[0]
 
         input_parameters = []
-        descr_xpath = "/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id='%s']/nsd:vendor" % nsd.id
+        descr_xpath = "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id='%s']/project-nsd:vendor" % nsd.id
         descr_value = "automation"
         in_param_id = str(uuid.uuid4())
 

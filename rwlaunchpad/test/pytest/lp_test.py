@@ -39,13 +39,13 @@ gi.require_version('RwCloudYang', '1.0')
 gi.require_version('RwIwpYang', '1.0')
 gi.require_version('RwlogMgmtYang', '1.0')
 gi.require_version('RwNsmYang', '1.0')
-gi.require_version('RwNsmYang', '1.0')
+gi.require_version('ProjectNsdYang', '1.0')
 gi.require_version('RwResourceMgrYang', '1.0')
 gi.require_version('RwConmanYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 
 from gi.repository import (
-        NsdYang,
+        ProjectNsdYang as NsdYang,
         NsrYang,
         RwBaseYang,
         RwCloudYang,
@@ -55,7 +55,7 @@ from gi.repository import (
         RwNsrYang,
         RwResourceMgrYang,
         RwConmanYang,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         VldYang,
         )
 
@@ -182,7 +182,7 @@ def create_nsr_from_nsd_id(nsd_id):
     nsr.cloud_account = "openstack"
 
     param = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter()
-    param.xpath = '/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:vendor'
+    param.xpath = '/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:vendor'
     param.value = "rift-o-matic"
 
     nsr.input_parameter.append(param)

@@ -22,13 +22,17 @@ set(source_yang_files
   ietf-l2-topology.yang
   ietf-network-topology.yang
   ietf-network.yang
+  nsd-base.yang rw-nsd-base.yang
   nsd.yang rw-nsd.yang
+  project-nsd.yang rw-project-nsd.yang
   nsr.yang rw-nsr.yang
   pnfd.yang
   rw-topology.yang
   vld.yang rw-vld.yang
   vlr.yang rw-vlr.yang
+  vnfd-base.yang rw-vnfd-base.yang
   vnfd.yang rw-vnfd.yang
+  project-vnfd.yang rw-project-vnfd.yang
   vnfr.yang rw-vnfr.yang
   vnffgd.yang
   )

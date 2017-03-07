@@ -18,36 +18,30 @@
  *
  */
 
-module vnfd
+module rw-nsd-base
 {
-  namespace "urn:ietf:params:xml:ns:yang:nfvo:vnfd";
-  prefix "vnfd";
+  namespace "http://riftio.com/ns/riftware-1.0/rw-nsd-base";
+  prefix "rw-nsd-base";
 
-  import vnfd-base {
-    prefix "vnfd-base";
+  import mano-types {
+    prefix "manotypes";
   }
 
   revision 2017-02-28 {
     description
-      "Update model to support projects.";
-  }
-
-  revision 2015-09-10 {
-    description
       "Initial revision. This YANG file defines
-       the Virtual Network Function (VNF)";
+       grouping to extend the base MANO NSD";
     reference
       "Derived from earlier versions of base YANG files";
   }
 
-  container vnfd-catalog {
-    description
-      "Virtual Network Function Descriptor (VNFD).";
-
-    list vnfd {
-      key "id";
-
-        uses vnfd-base:vnfd-descriptor;
+  grouping rw-nsd-ext {
+    uses manotypes:control-param;
+    uses manotypes:action-param;
+    leaf meta {
+      description
+        "Any meta-data needed by the UI";
+      type string;
     }
   }
 }

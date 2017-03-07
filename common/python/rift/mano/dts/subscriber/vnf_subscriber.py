@@ -48,4 +48,4 @@ class VnfdCatalogSubscriber(core.AbstractConfigSubscriber):
         return "id"
 
     def get_xpath(self):
-        return self.project.add_project("C,/vnfd:vnfd-catalog/vnfd:vnfd")
+        return self.project.add_project("C,/project-vnfd:vnfd-catalog/project-vnfd:vnfd")

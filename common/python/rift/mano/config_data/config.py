@@ -20,8 +20,8 @@ import json
 import os
 import yaml
 
-from gi.repository import NsdYang
-from gi.repository import VnfdYang
+from gi.repository import ProjectNsdYang as NsdYang
+from gi.repository import ProjectVnfdYang as VnfdYang
 
 
 class InitialConfigReadError(Exception):

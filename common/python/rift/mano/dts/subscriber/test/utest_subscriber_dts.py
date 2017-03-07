@@ -30,10 +30,10 @@ gi.require_version('RwDtsYang', '1.0')
 from gi.repository import (
         RwLaunchpadYang as launchpadyang,
         RwDts as rwdts,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         RwVnfrYang,
         RwNsrYang,
-        RwNsdYang,
+        RwProjectNsdYang as RwNsdYang,
         VnfrYang
         )
 
@@ -110,8 +110,8 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
         mock_vnfd = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
         mock_vnfd.id = str(uuid.uuid1())
 
-        w_xpath = "C,/rw-project:project/vnfd:vnfd-catalog/vnfd:vnfd"
-        xpath = "{}[vnfd:id='{}']".format(w_xpath, mock_vnfd.id)
+        w_xpath = "C,/rw-project:project/project-vnfd:vnfd-catalog/project-vnfd:vnfd"
+        xpath = "{}[project-vnfd:id='{}']".format(w_xpath, mock_vnfd.id)
         yield from self.publisher.publish(w_xpath, xpath, mock_vnfd)
 
         yield from asyncio.sleep(5, loop=self.loop)
@@ -178,8 +178,8 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
         mock_nsd = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
         mock_nsd.id = str(uuid.uuid1())
 
-        w_xpath = "C,/rw-project:project/nsd:nsd-catalog/nsd:nsd"
-        xpath = "{}[nsd:id='{}']".format(w_xpath, mock_nsd.id)
+        w_xpath = "C,/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd"
+        xpath = "{}[project-nsd:id='{}']".format(w_xpath, mock_nsd.id)
         yield from self.publisher.publish(w_xpath, xpath, mock_nsd)
 
         yield from asyncio.sleep(2, loop=self.loop)

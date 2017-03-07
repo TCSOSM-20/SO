@@ -134,7 +134,7 @@ class TestCase(unittest.TestCase):
             1. Instance of project from xpath
             2. project name in instance is correct
         """
-        xpath = XPATH + '/rw:project/rw-project:project/rw-project:project/rw-project:project/rw-project:project/nsd:nsd-catalog/nsd:nsd[id=\'1232334\']'
+        xpath = XPATH + '/rw:project/rw-project:project/rw-project:project/rw-project:project/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd[id=\'1232334\']'
         proj = project.ManoProject.create_from_xpath(xpath, TestCase.log)
         assert proj
         assert NAME == proj.name

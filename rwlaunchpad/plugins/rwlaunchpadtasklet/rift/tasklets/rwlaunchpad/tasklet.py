@@ -81,7 +81,7 @@ class CatalogDtsHandler(object):
 
 
 class NsdCatalogDtsHandler(CatalogDtsHandler):
-    XPATH = "C,/nsd:nsd-catalog/nsd:nsd"
+    XPATH = "C,/project-nsd:nsd-catalog/project-nsd:nsd"
 
     def add_nsd(self, nsd):
         self.log.debug('nsd-catalog-handler:add:{}'.format(nsd.id))
@@ -158,7 +158,7 @@ class NsdCatalogDtsHandler(CatalogDtsHandler):
 
 
 class VnfdCatalogDtsHandler(CatalogDtsHandler):
-    XPATH = "C,/vnfd:vnfd-catalog/vnfd:vnfd"
+    XPATH = "C,/project-vnfd:vnfd-catalog/project-vnfd:vnfd"
 
     def add_vnfd(self, vnfd):
         self.log.debug('vnfd-catalog-handler:add:{}'.format(vnfd.id))

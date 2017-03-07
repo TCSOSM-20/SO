@@ -37,19 +37,19 @@ import rift.auto.session
 
 import gi
 gi.require_version('RwNsrYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 gi.require_version('RwLaunchpadYang', '1.0')
 gi.require_version('RwBaseYang', '1.0')
 
 from gi.repository import (
     RwcalYang,
-    NsdYang,
+    ProjectNsdYang as NsdYang,
     RwNsrYang,
     RwVnfrYang,
     NsrYang,
     VnfrYang,
     VldYang,
-    RwVnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     RwLaunchpadYang,
     RwBaseYang
 )
@@ -333,7 +333,7 @@ class TestNsrStart(object):
         nsd = catalog.nsd[0]
 
         input_parameters = []
-        descr_xpath = "/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id='%s']/nsd:description" % nsd.id
+        descr_xpath = "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id='%s']/project-nsd:description" % nsd.id
         descr_value = "New NSD Description"
         in_param_id = str(uuid.uuid4())
 

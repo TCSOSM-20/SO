@@ -24,11 +24,11 @@ from rift.mano.tosca_translator.common.utils import dict_convert_values_to_str
 try:
     import gi
     gi.require_version('RwYang', '1.0')
-    gi.require_version('RwNsdYang', '1.0')
-    gi.require_version('NsdYang', '1.0')
+    gi.require_version('RwProjectNsdYang', '1.0')
+    gi.require_version('ProjectNsdYang', '1.0')
 
-    from gi.repository import NsdYang
-    from gi.repository import RwNsdYang
+    from gi.repository import ProjectNsdYang as NsdYang
+    from gi.repository import RwProjectNsdYang as RwNsdYang
     from gi.repository import RwYang
 except ImportError:
     pass

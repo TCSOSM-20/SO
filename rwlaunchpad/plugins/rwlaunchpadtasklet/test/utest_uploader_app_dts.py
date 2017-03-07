@@ -33,19 +33,20 @@ import tornado.ioloop
 import tornado.web
 import tornado.httputil
 
-import gi
 import requests
 from tornado.platform.asyncio import AsyncIOMainLoop
 from tornado.ioloop import IOLoop
 from concurrent.futures.thread import ThreadPoolExecutor
 from concurrent.futures.process import ProcessPoolExecutor
+
+import gi
 gi.require_version('RwDts', '1.0')
 gi.require_version('RwPkgMgmtYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 from gi.repository import (
         RwDts as rwdts,
         RwPkgMgmtYang,
-        RwVnfdYang
-
+        RwProjectVnfdYang as RwVnfdYang,
         )
 
 import rift.tasklets.rwlaunchpad.uploader as uploader

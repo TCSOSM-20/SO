@@ -183,7 +183,7 @@ class ManoProject(object):
         if idx == 0:
             name = cls.from_xpath(xpath, log)
             if name == project:
-                log.warning("Project already in the XPATH: {}".format(xpath))
+                log.debug("Project already in the XPATH: {}".format(xpath))
                 return xpath
 
             else:

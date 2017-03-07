@@ -35,7 +35,7 @@ from enum import Enum
 
 import gi
 gi.require_version('RwYang', '1.0')
-gi.require_version('RwNsdYang', '1.0')
+gi.require_version('ProjectNsdYang', '1.0')
 gi.require_version('RwDts', '1.0')
 gi.require_version('RwNsmYang', '1.0')
 gi.require_version('RwNsrYang', '1.0')
@@ -46,7 +46,7 @@ from gi.repository import (
     RwYang,
     RwNsrYang,
     NsrYang,
-    NsdYang,
+    ProjectNsdYang as NsdYang,
     RwVlrYang,
     VnfrYang,
     RwVnfrYang,
@@ -650,7 +650,7 @@ class VirtualLinkRecord(object):
         for conn in self.vld_msg.vnfd_connection_point_ref:
             for vnfr in vnfrs:
                 if (vnfr.vnfd.id == conn.vnfd_id_ref and
-                        vnfr.member_vnf_index == conn.member_vnf_index_ref and
+                        str(vnfr.member_vnf_index) == conn.member_vnf_index_ref and
                         self.cloud_account_name == vnfr.cloud_account_name and
                         self.om_datacenter_name == vnfr.om_datacenter_name):
                     cp_entry = nsr_vlr.vnfr_connection_point_ref.add()
@@ -1086,7 +1086,7 @@ class VirtualNetworkFunctionRecord(object):
                 for vnfd_cp in vlr.vld_msg.vnfd_connection_point_ref:
                     if (vnfd_cp.vnfd_id_ref == self._vnfd.id and
                             vnfd_cp.vnfd_connection_point_ref == conn.name and
-                            vnfd_cp.member_vnf_index_ref == self.member_vnf_index and
+                            vnfd_cp.member_vnf_index_ref == str(self.member_vnf_index) and
                              vlr.cloud_account_name == self.cloud_account_name):
                         self._log.debug("Found VLR for cp_name:%s and vnf-index:%d",
                                         conn.name, self.member_vnf_index)
@@ -1094,6 +1094,8 @@ class VirtualNetworkFunctionRecord(object):
             return None
 
         # For every connection point in the VNFD fill in the identifier
+        self._log.debug("Add connection point for VNF %s: %s",
+                        self.vnfr_msg.name, self._vnfd.connection_point)
         for conn_p in self._vnfd.connection_point:
             cpr = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_ConnectionPoint()
             cpr.name = conn_p.name
@@ -1124,9 +1126,6 @@ class VirtualNetworkFunctionRecord(object):
 
         self._log.info("Created VNF with xpath %s and vnfr %s",
                        self.xpath, self.vnfr_msg)
-
-        self._log.info("Instantiated VNFR with xpath %s and vnfd %s, vnfr %s",
-                       self.xpath, self._vnfd, self.vnfr_msg)
 
     @asyncio.coroutine
     def update_state(self, vnfr_msg):
@@ -1444,7 +1443,7 @@ class NetworkServiceRecord(object):
         """  Fetch Cloud Account for the passed vnfd id """
         if self._nsr_cfg_msg.vnf_cloud_account_map:
            vim_accounts = [(vnf.cloud_account,vnf.om_datacenter)  for vnf in self._nsr_cfg_msg.vnf_cloud_account_map \
-                           if vnfd_member_index == vnf.member_vnf_index_ref]
+                           if str(vnfd_member_index) == vnf.member_vnf_index_ref]
            if vim_accounts and vim_accounts[0]:
                return vim_accounts[0]
         return (self.cloud_account_name,self.om_datacenter_name)
@@ -2039,7 +2038,7 @@ class NetworkServiceRecord(object):
         for group in self.nsd_msg.placement_groups:
             for member_vnfd in group.member_vnfd:
                 if (member_vnfd.vnfd_id_ref == vnfd_msg.id) and \
-                   (member_vnfd.member_vnf_index_ref == const_vnfd.member_vnf_index):
+                   (member_vnfd.member_vnf_index_ref == str(const_vnfd.member_vnf_index)):
                     group_info = self.resolve_placement_group_cloud_construct(group)
                     if group_info is None:
                         self._log.error("Could not resolve cloud-construct for placement group: %s", group.name)
@@ -2235,7 +2234,7 @@ class NetworkServiceRecord(object):
     def nsd_xpath(self):
         """ Return NSD config xpath."""
         return self._project.add_project((
-            "C,/nsd:nsd-catalog/nsd:nsd[nsd:id = '{}']"
+            "C,/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id = '{}']"
         ).format(self.nsd_id))
 
     @asyncio.coroutine
@@ -2780,7 +2779,7 @@ class NetworkServiceDescriptor(object):
     def path_for_id(nsd_id):
         """ Return path for the passed nsd_id"""
         return self._nsm._project.add_project(
-            "C,/nsd:nsd-catalog/nsd:nsd[nsd:id = '{}'".
+            "C,/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id = '{}'".
             format(nsd_id))
 
     def path(self):
@@ -2794,7 +2793,7 @@ class NetworkServiceDescriptor(object):
 
 class NsdDtsHandler(object):
     """ The network service descriptor DTS handler """
-    XPATH = "C,/nsd:nsd-catalog/nsd:nsd"
+    XPATH = "C,/project-nsd:nsd-catalog/project-nsd:nsd"
 
     def __init__(self, dts, log, loop, nsm):
         self._dts = dts
@@ -2900,7 +2899,7 @@ class NsdDtsHandler(object):
 
 class VnfdDtsHandler(object):
     """ DTS handler for VNFD config changes """
-    XPATH = "C,/vnfd:vnfd-catalog/vnfd:vnfd"
+    XPATH = "C,/project-vnfd:vnfd-catalog/project-vnfd:vnfd"
 
     def __init__(self, dts, log, loop, nsm):
         self._dts = dts

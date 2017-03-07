@@ -35,10 +35,10 @@ import rift.auto.descriptor
 
 from gi.repository import (
     NsrYang,
-    NsdYang,
+    ProjectNsdYang as NsdYang,
     VnfrYang,
     RwNsrYang,
-    RwNsdYang,
+    RwProjectNsdYang as RwNsdYang,
     RwVnfrYang,
 )
 

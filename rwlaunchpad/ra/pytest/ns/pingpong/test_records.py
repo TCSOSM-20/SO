@@ -26,14 +26,14 @@ import gi
 import re
 gi.require_version('RwNsrYang', '1.0')
 from gi.repository import (
-        NsdYang,
+        ProjectNsdYang as NsdYang,
         RwBaseYang,
         RwConmanYang,
         RwNsrYang,
-        RwNsdYang,
+        RwProjectNsdYang as RwNsdYang,
         RwVcsYang,
         RwVlrYang,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         RwVnfrYang,
         VlrYang,
         VnfrYang,

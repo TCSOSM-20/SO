@@ -27,14 +27,16 @@ module rw-vnfr
     prefix "manotypes";
   }
 
-  import rw-pb-ext { prefix "rwpb"; }
+  import rw-pb-ext {
+    prefix "rwpb";
+  }
 
   import vnfr {
     prefix "vnfr";
   }
 
-  import vnfd {
-    prefix "vnfd";
+  import project-vnfd {
+    prefix "project-vnfd";
   }
 
   import rw-cloud {
@@ -57,7 +59,7 @@ module rw-vnfr
     prefix "rw-project";
   }
 
-  revision 2017-02-08 {
+  revision 2017-02-28 {
     description
       "Update model to support projects.";
   }
@@ -288,7 +290,7 @@ module rw-vnfr
       leaf vnfd-id-ref {
         description "Reference to VNFD";
         type leafref {
-          path "../../../vnfd:vnfd-catalog/vnfd:vnfd/vnfd:id";
+          path "../../../project-vnfd:vnfd-catalog/project-vnfd:vnfd/project-vnfd:id";
         }
       }
       leaf instance-ref-count {

@@ -1219,7 +1219,7 @@ class VirtualNetworkFunctionRecord(object):
     @staticmethod
     def vnfd_xpath(vnfd_id):
         """ VNFD xpath associated with this VNFR """
-        return ("C,/vnfd:vnfd-catalog/vnfd:vnfd[vnfd:id = '{}']".
+        return ("C,/project-vnfd:vnfd-catalog/project-vnfd:vnfd[project-vnfd:id = '{}']".
                 format(vnfd_id))
 
     @property
@@ -1989,7 +1989,7 @@ class VirtualNetworkFunctionRecord(object):
 
 class VnfdDtsHandler(object):
     """ DTS handler for VNFD config changes """
-    XPATH = "C,/vnfd:vnfd-catalog/vnfd:vnfd"
+    XPATH = "C,/project-vnfd:vnfd-catalog/project-vnfd:vnfd"
 
     def __init__(self, dts, log, loop, vnfm):
         self._dts = dts

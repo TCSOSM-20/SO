@@ -31,11 +31,11 @@ import yaml
 from rift.mano.config_data import config
 
 import gi
-gi.require_version('VnfdYang', '1.0')
+gi.require_version('ProjectVnfdYang', '1.0')
 gi.require_version('RwYang', '1.0')
 
 from gi.repository import (
-        VnfdYang,
+        ProjectVnfdYang,
         RwYang,
         )
 

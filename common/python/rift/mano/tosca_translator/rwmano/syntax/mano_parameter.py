@@ -42,7 +42,7 @@ class ManoParameter(object):
 
     # TODO(Philip): Harcoding for now, need to make this generic
     def get_xpath(self):
-        xpath = '/rw-project:project/nsd:nsd-catalog/nsd:nsd/nsd:' + self.name
+        xpath = '/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/nsd:' + self.name
         return xpath
 
     def get_dict_output(self):

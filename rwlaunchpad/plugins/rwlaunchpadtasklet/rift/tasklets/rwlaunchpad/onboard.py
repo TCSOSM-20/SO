@@ -20,10 +20,10 @@ import requests
 from rift.mano.utils.project import DEFAULT_PROJECT
 from rift.package import convert
 from gi.repository import (
-    NsdYang,
-    RwNsdYang,
-    VnfdYang,
-    RwVnfdYang,
+    ProjectNsdYang as NsdYang,
+    RwProjectNsdYang as RwNsdYang,
+    ProjectVnfdYang as VnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
 )
 
 
@@ -97,7 +97,7 @@ class DescriptorOnboarder(object):
             raise TypeError("Invalid descriptor message type")
 
         serializer = DescriptorOnboarder.DESC_SERIALIZER_MAP[type(descriptor_msg)]
-        json_data = serializer.to_json_string(descriptor_msg)
+        json_data = serializer.to_json_string(descriptor_msg, project_ns=True)
         url = self._get_url(descriptor_msg, project=project)
 
         request_args = dict(

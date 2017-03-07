@@ -33,12 +33,12 @@ import xmlrunner
 from rift.package.handler import FileRestApiHandler
 
 import gi
-gi.require_version('NsdYang', '1.0')
-gi.require_version('VnfdYang', '1.0')
+gi.require_version('ProjectNsdYang', '1.0')
+gi.require_version('ProjectVnfdYang', '1.0')
 
 from gi.repository import (
-        NsdYang,
-        VnfdYang,
+        ProjectNsdYang as NsdYang,
+        ProjectVnfdYang as VnfdYang,
         )
 
 

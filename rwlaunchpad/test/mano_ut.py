@@ -81,8 +81,8 @@ if sys.version_info < (3, 4, 4):
 class XPaths(object):
     @staticmethod
     def nsd(k=None):
-        return ("C,/nsd:nsd-catalog/nsd:nsd" +
-                ("[nsd:id='{}']".format(k) if k is not None else ""))
+        return ("C,/project-nsd:nsd-catalog/project-nsd:nsd" +
+                ("[project-nsd:id='{}']".format(k) if k is not None else ""))
 
     @staticmethod
     def vld(k=None):
@@ -91,8 +91,8 @@ class XPaths(object):
 
     @staticmethod
     def vnfd(k=None):
-        return ("C,/vnfd:vnfd-catalog/vnfd:vnfd" +
-                ("[vnfd:id='{}']".format(k) if k is not None else ""))
+        return ("C,/project-vnfd:vnfd-catalog/project-vnfd:vnfd" +
+                ("[project-vnfd:id='{}']".format(k) if k is not None else ""))
 
     @staticmethod
     def vnfr(k=None):
@@ -549,7 +549,7 @@ class PingPongNsrConfigPublisher(object):
 
         inputs = nsryang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter()
         inputs.xpath = self.project.add_project(
-            "/nsd:nsd-catalog/nsd:nsd[nsd:id={}]/nsd:name".format(ping_pong.nsd_id))
+            "/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id={}]/project-nsd:name".format(ping_pong.nsd_id))
         inputs.value = "inigo montoya"
 
         fast_cpu = {'metadata_key': 'FASTCPU', 'metadata_value': 'True'}
@@ -1057,7 +1057,7 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
 
             nsr_config = nsr_configs[0]
             self.assertEqual(
-                    "/rw-project:project/nsd:nsd-catalog/nsd:nsd[nsd:id={}]/nsd:name".format(self.ping_pong.nsd_id),
+                    "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id={}]/project-nsd:name".format(self.ping_pong.nsd_id),
                     nsr_config.input_parameter[0].xpath,
                     )
 

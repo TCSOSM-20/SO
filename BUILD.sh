@@ -114,7 +114,7 @@ fi
 
 if [[ $PLATFORM == ub16 ]]; then
     PLATFORM_REPOSITORY=${1:-OSM}
-    PLATFORM_VERSION=${2:-4.3.1.0.53704}
+    PLATFORM_VERSION=${2:-4.4.0.0.57702}
 elif [[ $PLATFORM == fc20 ]]; then
     PLATFORM_REPOSITORY=${1:-OSM}  # change to OSM when published
     PLATFORM_VERSION=${2:-4.3.1.0.53705}

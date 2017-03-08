@@ -21,6 +21,7 @@ from rift.mano.yang_translator.common.utils import _
 from rift.mano.yang_translator.rwmano.syntax.tosca_resource \
     import ToscaResource
 from rift.mano.yang_translator.rwmano.yang.yang_vld import YangVld
+from collections import OrderedDict
 
 TARGET_CLASS_NAME = 'YangNsd'
 
@@ -68,6 +69,10 @@ class YangNsd(ToscaResource):
         self.vld_to_vnf_map = {}
         self.vnf_to_vld_map = {}
         self._vnf_vld_conn_point_map = {}
+        self.vnffgds = {}
+        self.forwarding_paths = {}
+        self.substitution_mapping_forwarder = []
+        self.vnfd_sfc_map = None
 
     def handle_yang(self, vnfds):
         self.log.debug(_("Process NSD desc {0}: {1}").
@@ -182,7 +187,7 @@ class YangNsd(ToscaResource):
                         if ip_profile_name == ip_prof['name']:
                             ip_profile_vld = ip_prof
             if 'name' in vld:
-                vld_name = vld['name']
+                vld_name = vld['name'].replace('-','_').replace(' ','')
             if 'description' in vld:
                 vld_conf['description'] = vld['description']
             if 'vendor' in vld:
@@ -245,6 +250,168 @@ class YangNsd(ToscaResource):
                             }
                 self.placement_groups.append(placement)
 
+        def process_vnffgd(vnffgs, dic):
+            associated_cp_names = []
+            all_cp_names        = []
+            vnfd_sfc_map        = {}
+            
+            conn_point_to_conection_node = {}
+            conn_point_to_vnf_name_map = {}
+
+            unigue_id_forwarder_path_map = OrderedDict()
+            forwarder_name_to_constitent_vnf_map = OrderedDict()
+            unique_id_classifier_map = OrderedDict()
+            fp_path_count = 1
+            forwarder_count = 1
+
+            vnffg_to_unique_id_rsp_map = OrderedDict()
+            vnffg_to_unique_id_classifier_map = OrderedDict()
+            vnffg_to_associated_cp_names = OrderedDict()
+            rsp_associated_cp_names = OrderedDict()
+            vnffg_to_forwarder_map  = OrderedDict()
+            for vnffg in vnffgs:
+                unique_id_rsp_map = {}
+                for rs in vnffg['rsp']:
+                    unique_id_rsp_map[str(rs['id'])] = rs
+                for class_identifier in vnffg['classifier']:
+                    unique_id_classifier_map[str(class_identifier['rsp_id_ref'])] = class_identifier
+                    associated_cp_names.append(class_identifier['vnfd_connection_point_ref'])
+                    all_cp_names.append(class_identifier['vnfd_connection_point_ref'])
+                    conn_point_to_vnf_name_map[class_identifier['vnfd_connection_point_ref']] = self.vnf_id_to_vnf_map[class_identifier['vnfd_id_ref']]
+                    vnfd_sfc_map[self.vnf_id_to_vnf_map[class_identifier['vnfd_id_ref']]] = class_identifier['vnfd_connection_point_ref']
+
+                    rsp_associated_cp_names[str(class_identifier['rsp_id_ref'])] = class_identifier['vnfd_connection_point_ref']
+
+                vnffg_to_unique_id_rsp_map[vnffg['name']] = unique_id_rsp_map
+                vnffg_to_forwarder_map[vnffg['name']] = []
+    
+            for vnffg in vnffgs:
+                prop = {}
+                fp_members = []
+
+                
+                prop['type'] = self.T_VNFFG
+                prop[self.DESC] = "Test"
+                prop[self.PROPERTIES] = {}
+                if 'vendor' in vnffg:
+                    prop[self.PROPERTIES]['vendor'] = vnffg['vendor']
+                if 'name' in vnffg:
+                    self.vnffgds[vnffg['name']] = prop
+                
+                for rs_id, rs in vnffg_to_unique_id_rsp_map[vnffg['name']].items():
+                    associated_cp_node_names = []
+                    associated_vnf_names = []
+                    number_of_endpoints = 0
+                    if 'vnfd_connection_point_ref' in rs:
+                       number_of_endpoints = number_of_endpoints + len(rs['vnfd_connection_point_ref'])
+                       for vnf in rs['vnfd_connection_point_ref']:
+                            associated_vnf_names.append(str(self.vnf_id_to_vnf_map[vnf['vnfd_id_ref']]))
+                            associated_cp_names.append(vnf['vnfd_connection_point_ref'])
+                            all_cp_names.append(vnf['vnfd_connection_point_ref'])
+                            conn_point_to_vnf_name_map[vnf['vnfd_connection_point_ref']] = self.vnf_id_to_vnf_map[vnf['vnfd_id_ref']]
+                       if "forwarder{}".format(fp_path_count) not in  forwarder_name_to_constitent_vnf_map:
+                            forwarder_name_to_constitent_vnf_map["forwarder{}".format(fp_path_count)] = associated_vnf_names
+                            vnffg_to_forwarder_map[vnffg['name']].append("forwarder{}".format(fp_path_count))
+                    fp_path_count = fp_path_count + 1
+                    
+                    associated_cp_names = list(set(associated_cp_names))
+                    for cp_name in associated_cp_names:
+                            for idx, vnfd in self.vnfds.items():
+                                for vdu in vnfd.vdus:
+                                    if cp_name == rsp_associated_cp_names[rs_id]:
+                                        if cp_name in vdu.conn_point_to_conection_node:
+                                            associated_cp_node_names.append(vdu.conn_point_to_conection_node[cp_name])
+                                            #conn_point_to_conection_node[cp_name] = vdu.conn_point_to_conection_node[cp_name]
+
+                    for cp_name in all_cp_names:
+                        for idx, vnfd in self.vnfds.items():
+                            for vdu in vnfd.vdus:
+                                if cp_name in vdu.conn_point_to_conection_node:
+                                    conn_point_to_conection_node[cp_name] = vdu.conn_point_to_conection_node[cp_name]
+
+                    if len(associated_vnf_names) > 0:
+                        associated_vnf_names = list(set(associated_vnf_names))
+                        vnf_str = ", ".join(associated_vnf_names)
+                        prop[self.PROPERTIES]['constituent_vnfs'] = "[{}]".format(vnf_str)
+                    if len(associated_cp_node_names) > 0:
+                        associated_cp_node_names = list(set(associated_cp_node_names))
+                        connection_point_str = ", ".join(associated_cp_node_names)
+                        prop[self.PROPERTIES]['connection_point'] = "[{}]".format(", ".join(associated_cp_node_names))
+
+                    prop[self.PROPERTIES]['number_of_endpoints'] = number_of_endpoints
+                    fp_name = "Forwarding_path{}".format(forwarder_count)
+                    unigue_id_forwarder_path_map[fp_name] = rs_id
+                    fp_members.append(fp_name)
+                    forwarder_count = forwarder_count + 1
+
+                    if len(fp_members) > 0:
+                        prop['members'] = []
+                        for fp in fp_members:
+                            prop['members'].append(fp)
+
+            fp_count = 1
+            for fp, idx in unigue_id_forwarder_path_map.items():
+                for vnffg_name, unique_id_rsp_map in vnffg_to_unique_id_rsp_map.items():
+                    if idx in unique_id_rsp_map:
+                        prop = {}
+                        prop['type'] = self.T_FP
+                        prop[self.PROPERTIES] = {}
+                        prop[self.PROPERTIES][self.DESC] = "Forwarder"
+                        prop[self.PROPERTIES]['policy'] = {}
+                        prop[self.PROPERTIES]['policy']['type'] = 'ACL'
+                        prop[self.PROPERTIES]['policy']['criteria'] = []
+
+                        prop[self.PROPERTIES]['path'] = []
+
+                        rsp =  unique_id_rsp_map[idx]
+                        classifier = unique_id_classifier_map[idx]
+
+                        for match in classifier['match_attributes']:
+                            match_prop = {}
+                            if 'source_port' in match:
+                                port = "'{}'".format((match['source_port']))
+                                prop[self.PROPERTIES]['policy']['criteria'].append({'source_port_range': port})
+                            if 'destination_port' in match:
+                                port = "'f'{}''".format((match['destination_port']))
+                                prop[self.PROPERTIES]['policy']['criteria'].append({'destination_port_range': '5006'})
+                            if 'ip_proto' in match:
+                                port = match['ip_proto']
+                                prop[self.PROPERTIES]['policy']['criteria'].append({'ip_proto': port})
+                            if 'destination_ip_address' in match:
+                                port = "'{}'".format((match['destination_ip_address']))
+                                prop[self.PROPERTIES]['policy']['criteria'].append({'ip_dst_prefix': port})
+
+                        if 'vnfd_connection_point_ref' in classifier:
+                            if classifier['vnfd_connection_point_ref'] in conn_point_to_vnf_name_map:
+                                if 'cp' not in prop[self.PROPERTIES]:
+                                    prop[self.PROPERTIES]['cp'] = {}
+                                prop[self.PROPERTIES]['cp']['forwarder'] = conn_point_to_vnf_name_map[classifier['vnfd_connection_point_ref']]
+                                prop[self.PROPERTIES]['cp']['capability'] = conn_point_to_conection_node[classifier['vnfd_connection_point_ref']]
+
+                        for fp, vnf_list in forwarder_name_to_constitent_vnf_map.items():
+                            for vnf in vnf_list:
+                                for cp, vnf_name in conn_point_to_vnf_name_map.items():
+                                    if vnf == vnf_name:
+                                        self.substitution_mapping_forwarder.append((vnf, fp, conn_point_to_conection_node[cp]))
+
+                        visited_forwarder = []
+                        visited_path = None
+                        for path, vnfs in forwarder_name_to_constitent_vnf_map.items():
+                            for vnf in vnfs:
+                                if (vnf not in visited_forwarder) and (path in vnffg_to_forwarder_map[vnffg_name]):
+                                    path_prop = {}
+                                    path_prop['forwarder']  = vnf
+                                    path_prop['capability'] = path
+                                    prop[self.PROPERTIES]['path'].append(path_prop)
+                                    visited_forwarder.append(vnf)
+                                    visited_path = path
+                        forwarder_name_to_constitent_vnf_map.pop(visited_path)
+
+                        self.forwarding_paths["Forwarding_path{}".format(fp_count)] = prop
+                        fp_count = fp_count +1
+
+            self.vnfd_sfc_map = vnfd_sfc_map
+
         dic = deepcopy(self.yang)
         try:
             for key in self.REQUIRED_FIELDS:
@@ -263,10 +430,17 @@ class YangNsd(ToscaResource):
                     process_vld(vld_dic, dic)
                     #self.vlds.append(vld)
 
+            #Process VNFFG
+            if self.VNFFGD in dic:
+                process_vnffgd(dic[self.VNFFGD], dic)
+
+
+            #if self.
+
             # Process config primitives
             if self.CONF_PRIM in dic:
                 for cprim in dic.pop(self.CONF_PRIM):
-                    conf_prim = {self.NAME: cprim.pop(self.NAME)}
+                    conf_prim = {self.NAME: cprim.pop(self.NAME), self.DESC : 'TestDescription'}
                     if self.USER_DEF_SCRIPT in cprim:
                         conf_prim[self.USER_DEF_SCRIPT] = \
                                         cprim.pop(self.USER_DEF_SCRIPT)
@@ -427,11 +601,23 @@ class YangNsd(ToscaResource):
                         for vnf_vld in vnf_vld_list:
                             vnfd.generate_vld_link(vld_link_name, vnf_vld[1])
 
+            for sub_mapping in self.substitution_mapping_forwarder:
+                if sub_mapping[0] == vnfd.name:
+                    vnfd.generate_forwarder_sub_mapping(sub_mapping)
+
+            for vnfd_name, cp_name in self.vnfd_sfc_map.items():
+                if vnfd.name == vnfd_name:
+                    vnfd.generate_sfc_link(cp_name)
+
+
 
             tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vnfd.name] = node
 
         for vld_node_name in self.vlds:
             tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vld_node_name] = self.vlds[vld_node_name]
+
+        for fp_name, fp in self.forwarding_paths.items():
+            tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][fp_name] = fp
 
         # add the config primitives
         if len(self.conf_prims):
@@ -451,8 +637,8 @@ class YangNsd(ToscaResource):
             conf_prims[self.PROPERTIES] = {
                 self.PRIMITIVES: prims
             }
-
-            tosca[self.TOPOLOGY_TMPL][self.GROUPS][self.CONF_PRIM] = conf_prims
+            conf_prims[self.DESC] = 'Test'
+            #tosca[self.TOPOLOGY_TMPL][self.GROUPS][self.CONF_PRIM] = conf_prims
 
 
         # Add the scale group
@@ -492,6 +678,13 @@ class YangNsd(ToscaResource):
 
             for placment_group in self.placement_groups:
                 tosca[self.TOPOLOGY_TMPL][self.POLICIES].append(placment_group)
+
+        if len(self.vnffgds) > 0:
+            if self.GROUPS not in tosca[self.TOPOLOGY_TMPL]:
+                tosca[self.TOPOLOGY_TMPL][self.GROUPS] = {}
+            for vnffgd_name in self.vnffgds:
+                tosca[self.TOPOLOGY_TMPL][self.GROUPS][vnffgd_name] = self.vnffgds[vnffgd_name]
+
 
         return tosca
 

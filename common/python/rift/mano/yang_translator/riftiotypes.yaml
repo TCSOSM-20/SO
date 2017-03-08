@@ -250,10 +250,10 @@ data_types:
           - in_range: [ 1, 254 ]
         required: false
       destination_port_range:
-        type: string
+        type: integer
         required: false
       source_port_range:
-        type: string
+        type: integer
         required: false
       network_src_port_id:
         type: string

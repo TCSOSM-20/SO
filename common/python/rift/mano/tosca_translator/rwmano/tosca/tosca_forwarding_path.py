@@ -18,6 +18,7 @@ class ToscaForwardingPath(ManoResource):
 		self.properties = {}
 
 	def handle_forwarding_path_dependencies(self, nodes, vnf_type_to_capability_substitution_mapping):
+
 		def get_classifier(specs):
 			classifier_prop = {}
 			classifier_prop['name'] = 'VNFFG -' + str(self.name)
@@ -60,23 +61,27 @@ class ToscaForwardingPath(ManoResource):
 				fp_connection_point = []
 				vnf_index   = 1
 				order_index = 1
+				visited_cps = []
 				for rsp_item in specs['path']:
 					vnf_node_name       = rsp_item['forwarder']
 					conn_forwarder      = rsp_item['capability']
-					vnf_node            = self.get_node_with_name(vnf_node_name, nodes)
+					vnf_node            = self.get_node_with_name(vnf_node_name, nodes)					
+
 					for subs_mapping in vnf_type_to_capability_substitution_mapping[vnf_node.vnf_type]:
 						prop = {}
 						if conn_forwarder in subs_mapping:
 							fp_connection_point.append(subs_mapping[conn_forwarder])
 							cp_node_name = subs_mapping[conn_forwarder]
 							cp_node = self.get_node_with_name(cp_node_name, nodes)
-							prop['vnfd_connection_point_ref'] = cp_node.cp_name
-							prop['vnfd_id_ref'] = vnf_node.id
-							prop['member_vnf_index_ref'] = vnf_index
-							prop['order'] = order_index
-							rsp['vnfd_connection_point_ref'].append(prop)
-							vnf_index = vnf_index + 1
-							order_index = order_index + 1
+							if cp_node.cp_name not in visited_cps:
+								prop['vnfd_connection_point_ref'] = cp_node.cp_name
+								prop['vnfd_id_ref'] = vnf_node.id
+								prop['member_vnf_index_ref'] = vnf_node.get_member_vnf_index()
+								prop['order'] = order_index
+								rsp['vnfd_connection_point_ref'].append(prop)
+								vnf_index = vnf_index + 1
+								order_index = order_index + 1
+								visited_cps.append(cp_node.cp_name)
 				return rsp
 
 		tosca_props = self.get_tosca_props()

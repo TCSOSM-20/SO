@@ -13,7 +13,7 @@ class ToscaForwardingGraph(ManoResource):
                                           type_="vnfgd",
                                           metadata=metadata)
 		self.name = group.name
-		self.type_ = 'vnffg'
+		self.type_ = 'vnfgd'
 		self.metadata = metadata
 		self.group = group
 		self.properties = {}

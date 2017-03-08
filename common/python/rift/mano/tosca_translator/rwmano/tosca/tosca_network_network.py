@@ -89,7 +89,7 @@ class ToscaNetwork(ManoResource):
                 ip_profile_param['gateway-address'] = specs['gateway_ip']
             if 'ip_version' in specs:
                 ip_profile_param['ip-version'] = 'ipv' + str(specs['ip_version'])
-            if 'ip_version' in specs:
+            if 'cidr' in specs:
                 ip_profile_param['subnet-address'] = specs['cidr']
 
             ip_profile_prop['ip-profile-params'] = ip_profile_param

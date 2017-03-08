@@ -43,7 +43,7 @@ class ToscaResource(object):
                  MEM_VNF_INDEX_REF, VNFD_ID_REF,
                  MEM_VNF_INDEX, VNF_CONFIG, TYPE_Y,
                  USER_DEF_SCRIPT, SEQ, PARAM,
-                 VALUE, START_BY_DFLT,) = \
+                 VALUE, START_BY_DFLT, VNFFGD, ) = \
                 ('vld', 'nsd', 'vnfd', 'vdu', 'dashboard_params',
                  'config_attributes', 'config_template',
                  'config_type', 'config_details', 'external_interface',
@@ -51,7 +51,7 @@ class ToscaResource(object):
                  'member_vnf_index_ref', 'vnfd_id_ref',
                  'member_vnf_index', 'vnf_configuration', 'type_yang',
                  'user_defined_script', 'seq', 'parameter',
-                 'value', 'start_by_default',)
+                 'value', 'start_by_default', 'vnffgd',)
 
     TOSCA_FIELDS = (DERIVED_FROM, PROPERTIES, DEFAULT, REQUIRED,
                     NO, CONSTRAINTS, REALTIONSHIPS,
@@ -95,7 +95,9 @@ class ToscaResource(object):
         T_INITIAL_CFG,
         T_ARTF_CLOUD_INIT,
         T_PLACEMENT,
-        T_ELAN
+        T_ELAN,
+        T_VNFFG,
+        T_FP,
     ) = \
         ('tosca.policies.nfv.riftio.vnf_configuration',
          'tosca.capabilities.riftio.http_endpoint_type',
@@ -111,7 +113,9 @@ class ToscaResource(object):
          'tosca.policies.nfv.riftio.initial_config_primitive',
          'tosca.artifacts.Deployment.riftio.cloud_init_file',
          'tosca.policies.nfv.riftio.placement',
-         'tosca.nodes.nfv.riftio.ELAN'
+         'tosca.nodes.nfv.riftio.ELAN',
+         'tosca.groups.nfv.VNFFG',
+         'tosca.nodes.nfv.riftio.FP1',
         )
 
     SUPPORT_FILES = ( SRC, DEST, EXISTING) = \

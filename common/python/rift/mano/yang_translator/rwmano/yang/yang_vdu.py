@@ -87,6 +87,7 @@ class YangVdu(ToscaResource):
         self.cp_name_to_cp_node = {}
         self.pinning_epa_prop   = {}
         self.mem_page_guest_epa = None
+        self.conn_point_to_conection_node = {}
 
     def process_vdu(self):
         self.log.debug(_("Process VDU desc {0}: {1}").format(self.name,
@@ -222,6 +223,11 @@ class YangVdu(ToscaResource):
             self.guest_epa = guest_epa_prop
 
         self.remove_ignored_fields(vdu_dic)
+
+        for cp in self.ext_cp:
+            cp_name = cp[self.NAME].replace('/', '_')
+            self.conn_point_to_conection_node[cp[self.NAME]] = cp_name
+
 
         if len(vdu_dic):
             self.log.warn(_("{0}, Did not process the following in "

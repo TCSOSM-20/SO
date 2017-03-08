@@ -56,6 +56,7 @@ class YangVnfd(ToscaResource):
         self.vnf_type = None
         self.tosca = None
         self.script_files = []
+        self.service_function_type = None
 
     def handle_yang(self):
         self.log.debug(_("Process VNFD desc {0}: {1}").format(self.name,
@@ -197,6 +198,9 @@ class YangVnfd(ToscaResource):
                                     "connection-point {1}: {2}").
                                   format(self, name, cp_dic))
 
+        def process_service_type(dic):
+            self.service_function_type = dic['service_function_type']
+
         ENDPOINTS_MAP = {
             self.MGMT_INTF: process_mgmt_intf,
             self.HTTP_EP:  process_http_ep,
@@ -224,6 +228,9 @@ class YangVnfd(ToscaResource):
             if self.VNF_CONFIG in dic:
                 process_vnf_config(dic.pop(self.VNF_CONFIG))
 
+            if 'service_function_type' in dic:
+                process_service_type(dic)
+
             self.remove_ignored_fields(dic)
             if len(dic):
                 self.log.warn(_("{0}, Did not process the following for "
@@ -243,7 +250,8 @@ class YangVnfd(ToscaResource):
                 vdu.set_vld(cp_name, vld_name)
                 break
     def _generate_vnf_type(self, tosca):
-        name = self.name.split('_', 1)[0]
+        name = self.name.replace("_","")
+        name = name.split('_', 1)[0]
         self.vnf_type = "{0}{1}{2}".format(self.vnf_prefix_type, name, 'VNF')
         if self.NODE_TYPES not in tosca and self.vnf_type:
             tosca[self.NODE_TYPES] = {}
@@ -362,7 +370,28 @@ class YangVnfd(ToscaResource):
             self.tosca[self.NODE_TYPES][self.vnf_type][self.REQUIREMENTS] = []
         self.tosca[self.NODE_TYPES][self.vnf_type][self.REQUIREMENTS].append({virtualLink : {
                                                                         "type": "tosca.nodes.nfv.VL"}})
+    def generate_forwarder_sub_mapping(self, sub_link):
+        if self.CAPABILITIES not in self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING]:
+            self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING][self.CAPABILITIES] = {}
+            self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING][self.CAPABILITIES]
 
+        self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING][self.CAPABILITIES][sub_link[1]] = \
+                            "[{}, forwarder]".format(sub_link[2])
+
+    def generate_sfc_link(self, sfs_conn_point_name):
+        for vdu in self.vdus:
+            if sfs_conn_point_name in vdu.cp_name_to_cp_node:
+                 conn_point_node_name = vdu.cp_name_to_cp_node[sfs_conn_point_name]
+                 if conn_point_node_name in self.tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL]:
+                    if self.CAPABILITIES not in  self.tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL]:
+                        self.tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][conn_point_node_name][self.CAPABILITIES] = {}
+                    self.tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][conn_point_node_name][self.CAPABILITIES]['sfc'] =  {self.PROPERTIES: {}}
+                    self.tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][conn_point_node_name] \
+                            [self.CAPABILITIES]['sfc'][self.PROPERTIES]['sfc_type'] = 'sf'
+
+                    if self.service_function_type:
+                        self.tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][conn_point_node_name] \
+                                [self.CAPABILITIES]['sfc'][self.PROPERTIES]['sf_type'] = self.service_function_type
 
     def generate_tosca(self):
         tosca = {}

@@ -71,6 +71,10 @@ module rw-vnfm
     prefix "rw-launchpad";
   }
 
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
   revision 2015-10-07 {
     description
       "Initial revision.";

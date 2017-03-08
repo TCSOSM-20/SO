@@ -21,12 +21,13 @@ import asyncio
 import logging
 
 import gi
-gi.require_version('RwProjectYang', '1.0')
+gi.require_version('RwProjectManoYang', '1.0')
 gi.require_version('RwDtsYang', '1.0')
 from gi.repository import (
-    RwProjectYang,
+    RwProjectManoYang,
     RwDts as rwdts,
     ProtobufC,
+    RwTypes,
 )
 
 import rift.tasklets
@@ -263,7 +264,7 @@ class ManoProject(object):
             self._prefix = "{}[{}='{}']".format(XPATH,
                                                 NS_NAME,
                                                 self._name)
-            self._pbcm = RwProjectYang.YangData_RwProject_Project(
+            self._pbcm = RwProjectManoYang.YangData_RwProject_Project(
                 name=self._name)
 
         elif self._name == value:
@@ -319,7 +320,7 @@ class ManoProject(object):
 
     @asyncio.coroutine
     def create_project(self, dts):
-        proj_xpath = "C,{}/project-config".format(self.prefix)
+        proj_xpath = "C,{}/config".format(self.prefix)
         self._log.info("Creating project: {} with {}".
                        format(proj_xpath, self.config.as_dict()))
 
@@ -395,7 +396,7 @@ class ProjectConfigCallbacks(object):
 
 
 class ProjectDtsHandler(object):
-    XPATH = "C,{}/project-config".format(XPATH)
+    XPATH = "C,{}/config".format(XPATH)
 
     def __init__(self, dts, log, callbacks):
         self._dts = dts
@@ -485,10 +486,13 @@ class ProjectDtsHandler(object):
             for cfg in update_cfgs:
                 self.update_project(cfg.name_ref)
 
+            return RwTypes.RwStatus.SUCCESS
+
         @asyncio.coroutine
         def on_prepare(dts, acg, xact, xact_info, ks_path, msg, scratch):
             """ Prepare callback from DTS for Project """
 
+            action = xact_info.query_action
             # xpath = ks_path.to_xpath(RwProjectYang.get_schema())
             # name = ManoProject.from_xpath(xpath, self._log)
             # if not name:
@@ -497,8 +501,18 @@ class ProjectDtsHandler(object):
             #     xact_info.respond_xpath(rwdts.XactRspCode.NACK)
             #     return
 
-            action = xact_info.query_action
+            # if name != msg.name_ref:
+            #     self._log.error("The project name {} did not match the name {} in config".
+            #                     format(name, msg.name_ref))
+            # projects = scratch.setdefault('projects', {
+            #     'create': [],
+            #     'update': [],
+            #     'delete': [],
+            # })
+
+            self._log.error("prepare msg type {}".format(type(msg)))
             name = msg.name_ref
+
             self._log.debug("Project %s on_prepare config received (action: %s): %s",
                             name, xact_info.query_action, msg)
 
@@ -511,6 +525,7 @@ class ProjectDtsHandler(object):
                     self._log.debug("Project {}: Invoking on_prepare add request".
                                     format(name))
                     yield from self._callbacks.on_add_prepare(name)
+
 
             elif action == rwdts.QueryAction.DELETE:
                 # Check if the entire project got deleted

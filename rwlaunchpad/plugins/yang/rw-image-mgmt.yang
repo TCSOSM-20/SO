@@ -53,6 +53,10 @@ module rw-image-mgmt
     prefix "rw-project";
   }
 
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
   import mano-types {
     prefix "mano-types";
   }

@@ -63,6 +63,10 @@ module rw-monitor
     prefix "yang";
   }
 
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
   revision 2015-10-30 {
     description
       "Initial revision.";

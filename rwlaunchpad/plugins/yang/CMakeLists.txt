@@ -71,13 +71,13 @@ rift_add_yang_target(
     rw_conman_yang_gen
     rwconfig_agent_yang_gen
     mano-types_yang_gen
-    rwproject_yang_gen
+    rwprojectmano_yang_gen
   DEPENDS
     mano_yang
     rwcloud_yang
     rw_conman_yang
     rwconfig_agent_yang
     mano-types_yang
-    rwproject_yang
+    rwprojectmano_yang
 )
 

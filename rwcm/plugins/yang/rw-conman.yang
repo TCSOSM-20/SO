@@ -87,6 +87,10 @@ module rw-conman
     prefix "rw-project";
   }
 
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
   revision 2017-02-08 {
     description
       "Update model to support projects.";

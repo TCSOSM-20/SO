@@ -28,12 +28,12 @@ rift_add_yang_target(
   LIBRARIES
     rwsdn_yang_gen
     rwcal_yang_gen
-    rwproject_yang_gen
+    rwprojectmano_yang_gen
     mano-types_yang_gen
   DEPENDS
     rwcal_yang
     rwsdn_yang
-    rwproject_yang
+    rwprojectmano_yang
     mano-types_yang
 )
 
@@ -43,8 +43,8 @@ rift_add_yang_target(
   COMPONENT ${PKG_LONG_NAME}
   LIBRARIES
     rwcal_yang_gen
-    rwproject_yang_gen
+    rwprojectmano_yang_gen
   DEPENDS
     rwcal_yang
-    rwproject_yang
+    rwprojectmano_yang
 )

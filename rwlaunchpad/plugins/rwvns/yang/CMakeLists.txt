@@ -29,6 +29,6 @@ rift_add_yang_target(
   COMPONENT ${PKG_LONG_NAME}
   LIBRARIES
     mano-types_yang_gen
-    rwproject_yang_gen
+    rwprojectmano_yang_gen
 )
 

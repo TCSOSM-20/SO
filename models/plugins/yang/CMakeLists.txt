@@ -38,11 +38,13 @@ set(source_yang_files
   )
 
 rift_add_yang_target(
-  TARGET rwproject_yang
+  TARGET rwprojectmano_yang
   YANG_FILES
-    rw-project.yang
+    rw-project-mano.yang
   GIR_PATHS ${CMAKE_CURRENT_BINARY_DIR}
   COMPONENT ${PKG_LONG_NAME}
+  LIBRARIES
+    rw_project_yang_gen
   )
 
 rift_add_yang_target(
@@ -51,9 +53,7 @@ rift_add_yang_target(
     mano-types.yang
   COMPONENT ${PKG_LONG_NAME}
   LIBRARIES
-    rwproject_yang_gen
-  DEPENDS
-    rwproject_yang
+    rwprojectmano_yang_gen
   )
 
 rift_add_yang_target(
@@ -67,11 +67,11 @@ rift_add_yang_target(
     rwcloud_yang_gen
     rwconfig_agent_yang_gen
     mano-types_yang_gen
-    rwproject_yang_gen
+    rwprojectmano_yang_gen
   DEPENDS
     rwcloud_yang
     rwconfig_agent_yang
-    rwproject_yang
+    rwprojectmano_yang
   )
 
 #rift_gen_yang_tree(mano-pyang-trees

@@ -89,6 +89,10 @@ module rw-vns
     prefix "rw-sdn";
   }
 
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
   revision 2015-10-05 {
     description
       "Initial revision.";

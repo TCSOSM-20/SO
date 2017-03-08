@@ -37,12 +37,12 @@ rift_add_yang_target(
   COMPONENT ${PKG_LONG_NAME}
   DEPENDS
     mano-types_yang
-    rwproject_yang
+    rwprojectmano_yang
   LIBRARIES
     rwschema_yang_gen
     rwyang
     rwlog
     rwlog-mgmt_yang_gen
     mano-types_yang_gen
-    rwproject_yang_gen
+    rwprojectmano_yang_gen
 )

@@ -39,6 +39,7 @@ rw-nsm
 rw-nsr
 rw-pb-ext
 rw-project
+rw-project-mano
 rw-project-nsd
 rw-project-vnfd
 rw-resource-mgr

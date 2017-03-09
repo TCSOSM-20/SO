@@ -185,8 +185,10 @@ if [[ $PLATFORM == ub16 ]]; then
     # ignore failures
 
     PACKAGES="rw.toolchain-rwbase rw.toolchain-rwtoolchain rw.core.mgmt-mgmt rw.core.util-util \
-	            rw.core.rwvx-rwvx rw.core.rwvx-rwdts rw.automation.core-RWAUTO rw.core.rwvx-rwha-1.0"
-    for package in $PACKAGES; do
+	            rw.core.rwvx-rwvx rw.core.rwvx-rwdts rw.automation.core-RWAUTO"
+    # this package is obsolete.
+    OLD_PACKAGES="rw.core.rwvx-rwha-1.0"
+    for package in $PACKAGES $OLD_PACKAGES; do
         apt remove -y $package || true
     done
 

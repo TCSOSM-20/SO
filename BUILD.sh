@@ -189,7 +189,7 @@ if [[ $PLATFORM == ub16 ]]; then
     # this package is obsolete.
     OLD_PACKAGES="rw.core.rwvx-rwha-1.0"
     for package in $PACKAGES $OLD_PACKAGES; do
-        apt remove -y $package || true
+        sudo apt remove -y $package || true
     done
 
     packages=""

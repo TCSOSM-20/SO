@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# 
+#
 #   Copyright 2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -155,8 +155,11 @@ class NetworkUtils(object):
         else:
             raise NotImplementedError("Port Type: %s not supported" %(cp.type_yang))
 
-        if cp.static_ip_address:
-            args["fixed_ips"] = [{"ip_address" : cp.static_ip_address}]
+        try:
+            if cp.static_ip_address:
+                args["fixed_ips"] = [{"ip_address" : cp.static_ip_address}]
+        except Exception as e:
+            pass
 
         if 'port_security_enabled' in cp:
             args['port_security_enabled'] = cp.port_security_enabled

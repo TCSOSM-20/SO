@@ -520,9 +520,16 @@ class ComputeUtils(object):
           console_url(string): Console URL for VM
         """
         console_url = None
-        if self._parse_vdu_state_info(vm_info) == 'ACTIVE':
+        if self._parse_vdu_state_info(vm_info) == 'active':
             try:
                 console_url = self.driver.nova_server_console(vm_info['id'])
+                serv_console_url = self.driver.nova_server_console(vm_info['id'])
+                if 'console' in serv_console_url:
+                    console_url = serv_console_url['console']['url']
+                else:
+                    self.log.error("Error fetching console url. This could be an Openstack issue. Console : " + str(serv_console_url))
+
+
             except Exception as e:
                 self.log.exception("Exception %s occured during volume list parsing", str(e))
         return console_url

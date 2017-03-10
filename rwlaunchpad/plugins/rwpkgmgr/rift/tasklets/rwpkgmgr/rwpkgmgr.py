@@ -30,14 +30,14 @@ gi.require_version('RwPkgMgmtYang', '1.0')
 
 from gi.repository import (
         RwDts as rwdts,
-        RwPkgMgmtYang) 
+        RwPkgMgmtYang)
 import rift.tasklets
 
 
 from . import rpc
 from .proxy import filesystem
 from . import publisher as pkg_publisher
-from . import subscriber 
+
 
 class PackageManagerTasklet(rift.tasklets.Tasklet):
     def __init__(self, *args, **kwargs):
@@ -66,10 +66,6 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
         args = [self.log, self.dts, self.loop]
         self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
 
-        # create catalog subscribers 
-        self.vnfd_catalog_sub = subscriber.VnfdStatusSubscriber(*args)
-        self.nsd_catalog_sub = subscriber.NsdStatusSubscriber(*args)
-
         args.append(proxy)
         self.endpoint_rpc = rpc.EndpointDiscoveryRpcHandler(*args)
         self.schema_rpc = rpc.SchemaRpcHandler(*args)
@@ -91,8 +87,6 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
         yield from self.pkg_op.register()
         yield from self.job_handler.register()
         yield from self.delete_rpc.register()
-        yield from self.vnfd_catalog_sub.register()
-        yield from self.nsd_catalog_sub.register()
 
     @asyncio.coroutine
     def run(self):

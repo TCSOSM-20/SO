@@ -28,7 +28,7 @@ from keystoneclient import v3 as ksclient
 
 from gi.repository import RwcalYang
 from gi.repository.RwTypes import RwStatus
-from rift.rwcal.openstack.openstack_drv import KeystoneDriver, NovaDriver, KeystoneDriverV3, KeystoneDriverV2
+#from rift.rwcal.openstack.openstack_drv import KeystoneDriver, NovaDriver, KeystoneDriverV3, KeystoneDriverV2
 
 logger = logging.getLogger('rwcal-openstack')
 
@@ -43,10 +43,10 @@ ssh_pwauth: True
 # Important information about openstack installation. This needs to be manually verified
 #
 openstack_info = {
-    'username'           : 'pluto',
-    'password'           : 'mypasswd',
-    'auth_url'           : 'http://10.66.4.17:5000/v3/',
-    'project_name'       : 'demo',
+    'username'           : 'xxxxxx',
+    'password'           : 'xxxxxx',
+    'auth_url'           : 'http://10.66.4.102:5000/v2.0/',
+    'project_name'       : 'xxxxxx',
     'mgmt_network'       : 'private',
     'reserved_flavor'    : 'm1.medium',
     'reserved_image'     : 'Fedora-x86_64-20-20131211.1-sda-ping.qcow2',
@@ -544,6 +544,7 @@ class OpenStackTest(unittest.TestCase):
         rc = self.cal.do_delete_flavor(self._acct, flavor_id)
         self.assertEqual(rc, RwStatus.SUCCESS)
 
+    '''
     @unittest.skip("Skipping test_expiry_token")
     def test_expiry_token(self):
         """
@@ -664,6 +665,7 @@ class OpenStackTest(unittest.TestCase):
         except Exception: 
             auth_exp = True
         self.assertFalse(auth_exp)
+    '''
 
     @unittest.skip("Skipping test_vm_operations")
     def test_vm_operations(self):
@@ -929,17 +931,23 @@ class OpenStackTest(unittest.TestCase):
         vdu.name = "cal.vdu"
         vdu.node_id = OpenStackTest.NodeID
         vdu.image_id = self._image.id
+        vdu.vm_flavor.memory_mb = 512
+        vdu.vm_flavor.vcpu_count = 1
+        vdu.vm_flavor.storage_gb = 4 
         vdu.flavor_id = self._flavor.id
         vdu.vdu_init.userdata = PING_USERDATA
         vdu.allocate_public_address = True
-        meta1 = vdu.supplemental_boot_data.custom_meta_data.add()
-        meta1.name = "EMS_IP"
-        meta1.data_type = "STRING"
-        meta1.value = "10.5.6.6"
-        #meta2 = vdu.supplemental_boot_data.custom_meta_data.add()
-        #meta2.name = "Cluster_data"
-        #meta2.data_type = "JSON"
-        #meta2.value = '''{ "cluster_id": "12" , "vnfc_id": "112" }'''
+        try:
+            meta1 = vdu.supplemental_boot_data.custom_meta_data.add()
+            meta1.name = "EMS_IP"
+            meta1.data_type = "STRING"
+            meta1.value = "10.5.6.6"
+            #meta2 = vdu.supplemental_boot_data.custom_meta_data.add()
+            #meta2.name = "Cluster_data"
+            #meta2.data_type = "JSON"
+            #meta2.value = '''{ "cluster_id": "12" , "vnfc_id": "112" }'''
+        except Exception as e:
+            pass
         #vdu.supplemental_boot_data.boot_data_drive = True
         customfile1 = vdu.supplemental_boot_data.config_file.add()
         customfile1.source = "abcdef124"
@@ -965,7 +973,7 @@ class OpenStackTest(unittest.TestCase):
 
         return vdu
 
-    @unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
+    #@unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
     def test_create_delete_virtual_link_and_vdu(self):
         """
         Test to create VDU
@@ -1054,7 +1062,9 @@ class OpenStackTest(unittest.TestCase):
           """
           vdu = RwcalYang.VDUInitParams()
           vdu.name = "cal_vdu"
-          vdu.flavor_id = self._flavor.id
+          vdu.vm_flavor.memory_mb = 512
+          vdu.vm_flavor.vcpu_count = 1
+          vdu.vm_flavor.storage_gb = 4 
           vdu.allocate_public_address = True
           ctr = 0
           for vl in vlink_list:
@@ -1068,16 +1078,22 @@ class OpenStackTest(unittest.TestCase):
           vol0.name = "vda"
           vol0.image = openstack_info['reserved_image']
           vol0.size = 10
-          vol0.boot_priority = 0
+          try:
+              vol0.boot_priority = 0
+          except Exception as e:
+              pass
           vol0.device_type = "disk"
-          meta1 = vol0.custom_meta_data.add()
-          meta1.name = "fs_type"
-          meta1.data_type = "STRING"
-          meta1.value = "ext4"
+          try:
+             meta1 = vol0.custom_meta_data.add()
+             meta1.name = "fs_type"
+             meta1.data_type = "STRING"
+             meta1.value = "ext4"
+          except Exception as e:
+             pass
 
           return vdu
 
-    #@unittest.skip("Skipping test_create_vol_vdu")
+    @unittest.skip("Skipping test_create_vol_vdu")
     def test_create_vol_vdu(self):
           """
           Test to create VDU with mgmt port using Volumes

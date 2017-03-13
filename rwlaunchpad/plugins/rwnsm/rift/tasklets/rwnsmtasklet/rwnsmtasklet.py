@@ -2026,10 +2026,11 @@ class NetworkServiceRecord(object):
         # Fetch the VNFD associated with this VNF
         placement_groups = self.get_placement_groups(vnfd_msg, const_vnfd)
         self._log.info("Cloud Account for VNF %d is %s",const_vnfd.member_vnf_index,cloud_account_name)
-        self._log.info("Launching VNF: %s (Member Index: %s) in NSD plancement Groups: %s",
+        self._log.info("Launching VNF: %s (Member Index: %s) in NSD plancement Groups: %s, restart mode self.restart_mode %s",
                        vnfd_msg.name,
                        const_vnfd.member_vnf_index,
-                       [ group.name for group in placement_groups])
+                       [ group.name for group in placement_groups],
+                       self.restart_mode)
         vnfr = yield from VirtualNetworkFunctionRecord.create_record(self._dts,
                                             self._log,
                                             self._loop,
@@ -3846,9 +3847,10 @@ class NsManager(object):
             self._log.error(msg)
             raise NetworkServiceRecordError(msg)
 
-        self._log.info("Create NetworkServiceRecord nsr id %s from nsd_id %s",
+        self._log.info("Create NetworkServiceRecord nsr id %s from nsd_id %s, restart mode %s",
                        nsr_msg.id,
-                       nsr_msg.nsd.id)
+                       nsr_msg.nsd.id,
+                       restart_mode)
 
         nsm_plugin = self._ro_plugin_selector.ro_plugin
         sdn_account_name = self._cloud_account_handler.get_cloud_account_sdn_name(nsr_msg.cloud_account)

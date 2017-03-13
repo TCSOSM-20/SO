@@ -283,6 +283,12 @@ class ComputeUtils(object):
         }
         """
         kwargs = dict()
+        metadata = dict()
+
+        if vdu_params.has_field('node_id'):
+            metadata['rift_node_id'] = vdu_params.node_id
+            kwargs['metadata'] = metadata
+
         if vdu_params.has_field('vdu_init') and vdu_params.vdu_init.has_field('userdata'):
             kwargs['userdata'] = vdu_params.vdu_init.userdata
         else:
@@ -302,11 +308,15 @@ class ComputeUtils(object):
         else:
             kwargs['config_drive'] = False
 
-        if vdu_params.supplemental_boot_data.has_field('custom_meta_data'):
-            metadata = dict()
-            for cm in vdu_params.supplemental_boot_data.custom_meta_data:
-                metadata[cm] = cm.value                
-            kwargs['metadata'] = metadata
+        try:
+            # Rift model only
+            if vdu_params.supplemental_boot_data.has_field('custom_meta_data'):
+                metadata = dict()
+                for cm in vdu_params.supplemental_boot_data.custom_meta_data:
+                    metadata[cm.name] = cm.value
+                    kwargs['metadata'] = metadata
+        except Exception as e:
+            pass
 
         return kwargs
 
@@ -490,6 +500,38 @@ class ComputeUtils(object):
         else:
             return str()
 
+    def _parse_vdu_boot_config_data(self, vm_info):
+        """
+        Parses VDU supplemental boot data
+        Arguments:
+          vm_info : A dictionary returned by novaclient library listing VM attributes
+
+        Returns:
+          List of RwcalYang.VDUInfoParams_SupplementalBootData()
+        """
+        supplemental_boot_data = None
+        node_id = None
+        if 'config_drive' in vm_info:
+            supplemental_boot_data = RwcalYang.VDUInfoParams_SupplementalBootData()
+            supplemental_boot_data.boot_data_drive = vm_info['config_drive']
+        # Look for any metadata
+        if 'metadata' not in vm_info:
+            return node_id, supplemental_boot_data
+        if supplemental_boot_data is None:
+            supplemental_boot_data = RwcalYang.VDUInfoParams_SupplementalBootData()
+        for key, value in vm_info['metadata'].items():
+            if key == 'rift_node_id':
+                node_id = value
+            else:
+                try:
+                    # rift only
+                    cm = supplemental_boot_data.custom_meta_data.add()
+                    cm.name = key
+                    cm.value = str(value)
+                except Exception as e:
+                    pass
+        return node_id, supplemental_boot_data 
+
     def _parse_vdu_volume_info(self, vm_info):
         """
         Get VDU server group information
@@ -594,6 +636,8 @@ class ComputeUtils(object):
             for aggr in host_aggregates:
                 ha = vdu.host_aggregate.add()
                 ha.from_dict(aggr.as_dict())
+
+        vdu.node_id, vdu.supplemental_boot_data = self._parse_vdu_boot_config_data(vm_info)
 
         cp_list = self._parse_vdu_cp_info(vdu.vdu_id)
         for cp in cp_list:

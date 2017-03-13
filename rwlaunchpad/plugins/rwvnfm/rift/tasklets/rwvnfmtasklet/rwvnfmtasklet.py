@@ -51,6 +51,7 @@ import rift.package.store
 import rift.package.cloud_init
 import rift.package.script
 import rift.mano.dts as mano_dts
+import rift.mano.utils.short_name as mano_short_name
 
 
 class VMResourceError(Exception):
@@ -271,6 +272,7 @@ class VirtualDeploymentUnitRecord(object):
                  loop,
                  vdud,
                  vnfr,
+                 nsr_config,
                  mgmt_intf,
                  mgmt_network,
                  cloud_account_name,
@@ -282,6 +284,7 @@ class VirtualDeploymentUnitRecord(object):
         self._loop = loop
         self._vdud = vdud
         self._vnfr = vnfr
+        self._nsr_config = nsr_config
         self._mgmt_intf = mgmt_intf
         self._cloud_account_name = cloud_account_name
         self._vnfd_package_store = vnfd_package_store
@@ -341,6 +344,31 @@ class VirtualDeploymentUnitRecord(object):
         """ Return this VDUR's name """
         return self._name
 
+    # Truncated name confirming to RFC 1123
+    @property
+    def unique_short_name(self):
+        """ Return this VDUR's unique short name """
+        # Impose these restrictions on Unique name
+        #  Max 64
+        #    - Max 10 of NSR name (remove all specialcharacters, only numbers and alphabets)
+        #    - 6 chars of shortened name
+        #    - Max 10 of VDU name (remove all specialcharacters, only numbers and alphabets)
+        #
+        def _restrict_tag(input_str):
+           # Exclude all characters except a-zA-Z0-9
+           outstr = re.sub('[^a-zA-Z0-9]', '', input_str)
+           # Take max of 10 chars
+           return outstr[-10:]
+
+        # Use NSR name for part1
+        part1 = _restrict_tag(self._nsr_config.name)
+        # Get unique short string (6 chars)
+        part2 = mano_short_name.StringShortner(self._name)
+        # Use VDU ID for part3
+        part3 = _restrict_tag(self._vdud.id)
+        shortstr = part1 + "-" + part2.short_string + "-" + part3
+        return shortstr
+
     @property
     def cloud_account_name(self):
         """ Cloud account this VDU should be created in """
@@ -392,14 +420,17 @@ class VirtualDeploymentUnitRecord(object):
                       "hypervisor_epa",
                       "host_epa",
                       "volumes",
-                      "name"]
+                      ]
         vdu_copy_dict = {k: v for k, v in
                          self._vdud.as_dict().items() if k in vdu_fields}
         vdur_dict = {"id": self._vdur_id,
                      "vdu_id_ref": self._vdud.id,
                      "operational_status": self.operational_status,
                      "operational_status_details": self._state_failed_reason,
+                     "name": self.name,
+                     "unique_short_name": self.unique_short_name
                      }
+
         if self.vm_resp is not None:
             vdur_dict.update({"vim_id": self.vm_resp.vdu_id,
                               "flavor_id": self.vm_resp.flavor_id
@@ -610,7 +641,8 @@ class VirtualDeploymentUnitRecord(object):
         vdu_copy_dict = {k: v for k, v in self._vdud.as_dict().items() if k in vdu_fields}
 
         vm_create_msg_dict = {
-                "name": self.name,
+                "name": self.unique_short_name, # Truncated name confirming to RFC 1123
+                "node_id": self.name,           # Rift assigned Id
                 }
 
         if self.image_name is not None:
@@ -1506,7 +1538,7 @@ class VirtualNetworkFunctionRecord(object):
         return None
 
     @asyncio.coroutine
-    def get_vdu_placement_groups(self, vdu):
+    def get_vdu_placement_groups(self, vdu, nsr_config):
         placement_groups = []
         ### Step-1: Get VNF level placement groups
         for group in self._vnfr_msg.placement_groups_info:
@@ -1514,10 +1546,7 @@ class VirtualNetworkFunctionRecord(object):
             #group_info.from_dict(group.as_dict())
             placement_groups.append(group)
 
-        ### Step-2: Get NSR config. This is required for resolving placement_groups cloud constructs
-        nsr_config = yield from self.get_nsr_config()
-
-        ### Step-3: Get VDU level placement groups
+        ### Step-2: Get VDU level placement groups
         for group in self.vnfd.placement_groups:
             for member_vdu in group.member_vdus:
                 if member_vdu.member_vdu_ref == vdu.id:
@@ -1564,16 +1593,22 @@ class VirtualNetworkFunctionRecord(object):
 
 
         self._log.info("Creating VDU's for vnfd id: %s", self.vnfd_id)
+
+        # Get NSR config - Needed for placement groups and to derive VDU short-name
+        nsr_config = yield from self.get_nsr_config()
+
         for vdu in self._rw_vnfd.vdu:
             self._log.debug("Creating vdu: %s", vdu)
             vdur_id = get_vdur_id(vdu)
 
-            placement_groups = yield from self.get_vdu_placement_groups(vdu)
-            self._log.info("Launching VDU: %s from VNFD :%s (Member Index: %s) with Placement Groups: %s",
+
+            placement_groups = yield from self.get_vdu_placement_groups(vdu, nsr_config)
+            self._log.info("Launching VDU: %s from VNFD :%s (Member Index: %s) with Placement Groups: %s, Existing vdur_id %s",
                            vdu.name,
                            self.vnf_name,
                            self.member_vnf_index,
-                           [ group.name for group in placement_groups])
+                           [ group.name for group in placement_groups],
+                           vdur_id)
 
             vdur = VirtualDeploymentUnitRecord(
                 dts=self._dts,
@@ -1581,6 +1616,7 @@ class VirtualNetworkFunctionRecord(object):
                 loop=self._loop,
                 vdud=vdu,
                 vnfr=vnfr,
+                nsr_config=nsr_config,
                 mgmt_intf=self.has_mgmt_interface(vdu),
                 mgmt_network=self._mgmt_network,
                 cloud_account_name=self.cloud_account_name,
@@ -1875,7 +1911,7 @@ class VirtualNetworkFunctionRecord(object):
 
 
         # instantiate VLs
-        self._log.debug("VNFR-ID %s: Instantiate VLs", self._vnfr_id)
+        self._log.debug("VNFR-ID %s: Instantiate VLs, restart mode %s", self._vnfr_id, restart_mode)
         try:
             yield from self.instantiate_vls(xact, restart_mode)
         except Exception as e:
@@ -1886,7 +1922,7 @@ class VirtualNetworkFunctionRecord(object):
         self.set_state(VirtualNetworkFunctionRecordState.VM_INIT_PHASE)
 
         # instantiate VDUs
-        self._log.debug("VNFR-ID %s: Create VDUs", self._vnfr_id)
+        self._log.debug("VNFR-ID %s: Create VDUs, restart mode %s", self._vnfr_id, restart_mode)
         yield from self.create_vdus(self, restart_mode)
 
         try:
@@ -2425,6 +2461,8 @@ class VdurDatastore(object):
 
         set_if_not_none('name', vdur._vdud.name)
         set_if_not_none('mgmt.ip', vdur.vm_management_ip)
+        # The below can be used for hostname
+        set_if_not_none('vdur_name', vdur.unique_short_name)
 
     def update(self, vdur):
         """Update the VDUR information in the datastore
@@ -2453,6 +2491,8 @@ class VdurDatastore(object):
 
         set_or_delete('name', vdur._vdud.name)
         set_or_delete('mgmt.ip', vdur.vm_management_ip)
+        # The below can be used for hostname
+        set_or_delete('vdur_name', vdur.unique_short_name)
 
     def remove(self, vdur_id):
         """Remove all of the data associated with specified VDUR

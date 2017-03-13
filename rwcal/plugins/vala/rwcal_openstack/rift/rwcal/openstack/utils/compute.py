@@ -173,6 +173,30 @@ class ComputeUtils(object):
                                      %(image_name, checksum))
         return image['id']
         
+    def resolve_volume_n_validate(self, volume_ref):
+        """
+        Resolve the volume reference
+        
+        Arguments:
+          volume_ref (string): Name of volume reference
+
+        Raises VolumeValidateError in case of Errors
+        """
+        
+        for vol in self.driver._cinder_volume_list:
+            voldict = vol.to_dict()
+            if voldict['display_name'] == volume_ref:
+                if 'status' in voldict and voldict['status'] == 'available':
+                    return voldict['id']
+                else:
+                    self.log.error("Volume %s not in available state. Current state: %s",
+                               volume_ref, voldict['status'])
+                    raise VolumeValidateError("Volume with name %s found in incorrect (%s) state"
+                                         %(volume_ref, vol['status']))
+
+        self.log.info("No volume found with matching name: %s ", volume_ref)
+        raise VolumeValidateError("No volume found with matching name: %s " %(volume_ref))
+        
     def make_vdu_volume_args(self, volume, vdu_params):
         """
         Arguments:
@@ -186,23 +210,24 @@ class ComputeUtils(object):
         """
         kwargs = dict()
 
-        if volume.has_field('volume_ref'):
-            self.log.error("Unsupported option <Volume Reference> found for volume: %s", volume.name)
-            raise VolumeValidateError("Unsupported option <Volume Reference> found for volume: %s"
-                                      %(volume.name))
-        
         kwargs['boot_index'] = volume.boot_priority
         if volume.has_field("image"):
             # Support image->volume
             kwargs['source_type'] = "image"
             kwargs['uuid'] = self.resolve_image_n_validate(volume.image, volume.image_checksum)
+            kwargs['delete_on_termination'] = True
+        elif "volume_ref" in volume:
+            # Support volume-ref->volume (only ref)
+            kwargs['source_type'] = "volume"
+            kwargs['uuid'] = self.resolve_volume_n_validate(volume.volume_ref)
+            kwargs['delete_on_termination'] = False
         else:
             # Support blank->volume
             kwargs['source_type'] = "blank"
+            kwargs['delete_on_termination'] = True
         kwargs['device_name'] = volume.name
         kwargs['destination_type'] = "volume"
         kwargs['volume_size'] = volume.size
-        kwargs['delete_on_termination'] = True
 
         if volume.has_field('device_type'):
             if volume.device_type in ['cdrom', 'disk']:

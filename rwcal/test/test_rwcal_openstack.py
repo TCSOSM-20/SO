@@ -973,6 +973,136 @@ class OpenStackTest(unittest.TestCase):
 
         return vdu
 
+    def _get_rbsh_vdu_request_info(self, vlink_list):
+          """
+          Returns object of type RwcalYang.VDUInitParams
+          """
+          vdu = RwcalYang.VDUInitParams()
+          vdu.name = "cal_rbsh_vdu"
+          vdu.vm_flavor.memory_mb = 2048
+          vdu.vm_flavor.vcpu_count = 1
+          vdu.vm_flavor.storage_gb = 10
+          vdu.flavor_id = self._flavor.id
+          vdu.allocate_public_address = True
+          ctr = 0
+          for vl in vlink_list:
+             c1 = vdu.connection_points.add()
+             c1.name = "c_point" + str(ctr)
+             ctr += 1
+             c1.virtual_link_id = vl
+             c1.type_yang = 'VIRTIO'
+
+          vol0 = vdu.volumes.add()
+          vol0.name = "vda"
+          vol0.image = "mgmt.img"
+          vol0.size = 40
+          vol0.boot_priority = 0
+          vol0.device_bus = "virtio"
+          vol0.device_type = "disk"
+
+          vol1 = vdu.volumes.add()
+          vol1.name = "vdb"
+          vol1.image = "segstore.img"
+          vol1.size = 60
+          vol1.boot_priority = 1
+          vol1.device_bus = "virtio"
+          vol1.device_type = "disk"
+
+          # blank disk
+          vol2 = vdu.volumes.add()
+          vol2.name = "vdc"
+          vol2.size = 10
+          vol2.boot_priority = 2
+          vol2.device_bus = "virtio"
+          vol2.device_type = "disk"
+
+          # existing volume disk
+          vol3 = vdu.volumes.add()
+          vol3.name = "vdd"
+          vol3.size = 10
+          vol3.volume_ref = "volume-ref1"
+          vol3.boot_priority = 3
+          vol3.device_bus = "virtio"
+          vol3.device_type = "disk"
+          return vdu
+
+    @unittest.skip("Skipping test_create_rbsh_vdu")
+    def test_create_rbsh_vdu(self):
+          """
+          Test to create VDU with mgmt port and 3 additional connection points
+          """
+          logger.info("Openstack-CAL-Test: Test Create Virtual Link API")
+          vlink_list = []
+          for ctr in range(3):
+             vlink = RwcalYang.VirtualLinkReqParams()
+             vlink.name = 'rift.cal.virtual_link' + str(ctr)
+             vlink.subnet = '11.0.{}.0/24'.format(str(1 + ctr))
+
+             rc, rsp = self.cal.create_virtual_link(self._acct, vlink)
+             self.assertEqual(rc.status, RwStatus.SUCCESS)
+             logger.info("Openstack-CAL-Test: Created virtual_link with Id: %s" %rsp)
+             vlink_id = rsp
+
+             #Check if virtual_link create is successful
+             rc, rsp = self.cal.get_virtual_link(self._acct, rsp)
+             self.assertEqual(rc, RwStatus.SUCCESS)
+             self.assertEqual(rsp.virtual_link_id, vlink_id)
+             vlink_list.append(vlink_id)
+
+
+          # Now create VDU
+          vdu_req = self._get_rbsh_vdu_request_info(vlink_list)
+          logger.info("Openstack-CAL-Test: Test Create RB steelhead VDU API (w/ mgmt port) and 3 CPs")
+
+          rc, rsp = self.cal.create_vdu(self._acct, vdu_req)
+          logger.debug("Openstack-CAL-Test: rc %s rsp %s" % (rc, rsp))
+          self.assertEqual(rc.status, RwStatus.SUCCESS)
+          logger.info("Openstack-CAL-Test: Created vdu with Id: %s" %rsp)
+
+          test_vdu_id = rsp
+
+          ## Check if VDU get is successful
+          rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id)
+          logger.debug("Get VDU response %s", rsp)
+          self.assertEqual(rsp.vdu_id, test_vdu_id)
+
+          ### Wait until vdu_state is active
+          logger.debug("Waiting 10 secs")
+          time.sleep(10)
+          #{'name': 'dp0vhost7', 'connection_point_id': 'dp0vhost7', 'state': 'active', 'virtual_link_id': 'rift.cal.virtual_link', 'ip_address': '192.168.100.6'}
+          vdu_state = 'inactive'
+          cp_state = 'inactive'
+          for i in range(15):
+              rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id)
+              self.assertEqual(rc, RwStatus.SUCCESS)
+              logger.info("Openstack-CAL-Test: Iter %d VDU with id : %s. Reached State :  %s, mgmt ip %s" %(i, test_vdu_id, rsp.state, rsp.management_ip))
+              if (rsp.state == 'active') and ('management_ip' in rsp) and ('public_ip' in rsp):
+                  vdu_state = 'active'
+                  #'connection_points': [{'name': 'dp0vhost7', 'connection_point_id': 'dp0vhost7', 'state': 'active', 'virtual_link_id': 'rift.cal.virtual_link', 'ip_address': '192.168.100.6'}]
+                  for cp in rsp.connection_points:
+                      logger.info("Openstack-CAL-Test: Iter %d VDU with id : %s. Reached State :  %s CP state %s" %(i, test_vdu_id, rsp.state, cp))
+              logger.debug("Waiting another 5 secs")
+              time.sleep(5)
+
+          self.assertEqual(rc, RwStatus.SUCCESS)
+          self.assertEqual(rsp.state, 'active')
+          self.assertEqual(vdu_state, 'active')
+          logger.info("Openstack-CAL-Test: VDU with id : %s reached expected state  : %s IP: %s" %(test_vdu_id, rsp.state, rsp.management_ip))
+          logger.info("Openstack-CAL-Test: VDUInfo: %s" %(rsp))
+          logger.info("Waiting for 30 secs before deletion")
+          time.sleep(30)
+
+          ### Check vdu list as well
+          rc, rsp = self.cal.get_vdu_list(self._acct)
+          self.assertEqual(rc, RwStatus.SUCCESS)
+          found = False
+          logger.debug("Get VDU response %s", rsp)
+          for vdu in rsp.vdu_info_list:
+              if vdu.vdu_id == test_vdu_id:
+                 found = True
+          self.assertEqual(found, True)
+          logger.info("Openstack-CAL-Test: Passed VDU list" )
+
     #@unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
     def test_create_delete_virtual_link_and_vdu(self):
         """
@@ -1027,10 +1157,10 @@ class OpenStackTest(unittest.TestCase):
         vlink_id2= rsp
 
         ### Now exercise the modify_vdu_api
-        vdu_modify = self._get_vdu_modify_request_info(vdu_id, vlink_id2)
-        rc = self.cal.modify_vdu(self._acct, vdu_modify)
-        self.assertEqual(rc, RwStatus.SUCCESS)
-        logger.info("Openstack-CAL-Test: Modified vdu with Id: %s" %vdu_id)
+        #vdu_modify = self._get_vdu_modify_request_info(vdu_id, vlink_id2)
+        #rc = self.cal.modify_vdu(self._acct, vdu_modify)
+        #self.assertEqual(rc, RwStatus.SUCCESS)
+        #logger.info("Openstack-CAL-Test: Modified vdu with Id: %s" %vdu_id)
 
         ### Lets delete the VDU
         self.cal.delete_vdu(self._acct, vdu_id)

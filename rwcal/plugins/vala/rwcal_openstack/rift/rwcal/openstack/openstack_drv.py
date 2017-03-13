@@ -223,8 +223,15 @@ class OpenstackDriver(object):
         self.log.info("Discovering images")
         self.glance_cache['images'] = self._cache_populate(self.glance_image_list,
                                                            list())
+
         return self.glance_cache['images']
     
+    def _build_cinder_volume_list(self):
+        self.log.info("Discovering volumes")
+        vollist = self.cinder_volume_list()
+        self.cinder_cache['volumes'] = self._cache_populate(self.cinder_volume_list,
+                                                           list())
+        return self.cinder_cache['volumes']
                                                                  
     def build_nova_resource_cache(self):
         self.log.info("Building nova resource cache")
@@ -239,8 +246,8 @@ class OpenstackDriver(object):
         self._build_neutron_subnet_prefix_list()
 
     def build_cinder_resource_cache(self):
-        pass
-
+        self.log.info("Building cinder resource cache")
+        self._build_cinder_volume_list()
 
     def build_glance_resource_cache(self):
         self.log.info("Building glance resource cache")
@@ -293,6 +300,13 @@ class OpenstackDriver(object):
         else:
             return self._build_glance_image_list()
     
+    @property
+    def _cinder_volume_list(self):
+        if 'volumes' in self.cinder_cache:
+            return self.cinder_cache['volumes']
+        else:
+            return self._build_cinder_volume_list()
+
     def validate_account_creds(self):
         try:
             self.sess_drv.invalidate_auth_token()

@@ -25,7 +25,6 @@ from . import neutron as nt_drv
 from . import glance as gl_drv
 from . import ceilometer as ce_drv
 from . import cinder as ci_drv
-from . import portchain as port_drv
 from . import utils as drv_utils
 
 # Exceptions
@@ -142,9 +141,6 @@ class OpenstackDriver(object):
                                                  region_name = region,
                                                  logger = self.log)
         
-        self.portchain_drv = port_drv.L2PortChainDriver(self.sess_drv,
-                                                        self.neutron_drv,
-                                                        logger = self.log)
         self.utils = DriverUtilities(self)
         
         self._mgmt_network = mgmt_network
@@ -575,83 +571,6 @@ class OpenstackDriver(object):
     def ceilo_alarm_delete(self, alarm_id):
         self.ceilo_drv.client.alarms.delete(alarm_id)
 
-    def create_port_chain(self,name,port_lists):
-        "Create port chain"
-        #Create port pair
-        ppgrp_list = list()
-        for index,port_pair in  enumerate(port_lists):
-            ppair_list = list()
-            ingress_port,egress_port = port_pair
-            #Disable security group and port security for the port
-            self.neutron_drv.port_update(ingress_port,no_security_groups=True,port_security_enabled=False)
-            if ingress_port != egress_port:
-                self.neutron_drv.port_update(egress_port,no_security_groups=True,port_security_enabled=False)
-
-            ppair_id = self.portchain_drv.create_port_pair(name+'ppair'+str(index),ingress_port,egress_port)
-            ppair_list.append(ppair_id)
-            # Create port pair group
-            ppgrp_id = self.portchain_drv.create_port_pair_group(name+'_ppgrp_'+str(index),ppair_list)
-            ppgrp_list.append(ppgrp_id)
-        #Create port chain
-        port_chain_id = self.portchain_drv.create_port_chain(name,ppgrp_list)
-        return port_chain_id
-
-    def delete_port_chain(self,port_chain_id):
-        "Delete port chain"
-        try:
-            result = self.portchain_drv.get_port_chain(port_chain_id)
-            port_chain = result.json() 
-            self.log.debug("Port chain result is %s", port_chain)
-            port_pair_groups = port_chain["port_chain"]["port_pair_groups"]
-            self.portchain_drv.delete_port_chain(port_chain_id)
-
-            # Get port pairs and delete port pair groups
-            port_pairs = list()
-            self.log.debug("Port pair groups during delete is %s", port_pair_groups)
-            for port_pair_group_id in port_pair_groups:
-                result = self.portchain_drv.get_port_pair_group(port_pair_group_id)
-                port_pair_group = result.json() 
-                self.log.debug("Port pair group result is %s", port_pair_group)
-                port_pairs.extend(port_pair_group["port_pair_group"]["port_pairs"])
-                self.portchain_drv.delete_port_pair_group(port_pair_group_id)
-
-            self.log.debug("Port pairs during delete is %s",port_pairs)
-
-            for port_pair_id in port_pairs:
-                self.portchain_drv.delete_port_pair(port_pair_id)
-                pass
-        except Exception as e:
-            self.log.error("Error while delete port chain with id %s, exception %s", port_chain_id,str(e))
-           
-    def update_port_chain(self,port_chain_id,flow_classifier_list):
-        result = self.portchain_drv.get_port_chain(port_chain_id)
-        result.raise_for_status()
-        port_chain = result.json()['port_chain']
-        new_flow_classifier_list = list()
-        if port_chain and port_chain['flow_classifiers']:
-           new_flow_classifier_list.extend(port_chain['flow_classifiers'])
-        new_flow_classifier_list.extend(flow_classifier_list)
-        port_chain_id = self.portchain_drv.update_port_chain(port_chain['id'],flow_classifiers=new_flow_classifier_list)
-        return port_chain_id
-        
-    def create_flow_classifer(self,classifier_name,classifier_dict):
-        "Create flow classifier"
-        flow_classifier_id = self.portchain_drv.create_flow_classifier(classifier_name,classifier_dict)
-        return flow_classifier_id
-
-    def delete_flow_classifier(self,classifier_id):
-        "Create flow classifier"
-        try:
-            self.portchain_drv.delete_flow_classifier(classifier_id)
-        except Exception as e:
-            self.log.error("Error while deleting flow classifier with id %s, exception %s", classifier_id,str(e))
-
-    def get_port_chain_list(self):
-        result = self.portchain_drv.get_port_chain_list()
-        port_chain_list = result.json()
-        if 'port_chains' in port_chain_list:
-            return port_chain_list['port_chains'] 
- 
     def cinder_volume_list(self):
         return self.cinder_drv.volume_list()
   

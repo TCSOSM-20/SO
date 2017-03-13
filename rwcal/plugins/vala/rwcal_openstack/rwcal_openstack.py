@@ -23,7 +23,6 @@ import tempfile
 import yaml
 
 import gi
-gi.require_version('RwSdn', '1.0')
 gi.require_version('RwCal', '1.0')
 gi.require_version('RwcalYang', '1.0')
 
@@ -40,8 +39,6 @@ import keystoneclient.exceptions as KeystoneExceptions
 from gi.repository import (
     GObject,
     RwCal,
-    RwSdn, # Vala package
-    RwsdnYang,
     RwTypes,
     RwcalYang)
 
@@ -96,18 +93,29 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
 
     def __init__(self):
         GObject.Object.__init__(self)
-        self._driver_class = openstack_drv.OpenstackDriver
         self.log = logging.getLogger('rwcal.openstack.%s' % RwcalOpenstackPlugin.instance_num)
         self.log.setLevel(logging.DEBUG)
         self._rwlog_handler = None
         self._account_drivers = dict()
         RwcalOpenstackPlugin.instance_num += 1
 
+    def _get_account_key(self, account):
+        key = str()
+        for f in account.openstack.fields:
+            try:
+                key+= str(getattr(account.openstack, f))
+            except:
+                pass
+        key += account.name
+        return key
+    
     def _use_driver(self, account):
         if self._rwlog_handler is None:
             raise UninitializedPluginError("Must call init() in CAL plugin before use.")
 
-        if account.name not in self._account_drivers:
+        acct_key = self._get_account_key(account)
+        
+        if acct_key not in self._account_drivers:
             self.log.debug("Creating OpenstackDriver")
             kwargs = dict(username = account.openstack.key,
                           password = account.openstack.secret,
@@ -122,7 +130,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             self._account_drivers[account.name] = drv
             return drv.driver
         else:
-            return self._account_drivers[account.name].driver
+            return self._account_drivers[acct_key].driver
         
 
     @rwstatus
@@ -584,12 +592,17 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             flavor id
         """
         drv = self._use_driver(account)
-        return drv.nova_flavor_create(name      = flavor.name,
-                                      ram       = flavor.vm_flavor.memory_mb,
-                                      vcpus     = flavor.vm_flavor.vcpu_count,
-                                      disk      = flavor.vm_flavor.storage_gb,
-                                      epa_specs = drv.utils.flavor.get_extra_specs(flavor))
-    
+        try:
+            flavor_id = drv.nova_flavor_create(name      = flavor.name,
+                                               ram       = flavor.vm_flavor.memory_mb,
+                                               vcpus     = flavor.vm_flavor.vcpu_count,
+                                               disk      = flavor.vm_flavor.storage_gb,
+                                               epa_specs = drv.utils.flavor.get_extra_specs(flavor))
+        except Exception as e:
+            self.log.error("Encountered exceptions during Flavor creation. Exception: %s", str(e))
+            raise
+            
+        return flavor_id  
 
     @rwstatus
     def do_delete_flavor(self, account, flavor_id):
@@ -600,7 +613,11 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             flavor_id - id flavor of the VM
         """
         drv = self._use_driver(account)
-        drv.nova_flavor_delete(flavor_id)
+        try:
+            drv.nova_flavor_delete(flavor_id)
+        except Exception as e:
+            self.log.error("Encountered exceptions during Flavor deletion. Exception: %s", str(e))
+            raise
 
 
     @rwstatus(ret_on_failure=[[]])
@@ -615,9 +632,14 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         """
         response = RwcalYang.VimResources()
         drv = self._use_driver(account)
-        flavors = drv.nova_flavor_list()
-        for flv in flavors:
-            response.flavorinfo_list.append(drv.utils.flavor.parse_flavor_info(flv))
+        try:
+            flavors = drv.nova_flavor_list()
+            for flv in flavors:
+                response.flavorinfo_list.append(drv.utils.flavor.parse_flavor_info(flv))
+        except Exception as e:
+            self.log.error("Encountered exceptions during get-flavor-list. Exception: %s", str(e))
+            raise
+
         return response
 
     @rwstatus(ret_on_failure=[None])
@@ -632,8 +654,14 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             Flavor info item
         """
         drv = self._use_driver(account)
-        flavor = drv.nova_flavor_get(id)
-        return drv.utils.flavor.parse_flavor_info(flavor)
+        try:
+            flavor = drv.nova_flavor_get(id)
+            response = drv.utils.flavor.parse_flavor_info(flavor)
+        except Exception as e:
+            self.log.error("Encountered exceptions during get-flavor. Exception: %s", str(e))
+            raise
+        
+        return response
 
 
     def _fill_network_info(self, network_info, account):
@@ -904,12 +932,12 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         try:
             kwargs = drv.utils.network.make_virtual_link_args(link_params)
             network_id = drv.neutron_network_create(**kwargs)
+            kwargs = drv.utils.network.make_subnet_args(link_params, network_id)
+            drv.neutron_subnet_create(**kwargs)
         except Exception as e:
             self.log.error("Encountered exceptions during network creation. Exception: %s", str(e))
             raise
 
-        kwargs = drv.utils.network.make_subnet_args(link_params, network_id)
-        drv.neutron_subnet_create(**kwargs)
         return network_id
 
 
@@ -1140,178 +1168,5 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             self.log.exception("Exception %s occured during get-vdu-list", str(e))
             raise
         return vnf_resources
-
-
-class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
-    instance_num = 1
-    def __init__(self):
-        GObject.Object.__init__(self)
-        self._driver_class = openstack_drv.OpenstackDriver
-        self.log = logging.getLogger('rwsdn.openstack.%s' % SdnOpenstackPlugin.instance_num)
-        self.log.setLevel(logging.DEBUG)
-
-        self._rwlog_handler = None
-        SdnOpenstackPlugin.instance_num += 1
-
-    @contextlib.contextmanager
-    def _use_driver(self, account):
-        if self._rwlog_handler is None:
-            raise UninitializedPluginError("Must call init() in CAL plugin before use.")
-
-        with rwlogger.rwlog_root_handler(self._rwlog_handler):
-            try:
-                drv = self._driver_class(username      = account.openstack.key,
-                                         password      = account.openstack.secret,
-                                         auth_url      = account.openstack.auth_url,
-                                         tenant_name   = account.openstack.tenant,
-                                         mgmt_network  = account.openstack.mgmt_network,
-                                         cert_validate = account.openstack.cert_validate )
-            except Exception as e:
-                self.log.error("SdnOpenstackPlugin: OpenstackDriver init failed. Exception: %s" %(str(e)))
-                raise
-
-            yield drv
-
-    @rwstatus
-    def do_init(self, rwlog_ctx):
-        self._rwlog_handler = rwlogger.RwLogger(
-                category="rw-cal-log",
-                subcategory="openstack",
-                log_hdl=rwlog_ctx,
-                )
-        self.log.addHandler(self._rwlog_handler)
-        self.log.propagate = False
-
-    @rwstatus(ret_on_failure=[None])
-    def do_validate_sdn_creds(self, account):
-        """
-        Validates the sdn account credentials for the specified account.
-        Performs an access to the resources using Keystone API. If creds
-        are not valid, returns an error code & reason string
-
-        @param account - a SDN account
-
-        Returns:
-            Validation Code and Details String
-        """
-        status = RwsdnYang.SdnConnectionStatus()
-        try:
-            with self._use_driver(account) as drv:
-                drv.validate_account_creds()
-
-        except openstack_drv.ValidationError as e:
-            self.log.error("SdnOpenstackPlugin: OpenstackDriver credential validation failed. Exception: %s", str(e))
-            status.status = "failure"
-            status.details = "Invalid Credentials: %s" % str(e)
-
-        except Exception as e:
-            msg = "SdnOpenstackPlugin: OpenstackDriver connection failed. Exception: %s" %(str(e))
-            self.log.error(msg)
-            status.status = "failure"
-            status.details = msg
-
-        else:
-            status.status = "success"
-            status.details = "Connection was successful"
-
-        return status
-
-    @rwstatus(ret_on_failure=[""])
-    def do_create_vnffg_chain(self, account,vnffg):
-        """
-        Creates Service Function chain in ODL
-
-        @param account - a SDN account
-
-        """
-        self.log.debug('Received Create VNFFG chain for account {}, chain {}'.format(account,vnffg))
-        with self._use_driver(account) as drv:
-            port_list = list()
-            vnf_chain_list = sorted(vnffg.vnf_chain_path, key = lambda x: x.order)
-            prev_vm_id = None 
-            for path in vnf_chain_list:
-                if prev_vm_id and path.vnfr_ids[0].vdu_list[0].vm_id == prev_vm_id:
-                    prev_entry = port_list.pop()
-                    port_list.append((prev_entry[0],path.vnfr_ids[0].vdu_list[0].port_id))
-                    prev_vm_id = None
-                else:
-                    prev_vm_id = path.vnfr_ids[0].vdu_list[0].vm_id
-                    port_list.append((path.vnfr_ids[0].vdu_list[0].port_id,path.vnfr_ids[0].vdu_list[0].port_id))
-            vnffg_id = drv.create_port_chain(vnffg.name,port_list)
-            return vnffg_id
-
-    @rwstatus
-    def do_terminate_vnffg_chain(self, account,vnffg_id):
-        """
-        Terminate Service Function chain in ODL
-
-        @param account - a SDN account
-        """
-        self.log.debug('Received terminate VNFFG chain for id %s ', vnffg_id)
-        with self._use_driver(account) as drv:
-            drv.delete_port_chain(vnffg_id)
-
-    @rwstatus(ret_on_failure=[None])
-    def do_create_vnffg_classifier(self, account, vnffg_classifier):
-        """
-           Add VNFFG Classifier 
-
-           @param account - a SDN account
-        """
-        self.log.debug('Received Create VNFFG classifier for account {}, classifier {}'.format(account,vnffg_classifier))
-        protocol_map = {1:'ICMP',6:'TCP',17:'UDP'}
-        flow_classifier_list = list()
-        with self._use_driver(account) as drv:
-            for rule in vnffg_classifier.match_attributes:
-                classifier_name = vnffg_classifier.name + '_' + rule.name
-                flow_dict = {} 
-                for field, value in rule.as_dict().items():
-                    if field == 'ip_proto':
-                        flow_dict['protocol'] = protocol_map.get(value,None)
-                    elif field == 'source_ip_address':
-                        flow_dict['source_ip_prefix'] = value
-                    elif field == 'destination_ip_address':
-                        flow_dict['destination_ip_prefix'] = value
-                    elif field == 'source_port':
-                        flow_dict['source_port_range_min'] = value
-                        flow_dict['source_port_range_max'] = value
-                    elif field == 'destination_port':
-                        flow_dict['destination_port_range_min'] = value
-                        flow_dict['destination_port_range_max'] = value
-                if vnffg_classifier.has_field('port_id'):
-                    flow_dict['logical_source_port'] = vnffg_classifier.port_id 
-                flow_classifier_id = drv.create_flow_classifer(classifier_name, flow_dict)
-                flow_classifier_list.append(flow_classifier_id)
-            drv.update_port_chain(vnffg_classifier.rsp_id,flow_classifier_list)
-        return flow_classifier_list
-
-    @rwstatus(ret_on_failure=[None])
-    def do_terminate_vnffg_classifier(self, account, vnffg_classifier_list):
-        """
-           Add VNFFG Classifier 
-
-           @param account - a SDN account
-        """
-        self.log.debug('Received terminate VNFFG classifier for id %s ', vnffg_classifier_list)
-        with self._use_driver(account) as drv:
-            for classifier_id in vnffg_classifier_list:
-                drv.delete_flow_classifier(classifier_id)
-
-    @rwstatus(ret_on_failure=[None])
-    def do_get_vnffg_rendered_paths(self, account):
-        """
-           Get ODL Rendered Service Path List (SFC)
-
-           @param account - a SDN account
-        """
-        self.log.debug('Received get VNFFG rendered path for account %s ', account)
-        vnffg_rsps = RwsdnYang.VNFFGRenderedPaths() 
-        with self._use_driver(account) as drv:
-            port_chain_list = drv.get_port_chain_list()
-            for port_chain in port_chain_list:
-                #rsp = vnffg_rsps.vnffg_rendered_path.add()
-                #rsp.name = port_chain['name']
-                pass
-        return vnffg_rsps
 
 

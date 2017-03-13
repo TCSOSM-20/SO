@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-#
+# 
 #   Copyright 2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -131,7 +131,11 @@ class NetworkUtils(object):
             network_ids.append(self.driver._mgmt_network_id)
             
         ### Create ports and collect port ids
-        port_ids = self.driver.neutron_multi_port_create(port_args)
+        if port_args:
+            port_ids = self.driver.neutron_multi_port_create(port_args)
+        else:
+            port_ids = list()
+
         return port_ids, network_ids
     
         

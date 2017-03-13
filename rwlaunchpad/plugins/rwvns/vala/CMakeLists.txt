@@ -68,6 +68,7 @@ set(subdirs
   rwsdn_mock
   rwsdn_sim
   rwsdn_odl 
+  rwsdn_openstack
   rwsdn-python
   )
 rift_add_subdirs(SUBDIR_LIST ${subdirs})

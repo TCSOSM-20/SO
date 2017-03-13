@@ -192,24 +192,21 @@ class ComputeUtils(object):
                                       %(volume.name))
         
         kwargs['boot_index'] = volume.boot_priority
-        if "image" in volume:
+        if volume.has_field("image"):
             # Support image->volume
-            if volume.image is not None:
-                kwargs['source_type'] = "image"
-                kwargs['uuid'] = self.resolve_image_n_validate(volume.image, volume.image_checksum)
-            else:
-                # Support blank->volume
-                kwargs['source_type'] = "blank"
+            kwargs['source_type'] = "image"
+            kwargs['uuid'] = self.resolve_image_n_validate(volume.image, volume.image_checksum)
+        else:
+            # Support blank->volume
+            kwargs['source_type'] = "blank"
         kwargs['device_name'] = volume.name
         kwargs['destination_type'] = "volume"
         kwargs['volume_size'] = volume.size
         kwargs['delete_on_termination'] = True
 
         if volume.has_field('device_type'):
-            if volume.device_type == 'cdrom':
-                kwargs['device_type'] = 'cdrom'
-            elif volume.device_bus == 'ide':
-                kwargs['disk_bus'] = 'ide'
+            if volume.device_type in ['cdrom', 'disk']:
+                kwargs['device_type'] = volume.device_type
             else:
                 self.log.error("Unsupported device_type <%s> found for volume: %s",
                                volume.device_type, volume.name)
@@ -220,6 +217,21 @@ class ComputeUtils(object):
                            volume.name)
             raise VolumeValidateError("Mandatory field <device_type> not specified for volume: %s"
                                       %(volume.name))
+
+        if volume.has_field('device_bus'):
+            if volume.device_bus in ['ide', 'virtio', 'scsi']:
+                kwargs['disk_bus'] = volume.device_bus
+            else:
+                self.log.error("Unsupported device_bus <%s> found for volume: %s",
+                               volume.device_bus, volume.name)
+                raise VolumeValidateError("Unsupported device_bus <%s> found for volume: %s"
+                                          %(volume.device_bus, volume.name))        
+        else:
+            self.log.error("Mandatory field <device_bus> not specified for volume: %s",
+                           volume.name)
+            raise VolumeValidateError("Mandatory field <device_bus> not specified for volume: %s"
+                                      %(volume.name))
+
         return kwargs
             
     def make_vdu_storage_args(self, vdu_params):
@@ -235,6 +247,8 @@ class ComputeUtils(object):
         kwargs = dict()
         if vdu_params.has_field('volumes'):
             kwargs['block_device_mapping_v2'] = list()
+            # Ignore top-level image
+            kwargs['image_id']  = ""
             for volume in vdu_params.volumes:
                 kwargs['block_device_mapping_v2'].append(self.make_vdu_volume_args(volume, vdu_params))
         return kwargs
@@ -522,7 +536,6 @@ class ComputeUtils(object):
         console_url = None
         if self._parse_vdu_state_info(vm_info) == 'active':
             try:
-                console_url = self.driver.nova_server_console(vm_info['id'])
                 serv_console_url = self.driver.nova_server_console(vm_info['id'])
                 if 'console' in serv_console_url:
                     console_url = serv_console_url['console']['url']

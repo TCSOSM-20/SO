@@ -30,12 +30,12 @@ class L2PortChainDriver(object):
     PORT_CHAINS_URL='/sfc/port_chains' 
     FLOW_CLASSIFIERS_URL='/sfc/flow_classifiers' 
 
-    def __init__(self, sess_handle, neutron_drv, logger = None):
+    def __init__(self, sess_handle, neutron_base_url, logger = None):
         """
         Constructor for L2PortChainDriver class
         Arguments: 
            sess_handle (instance of class SessionDriver)
-           neutron_drv 
+           neutron_base_url  Neutron service endpoint
            logger (instance of logging.Logger)
         """
         if logger is None:
@@ -45,8 +45,7 @@ class L2PortChainDriver(object):
             self.log = logger
 
         self._sess = sess_handle
-        self.neutron_drv = neutron_drv
-        self._neutron_base_url = neutron_drv.neutron_endpoint
+        self._neutron_base_url = neutron_base_url
         
     @property
     def neutron_base_url(self): 

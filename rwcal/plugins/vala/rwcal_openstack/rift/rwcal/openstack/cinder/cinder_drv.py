@@ -18,6 +18,7 @@
 import logging
 from cinderclient import client as ciclient
 import cinderclient.exceptions as CinderException
+import keystoneauth1
 
 
 class CinderAPIVersionException(Exception):
@@ -29,11 +30,15 @@ class CinderAPIVersionException(Exception):
         return self.__repr__()
         
     def __repr__(self):
-        msg = "{} : Following Exception(s) have occured during Neutron API discovery".format(self.__class__)
+        msg = "{} : Following Exception(s) have occured during Cinder API discovery".format(self.__class__)
         for n,e in enumerate(self.errors):
             msg += "\n"
             msg += " {}:  {}".format(n, str(e))
         return msg
+
+class CinderEndpointException(Exception):
+    "Cinder Endpoint is absent"
+    pass
 
 class CinderDriver(object):
     """
@@ -88,6 +93,12 @@ class CinderDriver(object):
                 break
         else:
             raise CinderAPIVersionException(errors)
+
+        try:
+            self._ci_drv.client.get_endpoint()
+        except keystoneauth1.exceptions.catalog.EndpointNotFound:
+            self.log.info("Cinder endpoint not found")
+            raise CinderEndpointException()
 
     @property
     def cinder_endpoint(self):

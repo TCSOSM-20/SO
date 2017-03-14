@@ -132,10 +132,13 @@ class OpenstackDriver(object):
         self.glance_drv = gl_drv.GlanceDriver(self.sess_drv,
                                               region_name = region,
                                               logger = self.log)
-        
-        self.cinder_drv = ci_drv.CinderDriver(self.sess_drv,
+       
+        try: 
+           self.cinder_drv = ci_drv.CinderDriver(self.sess_drv,
                                               region_name = region,
                                               logger = self.log)
+        except Exception as e:
+           self.cinder_drv = None
         
         self.ceilo_drv = ce_drv.CeilometerDriver(self.sess_drv,
                                                  region_name = region,
@@ -247,7 +250,8 @@ class OpenstackDriver(object):
 
     def build_cinder_resource_cache(self):
         self.log.info("Building cinder resource cache")
-        self._build_cinder_volume_list()
+        if self.cinder_drv is not None:
+            self._build_cinder_volume_list()
 
     def build_glance_resource_cache(self):
         self.log.info("Building glance resource cache")

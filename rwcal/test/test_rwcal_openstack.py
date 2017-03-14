@@ -43,10 +43,10 @@ ssh_pwauth: True
 # Important information about openstack installation. This needs to be manually verified
 #
 openstack_info = {
-    'username'           : 'xxxxxx',
+    'username'           : 'xxxx',
     'password'           : 'xxxxxx',
-    'auth_url'           : 'http://10.66.4.102:5000/v2.0/',
-    'project_name'       : 'xxxxxx',
+    'auth_url'           : 'http://10.66.4.19:5000/v2.0/',
+    'project_name'       : 'xxxxx',
     'mgmt_network'       : 'private',
     'reserved_flavor'    : 'm1.medium',
     'reserved_image'     : 'Fedora-x86_64-20-20131211.1-sda-ping.qcow2',
@@ -1103,7 +1103,7 @@ class OpenStackTest(unittest.TestCase):
           self.assertEqual(found, True)
           logger.info("Openstack-CAL-Test: Passed VDU list" )
 
-    #@unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
+    @unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
     def test_create_delete_virtual_link_and_vdu(self):
         """
         Test to create VDU
@@ -1302,6 +1302,15 @@ class OpenStackTest(unittest.TestCase):
                  found = True
           self.assertEqual(found, True)
           logger.info("Openstack-CAL-Test: Passed VDU list" )
+
+    @unittest.skip("Skipping test_validate_creds")
+    def test_validate_creds(self):
+          """
+          Test validate creds
+          """
+          logger.info("Openstack-CAL-Test: Test validate creds")
+          status = self.cal.validate_cloud_creds(self._acct)
+          logger.info("Openstack-CAL-Test: Passed validate creds")
 
 class VmData(object):
     """A convenience class that provides all the stats and EPA Attributes

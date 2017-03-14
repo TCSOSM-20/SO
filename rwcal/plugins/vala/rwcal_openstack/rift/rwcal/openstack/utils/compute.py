@@ -185,14 +185,15 @@ class ComputeUtils(object):
         
         for vol in self.driver._cinder_volume_list:
             voldict = vol.to_dict()
-            if voldict['display_name'] == volume_ref:
-                if 'status' in voldict and voldict['status'] == 'available':
-                    return voldict['id']
-                else:
-                    self.log.error("Volume %s not in available state. Current state: %s",
+            if 'display_name' in voldict and voldict['display_name'] == volume_ref:
+                if 'status' in voldict:
+                    if voldict['status'] == 'available':
+                        return voldict['id']
+                    else:
+                        self.log.error("Volume %s not in available state. Current state: %s",
                                volume_ref, voldict['status'])
-                    raise VolumeValidateError("Volume with name %s found in incorrect (%s) state"
-                                         %(volume_ref, vol['status']))
+                        raise VolumeValidateError("Volume with name %s found in incorrect (%s) state"
+                                         %(volume_ref, voldict['status']))
 
         self.log.info("No volume found with matching name: %s ", volume_ref)
         raise VolumeValidateError("No volume found with matching name: %s " %(volume_ref))
@@ -210,7 +211,9 @@ class ComputeUtils(object):
         """
         kwargs = dict()
 
-        kwargs['boot_index'] = volume.boot_priority
+        if 'boot_priority' in volume:
+            # Rift-only field
+            kwargs['boot_index'] = volume.boot_priority
         if volume.has_field("image"):
             # Support image->volume
             kwargs['source_type'] = "image"
@@ -218,6 +221,7 @@ class ComputeUtils(object):
             kwargs['delete_on_termination'] = True
         elif "volume_ref" in volume:
             # Support volume-ref->volume (only ref)
+            # Rift-only field
             kwargs['source_type'] = "volume"
             kwargs['uuid'] = self.resolve_volume_n_validate(volume.volume_ref)
             kwargs['delete_on_termination'] = False
@@ -232,11 +236,6 @@ class ComputeUtils(object):
         if volume.has_field('device_type'):
             if volume.device_type in ['cdrom', 'disk']:
                 kwargs['device_type'] = volume.device_type
-            else:
-                self.log.error("Unsupported device_type <%s> found for volume: %s",
-                               volume.device_type, volume.name)
-                raise VolumeValidateError("Unsupported device_type <%s> found for volume: %s"
-                                          %(volume.device_type, volume.name))        
         else:
             self.log.error("Mandatory field <device_type> not specified for volume: %s",
                            volume.name)
@@ -246,11 +245,6 @@ class ComputeUtils(object):
         if volume.has_field('device_bus'):
             if volume.device_bus in ['ide', 'virtio', 'scsi']:
                 kwargs['disk_bus'] = volume.device_bus
-            else:
-                self.log.error("Unsupported device_bus <%s> found for volume: %s",
-                               volume.device_bus, volume.name)
-                raise VolumeValidateError("Unsupported device_bus <%s> found for volume: %s"
-                                          %(volume.device_bus, volume.name))        
         else:
             self.log.error("Mandatory field <device_bus> not specified for volume: %s",
                            volume.name)

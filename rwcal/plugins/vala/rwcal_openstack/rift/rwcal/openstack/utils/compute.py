@@ -236,20 +236,20 @@ class ComputeUtils(object):
         if volume.has_field('device_type'):
             if volume.device_type in ['cdrom', 'disk']:
                 kwargs['device_type'] = volume.device_type
-        else:
-            self.log.error("Mandatory field <device_type> not specified for volume: %s",
-                           volume.name)
-            raise VolumeValidateError("Mandatory field <device_type> not specified for volume: %s"
-                                      %(volume.name))
+            else:
+                self.log.error("Unsupported device_type <%s> found for volume: %s",
+                               volume.device_type, volume.name)
+                raise VolumeValidateError("Unsupported device_type <%s> found for volume: %s"
+                                          %(volume.device_type, volume.name))
 
         if volume.has_field('device_bus'):
             if volume.device_bus in ['ide', 'virtio', 'scsi']:
                 kwargs['disk_bus'] = volume.device_bus
-        else:
-            self.log.error("Mandatory field <device_bus> not specified for volume: %s",
-                           volume.name)
-            raise VolumeValidateError("Mandatory field <device_bus> not specified for volume: %s"
-                                      %(volume.name))
+            else:
+                self.log.error("Unsupported device_type <%s> found for volume: %s",
+                               volume.device_type, volume.name)
+                raise VolumeValidateError("Unsupported device_type <%s> found for volume: %s"
+                                          %(volume.device_type, volume.name))
 
         return kwargs
             
@@ -574,10 +574,14 @@ class ComputeUtils(object):
                 volume.name = (v['device']).split('/')[2]
                 volume.volume_id = v['volumeId']
                 details = self.driver.cinder_volume_get(volume.volume_id)
-                for k, v in details.metadata.items():
-                    vd = volume.custom_meta_data.add()
-                    vd.name = k
-                    vd.value = v
+                try:
+                    # Rift only
+                    for k, v in details.metadata.items():
+                        vd = volume.custom_meta_data.add()
+                        vd.name = k
+                        vd.value = v
+                except Exception as e:
+                    pass
             except Exception as e:
                 self.log.exception("Exception %s occured during volume list parsing", str(e))
                 continue
@@ -623,9 +627,6 @@ class ComputeUtils(object):
         vdu.vdu_id = vm_info['id']
         vdu.cloud_type  = 'openstack'
 
-        if 'config_drive' in vm_info:
-            vdu.supplemental_boot_data.boot_data_drive = vm_info['config_drive']
-
         if 'image' in vm_info and 'id' in vm_info['image']:
             vdu.image_id = vm_info['image']['id']
 
@@ -656,7 +657,11 @@ class ComputeUtils(object):
                 ha = vdu.host_aggregate.add()
                 ha.from_dict(aggr.as_dict())
 
-        vdu.node_id, vdu.supplemental_boot_data = self._parse_vdu_boot_config_data(vm_info)
+        node_id, boot_data = self._parse_vdu_boot_config_data(vm_info)
+        if node_id:
+            vdu.node_id = node_id
+        if boot_data:
+            vdu.supplemental_boot_data = boot_data
 
         cp_list = self._parse_vdu_cp_info(vdu.vdu_id)
         for cp in cp_list:

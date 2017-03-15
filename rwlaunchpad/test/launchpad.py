@@ -572,9 +572,17 @@ def main(argv=sys.argv[1:]):
               northbound_listing="cli_launchpad_schema_listing.txt",
               netconf_trace_override=True)
 
-    confd_ip = socket.gethostbyname(socket.gethostname())
+    # Search for externally accessible IP address with netifaces
+    gateways = netifaces.gateways()
+    # Check for default route facing interface and then get its ip address
+    if 'default' in gateways:
+        interface = gateways['default'][netifaces.AF_INET][1]
+        confd_ip = netifaces.ifaddresses(interface)[netifaces.AF_INET][0]['addr']
+    else:
+        # no default gateway.  Revert to 127.0.0.1
+        confd_ip = "127.0.0.1"
     # TODO: This need to be changed when launchpad starts running on multiple VMs
-    rift.vcs.logger.configure_sink(config_file=None, confd_ip="127.0.0.1")
+    rift.vcs.logger.configure_sink(config_file=None, confd_ip=confd_ip)
 
     # Start the prepared system
     system.start()

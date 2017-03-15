@@ -330,7 +330,6 @@ class ComputeUtils(object):
         try:
             # Rift model only
             if vdu_params.supplemental_boot_data.has_field('custom_meta_data'):
-                metadata = dict()
                 for cm in vdu_params.supplemental_boot_data.custom_meta_data:
                     metadata[cm.name] = cm.value
                     kwargs['metadata'] = metadata

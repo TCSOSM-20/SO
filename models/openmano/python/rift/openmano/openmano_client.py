@@ -96,7 +96,7 @@ class OpenmanoHttpAPI(object):
 class OpenmanoCliAPI(object):
     """ This class implements the necessary funtionality to interact with  """
 
-    CMD_TIMEOUT = 30
+    CMD_TIMEOUT = 120
 
     def __init__(self, log, host, port, tenant):
         self._log = log

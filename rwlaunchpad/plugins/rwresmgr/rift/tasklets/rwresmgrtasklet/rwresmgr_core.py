@@ -126,7 +126,12 @@ class ResourceMgrCALHandler(object):
         links = [vlink for vlink in rsp.virtual_link_info_list if vlink.name == req_params.name]
         if links:
             self._log.debug("Found existing virtual-network with matching name in cloud. Reusing the virtual-network with id: %s" %(links[0].virtual_link_id))
-            return ('precreated', links[0].virtual_link_id)
+            if req_params.vim_network_name:
+                resource_type = 'precreated'
+            else:
+                # This is case of realloc
+                resource_type = 'dynamic'
+            return (resource_type, links[0].virtual_link_id) 
         elif req_params.vim_network_name:
             self._log.error("Virtual-network-allocate operation failed for cloud account: %s Vim Network with name %s does not pre-exist",
                     self._account.name, req_params.vim_network_name)
@@ -622,7 +627,7 @@ class NetworkPool(ResourcePool):
         resource = self._resource_class(resource_id, resource_type, request)
         self._all_resources[resource_id] = resource
         self._allocated_resources[resource_id] = resource
-        self._log.info("Successfully allocated virtual-network resource from CAL with resource-id: %s", resource_id)
+        self._log.info("Successfully allocated virtual-network resource from CAL with resource-id: %s resource type %s", resource_id, resource_type)
         return resource
 
     @asyncio.coroutine
@@ -1441,6 +1446,7 @@ class ResourceMgrCore(object):
                 self._log.error("Event-id conflict. Duplicate event-id: %s", event_id)
                 raise ResMgrDuplicateEventId("Requested event-id :%s already active with pool: %s" %(event_id, pool_name))
 
+        self._log.debug("Re-allocate virtual resource. resource type %s", resource_type)
         r_info = None
         cloud_pool_table = self._get_cloud_pool_table(cloud_account_name)
         pool = cloud_pool_table[resource.pool_name]

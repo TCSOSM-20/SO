@@ -298,6 +298,15 @@ module vnfr
           type string;
         }
 
+        leaf unique-short-name {
+          description "Short Unique name of the VDU
+                This will be of the format NSR name-ShortnedString-VDUname
+                NSR name and VDU name shall be constrained to 10 characters";
+          rwpb:field-inline "true";
+          rwpb:field-string-max 64;
+          type string;
+        }
+
         leaf vdu-id-ref {
           type leafref {
             path "../../vnfd/vdu/id";

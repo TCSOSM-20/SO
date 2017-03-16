@@ -51,7 +51,7 @@ class DescriptorOnboarder(object):
             }
 
     HEADERS = {"content-type": "application/vnd.yang.data+json"}
-    TIMEOUT_SECS = 5
+    TIMEOUT_SECS = 60
     AUTH = ('admin', 'admin')
 
     def __init__(self, log, host="127.0.0.1", port=8008, use_ssl=False, ssl_cert=None, ssl_key=None):

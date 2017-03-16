@@ -678,10 +678,6 @@ class ConfigManagerConfig(object):
             if vnfr_name:
                 inp['vnfr_name'] = vnfr_name
 
-            # TODO (pjoseph): Add config agents, we need to identify which all
-            # config agents are required from this NS and provide only those
-            inp['config-agent'] = {}
-
             # Add parameters for initial config
             inp['parameter'] = {}
             for parameter in parameters:
@@ -695,6 +691,20 @@ class ConfigManagerConfig(object):
                         self._log.info("NSR {} initial config parameter {} with no value: {}".
                                        format(nsr_obj.nsr_name, parameter, e))
 
+
+            # Add config agents specific to each VNFR
+            inp['config-agent'] = {}
+            for vnfr in nsr_obj.agent_nsr.vnfrs:
+                # Get the config agent for the VNFR
+                # If vnfr name is specified, add only CA specific to that
+                if (vnfr_name is None) or \
+                   (vnfr_name == vnfr.name):
+                    agent = self._config_agent_mgr.get_vnfr_config_agent(vnfr.vnfr_msg)
+                    if agent:
+                        if agent.agent_type != riftcm_config_plugin.DEFAULT_CAP_TYPE:
+                            inp['config-agent'][vnfr.member_vnf_index] = agent.agent_data
+                            inp['config-agent'][vnfr.member_vnf_index] \
+                                ['service-name'] = agent.get_service_name(vnfr.id)
 
             # Add vnfrs specific data
             inp['vnfr'] = {}
@@ -726,9 +736,10 @@ class ConfigManagerConfig(object):
                         if k in vdu:
                             d[k] = vdu[k]
                     vdu_data.append(d)
-                v['vdur'].append(vdu_data)
+                v['vdur'] = vdu_data
 
                 inp['vnfr'][vnfr['member_vnf_index_ref']] = v
+
 
             self._log.debug("Input data for {}: {}".
                             format((vnfr_name if vnfr_name else nsr_obj.nsr_name),
@@ -761,18 +772,24 @@ class ConfigManagerConfig(object):
         self._log.debug("Running the CMD: {}".format(cmd))
 
         process = yield from asyncio.create_subprocess_shell(cmd,
-                                                             loop=self._loop)
-        yield from process.wait()
+                                                             loop=self._loop,
+                                                             stdout=subprocess.PIPE,
+                                                             stderr=subprocess.PIPE)
+        stdout, stderr = yield from process.communicate()
+        rc = yield from process.wait()
 
-        if process.returncode:
-            msg = "NSR/VNFR {} initial config using {} failed with {}". \
+        if rc:
+            msg = "NSR/VNFR {} initial config using {} failed with {}: {}". \
                   format(vnfr_name if vnfr_name else nsr_obj.nsr_name,
-                         script, process.returncode)
+                         script, rc, stderr)
             self._log.error(msg)
             raise InitialConfigError(msg)
-        else:
-            # os.remove(inp_file)
-            pass
+
+        try:
+            os.remove(inp_file)
+        except Exception as e:
+            self._log.debug("Error removing input file {}: {}".
+                            format(inp_file, e))
 
     def get_script_file(self, script_name, d_name, d_id, d_type):
           # Get the full path to the script
@@ -791,7 +808,7 @@ class ConfigManagerConfig(object):
                                     script_name)
               self._log.debug("Checking for script at %s", script)
               if not os.path.exists(script):
-                  self._log.debug("Did not find script %s", script)
+                  self._log.warning("Did not find script %s", script)
                   script = os.path.join(os.environ['RIFT_INSTALL'],
                                         'usr/bin',
                                         script_name)
@@ -801,9 +818,9 @@ class ConfigManagerConfig(object):
               # to make sure it has execute permission
               perm = os.stat(script).st_mode
               if not (perm  &  stat.S_IXUSR):
-                  self._log.warn("NSR/VNFR {} initial config script {} " \
-                                "without execute permission: {}".
-                                format(d_name, script, perm))
+                  self._log.warning("NSR/VNFR {} initial config script {} " \
+                                    "without execute permission: {}".
+                                    format(d_name, script, perm))
                   os.chmod(script, perm | stat.S_IXUSR)
               return script
 
@@ -846,8 +863,8 @@ class ConfigManagerConfig(object):
                     continue
 
                 script = self.get_script_file(conf.user_defined_script,
-                                              vnfd.id,
                                               vnfd.name,
+                                              vnfd.id,
                                               'vnfd')
 
                 yield from self.process_initial_config(nsr_obj,

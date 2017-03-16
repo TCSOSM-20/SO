@@ -13,4 +13,4 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
-from .download_status import DownloadStatusSubscriber
+from .download_status import DownloadStatusSubscriber, VnfdStatusSubscriber, NsdStatusSubscriber

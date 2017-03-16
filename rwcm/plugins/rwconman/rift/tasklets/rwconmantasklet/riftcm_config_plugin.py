@@ -191,6 +191,11 @@ class RiftCMConfigPluginBase(object):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def get_Service_name(self):
+        """ Get the service name specific to the plugin """
+        pass
+
+    @abc.abstractmethod
     @asyncio.coroutine
     def apply_config(self, agent_nsr, agent_vnfr, config, rpc_ip):
         """ Notification on configuration of an NSR """

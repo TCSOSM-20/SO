@@ -138,7 +138,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         proxy = mock.MagicMock()
 
-        url = "https://raw.githubusercontent.com/RIFTIO/RIFT.ware/master/rift-shell"
+        url = "http://boson.eng.riftio.com/common/unittests/rift-shell"
         url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
@@ -163,7 +163,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         yield from self.job_handler.register()
 
         proxy = mock.MagicMock()
-        url = "http://mirror.0x.sg/fedora/linux/releases/24/CloudImages/x86_64/images/Fedora-Cloud-Base-24-1.2.x86_64.qcow2"
+        url = "http://boson.eng.riftio.com/common/unittests/Fedora-x86_64-20-20131211.1-sda-ping.qcow2"
         url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)

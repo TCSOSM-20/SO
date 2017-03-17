@@ -58,7 +58,7 @@ class VnfdStatusSubscriber(DownloadStatusSubscriber):
         if action == RwDts.QueryAction.UPDATE:
             actionCreate(self, msg)
         else:
-            self.log.debug("VnfdStatusSubscriber: No action for ", action)
+            self.log.debug("VnfdStatusSubscriber: No action for {}".format(repr(action)))
             pass
 
     def get_xpath(self): 
@@ -80,7 +80,7 @@ class NsdStatusSubscriber(DownloadStatusSubscriber):
         if action == RwDts.QueryAction.UPDATE:
             actionCreate(self, msg)
         else:
-            self.log.debug("NsdStatusSubscriber: No action for ", action)
+            self.log.debug("NsdStatusSubscriber: No action for {}".format(repr(action)))
             pass
 
     def get_xpath(self): 
@@ -93,16 +93,23 @@ def actionCreate(descriptor, msg):
     '''
 
     desc_name = msg.name if msg.name else ""
-    download_dir = os.path.join(descriptor.DOWNLOAD_DIR, msg.id, desc_name)
-    
-    if not os.path.exists(download_dir):
-        os.makedirs(download_dir)
-        descriptor.log.debug("Created directory {}".format(download_dir))
+    download_dir = os.path.join(descriptor.DOWNLOAD_DIR, msg.id)
 
-        model = RwYang.Model.create_libncx()
-        for module in descriptor.MODULE_DESC: model.load_module(module)
+    # If a download dir is present with contents, then we know it has been created in the 
+    # upload path. 
+    if os.path.exists(download_dir) and os.listdir(download_dir):
+        descriptor.log.debug("Skpping folder creation, {} already present".format(download_dir))
+        return
+    else: 
+        download_dir = os.path.join(download_dir, desc_name) 
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
+            descriptor.log.debug("Created directory {}".format(download_dir))
 
-        yaml_path = "{base}/{name}_{type}.yaml".format(base=download_dir, name=msg.name, type=descriptor.DESC_TYPE) 
-        with open(yaml_path,"w") as fh:
-            fh.write(msg.to_yaml(model))
+            model = RwYang.Model.create_libncx()
+            for module in descriptor.MODULE_DESC: model.load_module(module)
+
+            yaml_path = "{base}/{name}_{type}.yaml".format(base=download_dir, name=msg.name, type=descriptor.DESC_TYPE) 
+            with open(yaml_path,"w") as fh:
+                fh.write(msg.to_yaml(model))
 

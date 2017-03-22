@@ -3641,7 +3641,6 @@ class NsManager(object):
                               VnfrDtsHandler(dts, log, loop, self),
                               NsdRefCountDtsHandler(dts, log, loop, self),
                               NsrDtsHandler(dts, log, loop, self),
-                              ScalingRpcHandler(log, dts, loop, self.scale_rpc_callback),
                               NsrRpcDtsHandler(dts,log,loop,self),
                               self._vnfd_dts_handler,
                               self.cfgmgr_obj,
@@ -3749,74 +3748,6 @@ class NsManager(object):
             raise ScalingOperationError("Cannot perform scaling operation if NSR is not in running state")
 
         self._loop.create_task(nsr.delete_scale_group_instance(scale_group_name, instance_id))
-
-    def scale_rpc_callback(self, xact, msg, action):
-        """Callback handler for RPC calls
-        Args:
-            xact : Transaction Handler
-            msg : RPC input
-            action : Scaling Action
-        """
-        ScalingGroupInstance = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup_Instance
-        ScalingGroup = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup
-
-        xpath = ('C,/nsr:ns-instance-config/nsr:nsr[nsr:id="{}"]').format(
-                          msg.nsr_id_ref)
-        instance = ScalingGroupInstance.from_dict({"id": msg.instance_id})
-
-        @asyncio.coroutine
-        def get_nsr_scaling_group():
-            results = yield from self._dts.query_read(xpath, rwdts.XactFlag.MERGE)
-
-            for result in results:
-                res = yield from result
-                nsr_config = res.result
-
-            for scaling_group in nsr_config.scaling_group:
-                if scaling_group.scaling_group_name_ref == msg.scaling_group_name_ref:
-                    break
-            else:
-                scaling_group = nsr_config.scaling_group.add()
-                scaling_group.scaling_group_name_ref = msg.scaling_group_name_ref
-
-            return (nsr_config, scaling_group)
-
-        @asyncio.coroutine
-        def update_config(nsr_config):
-            xml = self._ncclient.convert_to_xml(RwNsrYang, nsr_config)
-            xml = '<config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">{}</config>'.format(xml)
-            yield from self._ncclient.connect()
-            yield from self._ncclient.manager.edit_config(target="running", config=xml, default_operation="replace")
-
-        @asyncio.coroutine
-        def scale_out():
-            nsr_config, scaling_group = yield from get_nsr_scaling_group()
-            scaling_group.instance.append(instance)
-            yield from update_config(nsr_config)
-
-        @asyncio.coroutine
-        def scale_in():
-            nsr_config, scaling_group = yield from get_nsr_scaling_group()
-            scaling_group.instance.remove(instance)
-            yield from update_config(nsr_config)
-
-        if action == ScalingRpcHandler.ACTION.SCALE_OUT:
-            self._loop.create_task(scale_out())
-        else:
-            self._loop.create_task(scale_in())
-
-        # Opdata based calls, disabled for now!
-        # if action == ScalingRpcHandler.ACTION.SCALE_OUT:
-        #     self.scale_nsr_out(
-        #           msg.nsr_id_ref,
-        #           msg.scaling_group_name_ref,
-        #           msg.instance_id,
-        #           xact)
-        # else:
-        #     self.scale_nsr_in(
-        #           msg.nsr_id_ref,
-        #           msg.scaling_group_name_ref,
-        #           msg.instance_id)
 
     def nsr_update_cfg(self, nsr_id, msg):
         nsr = self._nsrs[nsr_id]
@@ -4190,91 +4121,6 @@ class NsmRecordsPublisherProxy(object):
         """ Unpublish a VLR """
         path = VirtualLinkRecord.vlr_xpath(vlr)
         return (yield from self._vlr_pub_hdlr.delete(xact, path))
-
-
-class ScalingRpcHandler(mano_dts.DtsHandler):
-    """ The Network service Monitor DTS handler """
-    SCALE_IN_INPUT_XPATH = "I,/nsr:exec-scale-in"
-    SCALE_IN_OUTPUT_XPATH = "O,/nsr:exec-scale-in"
-
-    SCALE_OUT_INPUT_XPATH = "I,/nsr:exec-scale-out"
-    SCALE_OUT_OUTPUT_XPATH = "O,/nsr:exec-scale-out"
-
-    ACTION = Enum('ACTION', 'SCALE_IN SCALE_OUT')
-
-    def __init__(self, log, dts, loop, callback=None):
-        super().__init__(log, dts, loop)
-        self.callback = callback
-        self.last_instance_id = defaultdict(int)
-
-    @asyncio.coroutine
-    def register(self):
-
-        @asyncio.coroutine
-        def on_scale_in_prepare(xact_info, action, ks_path, msg):
-            assert action == rwdts.QueryAction.RPC
-
-            try:
-                if self.callback:
-                    self.callback(xact_info.xact, msg, self.ACTION.SCALE_IN)
-
-                rpc_op = NsrYang.YangOutput_Nsr_ExecScaleIn.from_dict({
-                      "instance_id": msg.instance_id})
-
-                xact_info.respond_xpath(
-                    rwdts.XactRspCode.ACK,
-                    self.__class__.SCALE_IN_OUTPUT_XPATH,
-                    rpc_op)
-
-            except Exception as e:
-                self.log.exception(e)
-                xact_info.respond_xpath(
-                    rwdts.XactRspCode.NACK,
-                    self.__class__.SCALE_IN_OUTPUT_XPATH)
-
-        @asyncio.coroutine
-        def on_scale_out_prepare(xact_info, action, ks_path, msg):
-            assert action == rwdts.QueryAction.RPC
-
-            try:
-                scaling_group = msg.scaling_group_name_ref
-                if not msg.instance_id:
-                    last_instance_id = self.last_instance_id[scale_group]
-                    msg.instance_id  = last_instance_id + 1
-                    self.last_instance_id[scale_group] += 1
-
-                if self.callback:
-                    self.callback(xact_info.xact, msg, self.ACTION.SCALE_OUT)
-
-                rpc_op = NsrYang.YangOutput_Nsr_ExecScaleOut.from_dict({
-                      "instance_id": msg.instance_id})
-
-                xact_info.respond_xpath(
-                    rwdts.XactRspCode.ACK,
-                    self.__class__.SCALE_OUT_OUTPUT_XPATH,
-                    rpc_op)
-
-            except Exception as e:
-                self.log.exception(e)
-                xact_info.respond_xpath(
-                      rwdts.XactRspCode.NACK,
-                      self.__class__.SCALE_OUT_OUTPUT_XPATH)
-
-        scale_in_hdl = rift.tasklets.DTS.RegistrationHandler(
-              on_prepare=on_scale_in_prepare)
-        scale_out_hdl = rift.tasklets.DTS.RegistrationHandler(
-              on_prepare=on_scale_out_prepare)
-
-        with self.dts.group_create() as group:
-            group.register(
-                  xpath=self.__class__.SCALE_IN_INPUT_XPATH,
-                  handler=scale_in_hdl,
-                  flags=rwdts.Flag.PUBLISHER)
-            group.register(
-                  xpath=self.__class__.SCALE_OUT_INPUT_XPATH,
-                  handler=scale_out_hdl,
-                  flags=rwdts.Flag.PUBLISHER)
-
 
 class NsmTasklet(rift.tasklets.Tasklet):
     """

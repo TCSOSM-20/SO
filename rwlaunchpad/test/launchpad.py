@@ -422,10 +422,11 @@ class Demo(rift.vcs.demo.Demo):
             GlanceServer(),
             rift.vcs.DtsRouterTasklet(),
             rift.vcs.MsgBrokerTasklet(),
-            #rift.vcs.RestPortForwardTasklet(),
             rift.vcs.RestconfTasklet(),
             rift.vcs.RiftCli(),
             rift.vcs.uAgentTasklet(),
+            rift.vcs.IdentityManagerTasklet(),
+            rift.vcs.ProjectManagerTasklet(),
             rift.vcs.Launchpad(),
             ]
 
@@ -480,6 +481,16 @@ class Demo(rift.vcs.demo.Demo):
             # WA to Agent mode_active flag reset
             stby_lp_vm.add_tasklet(rift.vcs.uAgentTasklet(), mode_active=False)
             colony.append(stby_lp_vm)
+
+        if ha_mode == "LSS":
+            stby_lp_vm_2 = rift.vcs.VirtualMachine(
+                  name='launchpad-vm-3',
+                  ip=mgmt_ip_list[2],
+                  procs=standby_procs,
+                  start=False,
+                )
+            stby_lp_vm_2.add_tasklet(rift.vcs.uAgentTasklet(), mode_active=False)
+            colony.append(stby_lp_vm_2)
 
         sysinfo = rift.vcs.SystemInfo(
                     mode='ethsim',
@@ -568,14 +579,24 @@ def main(argv=sys.argv[1:]):
     #load demo info and create Demo object
     demo = Demo(args.no_ui, ha_mode, mgmt_ip_list, args.test_name)
 
-    # Create the prepared system from the demo
-    system = rift.vcs.demo.prepared_system_from_demo_and_args(demo, args,
-              northbound_listing=["cli_launchpad_schema_listing.txt"],
-              netconf_trace_override=True)
+    system = rift.vcs.demo.prepared_system_from_demo_and_args(
+        demo, args,
+        northbound_listing=["platform_schema_listing.txt",
+                            "platform_mgmt_schema_listing.txt",
+                            "cli_launchpad_schema_listing.txt"],
+        netconf_trace_override=True)
 
+    # Search for externally accessible IP address with netifaces
+    gateways = netifaces.gateways()
+    # Check for default route facing interface and then get its ip address
+    if 'default' in gateways:
+        interface = gateways['default'][netifaces.AF_INET][1]
+        confd_ip = netifaces.ifaddresses(interface)[netifaces.AF_INET][0]['addr']
+    else:
+        # no default gateway.  Revert to 127.0.0.1
+        confd_ip = "127.0.0.1"
     # TODO: This need to be changed when launchpad starts running on multiple VMs
-    # confd_ip = socket.gethostbyname(socket.gethostname())
-    rift.vcs.logger.configure_sink(config_file=None, confd_ip="127.0.0.1")
+    rift.vcs.logger.configure_sink(config_file=None, confd_ip=confd_ip)
 
     # Start the prepared system
     system.start()
@@ -583,6 +604,7 @@ def main(argv=sys.argv[1:]):
 
 if __name__ == "__main__":
     resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY) )
+    os.system('/usr/rift/bin/UpdateHostsFile')
     try:
         main()
     except rift.vcs.demo.ReservationError:

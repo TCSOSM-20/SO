@@ -650,7 +650,7 @@ class VirtualLinkRecord(object):
         for conn in self.vld_msg.vnfd_connection_point_ref:
             for vnfr in vnfrs:
                 if (vnfr.vnfd.id == conn.vnfd_id_ref and
-                        str(vnfr.member_vnf_index) == conn.member_vnf_index_ref and
+                        vnfr.member_vnf_index == conn.member_vnf_index_ref and
                         self.cloud_account_name == vnfr.cloud_account_name and
                         self.om_datacenter_name == vnfr.om_datacenter_name):
                     cp_entry = nsr_vlr.vnfr_connection_point_ref.add()
@@ -985,7 +985,7 @@ class VirtualNetworkFunctionRecord(object):
         vnfr.vnfd = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vnfd. \
                     from_dict(self.vnfd.as_dict(),
                               ignore_missing_keys=True)
-        vnfr.member_vnf_index_ref = str(self.member_vnf_index)
+        vnfr.member_vnf_index_ref = self.member_vnf_index
         vnfr.vnf_configuration.from_dict(self._vnfd.vnf_configuration.as_dict())
 
         if self._vnfd.mgmt_interface.has_field("port"):

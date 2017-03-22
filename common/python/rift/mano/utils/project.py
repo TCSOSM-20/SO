@@ -396,7 +396,7 @@ class ProjectConfigCallbacks(object):
 
 
 class ProjectDtsHandler(object):
-    XPATH = "C,{}/config".format(XPATH)
+    XPATH = "C,{}/project-config".format(XPATH)
 
     def __init__(self, dts, log, callbacks):
         self._dts = dts
@@ -510,7 +510,7 @@ class ProjectDtsHandler(object):
             #     'delete': [],
             # })
 
-            self._log.error("prepare msg type {}".format(type(msg)))
+            # self._log.error("prepare msg type {}".format(type(msg)))
             name = msg.name_ref
 
             self._log.debug("Project %s on_prepare config received (action: %s): %s",

@@ -37,7 +37,7 @@ module rw-project-mano
       "Derived from earlier versions of base YANG files";
   }
 
-  augment /rw-project:project/rw-project:config {
+  augment /rw-project:project/rw-project:project-config {
     leaf name-ref {
       type leafref {
         path "../../rw-project:name";

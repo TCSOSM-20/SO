@@ -114,10 +114,10 @@ fi
 
 if [[ $PLATFORM == ub16 ]]; then
     PLATFORM_REPOSITORY=${1:-OSM}
-    PLATFORM_VERSION=${2:-4.99.1.1.57142}
+    PLATFORM_VERSION=${2:-4.99.1.1.58423}
 elif [[ $PLATFORM == fc20 ]]; then
     PLATFORM_REPOSITORY=${1:-OSM}  # change to OSM when published
-    PLATFORM_VERSION=${2:-4.99.1.1.57142}
+    PLATFORM_VERSION=${2:-4.99.1.1.58423}
 else
     echo "Internal error: unknown platform $PLATFORM"
     exit 1
@@ -130,11 +130,11 @@ fi
 
 DAILY_TIMER='apt-daily.timer'
 DAILY_SERVICE='apt-daily.service'
-if [ $(systemctl is-active $DAILY_TIMER) = "active" ]
+if [ $(sudo systemctl is-active $DAILY_TIMER) = "active" ]
 then
-    systemctl stop $DAILY_TIMER
-    systemctl disable $DAILY_TIMER
-    systemctl disable $DAILY_SERVICE
+    sudo systemctl stop $DAILY_TIMER
+    sudo systemctl disable $DAILY_TIMER
+    sudo systemctl disable $DAILY_SERVICE
 fi
 
 # must be run from the top of a workspace
@@ -175,7 +175,7 @@ fi
 if $runMkcontainer; then
     sudo apt-get install -y libxml2-dev libxslt-dev
     sudo /usr/rift/container_tools/mkcontainer --modes build --modes ext --repo ${PLATFORM_REPOSITORY}
-    sudo pip3 install lxml==3.4.0
+    sudo -H pip3 install lxml==3.4.0
 fi
 
 

@@ -375,14 +375,24 @@ class OnboardPackage:
                 msg = "Error instantiating NS as {} with NSD {}: ". \
                   format(self._service_name, self._nsd_id,
                          reply["rpc-error"])
-                self.log.error(msg)
+                # self.log.error(msg)
                 raise OnboardPkgInstError(msg)
 
         self.log.info("Successfully initiated instantiation of NS as {} ({})".
                       format(self._service_name, ns_id))
 
     def process(self):
-        self.validate_args()
+        try:
+            self.validate_args()
+        except Exception as e:
+            if args.verbose:
+                log.exception(e)
+
+            print("\nERROR:", e)
+            print("\n")
+            parser.print_help()
+            sys.exit(2)
+
         self.validate_connectivity()
         self.upload_packages()
         self.instantiate()
@@ -425,15 +435,24 @@ if __name__ == "__main__":
     fmt = logging.Formatter(
         '%(asctime)-23s %(levelname)-5s  (%(name)s@%(process)d:' \
         '%(filename)s:%(lineno)d) - %(message)s')
-    stderr_handler = logging.StreamHandler(stream=sys.stderr)
-    stderr_handler.setFormatter(fmt)
-    logging.basicConfig(level=logging.INFO)
     log = logging.getLogger('onboard-pkg')
-    log.addHandler(stderr_handler)
+    log.setLevel(logging.INFO)
     if args.verbose:
         log.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(fmt)
+    log.addHandler(ch)
 
     log.debug("Input arguments: {}".format(args))
 
-    ob = OnboardPackage(log, args)
-    ob.process()
+    try:
+    	ob = OnboardPackage(log, args)
+    	ob.process()
+    except Exception as e:
+        if args.verbose:
+            log.exception(e)
+
+        print("\nERROR:", e)
+        sys.exit(1)
+

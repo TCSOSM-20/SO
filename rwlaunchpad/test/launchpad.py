@@ -370,6 +370,34 @@ class ConfigManagerTasklet(rift.vcs.core.Tasklet):
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwconmantasklet')
     plugin_name = ClassProperty('rwconmantasklet')
 
+
+class ProjectMgrManoTasklet(rift.vcs.core.Tasklet):
+    """
+    This class represents a Resource Manager tasklet.
+    """
+
+    def __init__(self, name='Project-Manager-Mano', uid=None,
+                 config_ready=True,
+                 recovery_action=core.RecoveryType.FAILCRITICAL.value,
+                 data_storetype=core.DataStore.NOSTORE.value,
+                 ):
+        """
+        Creates a ProjectMgrManoTasklet object.
+
+        Arguments:
+            name  - the name of the tasklet
+            uid   - a unique identifier
+        """
+        super(ProjectMgrManoTasklet, self).__init__(name=name, uid=uid,
+                                                    config_ready=config_ready,
+                                                    recovery_action=recovery_action,
+                                                    data_storetype=data_storetype,
+        )
+
+    plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwprojectmano')
+    plugin_name = ClassProperty('rwprojectmano')
+
+
 class PackageManagerTasklet(rift.vcs.core.Tasklet):
     """
     This class represents a Resource Manager tasklet.
@@ -427,6 +455,7 @@ class Demo(rift.vcs.demo.Demo):
             rift.vcs.uAgentTasklet(),
             rift.vcs.IdentityManagerTasklet(),
             rift.vcs.ProjectManagerTasklet(),
+            ProjectMgrManoTasklet(),
             rift.vcs.Launchpad(),
             ]
 
@@ -455,6 +484,7 @@ class Demo(rift.vcs.demo.Demo):
               AutoscalerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               PackageManagerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               StagingManagerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
+              ProjectMgrManoTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
             ]
 
         if not mgmt_ip_list or len(mgmt_ip_list) == 0:

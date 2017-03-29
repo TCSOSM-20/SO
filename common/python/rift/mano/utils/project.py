@@ -398,10 +398,17 @@ class ProjectConfigCallbacks(object):
 class ProjectDtsHandler(object):
     XPATH = "C,{}/project-config".format(XPATH)
 
-    def __init__(self, dts, log, callbacks):
+    def __init__(self, dts, log, callbacks, sub_config=True):
         self._dts = dts
         self._log = log
         self._callbacks = callbacks
+
+        if sub_config:
+            self.xpath = ProjectDtsHandler.XPATH
+            self._key = 'name_ref'
+        else:
+            self.xpath = "C,{}".format(XPATH)
+            self._key = 'name'
 
         self.reg = None
         self.projects = []
@@ -446,20 +453,29 @@ class ProjectDtsHandler(object):
         if name in self.projects:
             pass
         else:
-            self.log.error("Unrecognized project: {}".
-                           format(name))
+            self.add_project(name)
 
     def register(self):
+        def on_init(acg, xact, scratch):
+            self._log.debug("on_init")
+            scratch["projects"] = {
+                "added": [],
+                "deleted": [],
+                "updated": [],
+            }
+            return scratch
+
         @asyncio.coroutine
         def apply_config(dts, acg, xact, action, scratch):
-            self._log.debug("Got project apply config (xact: %s) (action: %s)", xact, action)
+            self._log.debug("Got project apply config (xact: %s) (action: %s): %s",
+                            xact, action, scratch)
 
             if xact.xact is None:
                 if action == rwdts.AppconfAction.INSTALL:
                     curr_cfg = self._reg.elements
                     for cfg in curr_cfg:
                         self._log.debug("Project being re-added after restart.")
-                        self.add_project(cfg)
+                        self.add_project(cfg.name_ref)
                 else:
                     # When RIFT first comes up, an INSTALL is called with the current config
                     # Since confd doesn't actally persist data this never has any data so
@@ -468,23 +484,33 @@ class ProjectDtsHandler(object):
 
                 return
 
-            add_cfgs, delete_cfgs, update_cfgs = get_add_delete_update_cfgs(
-                    dts_member_reg=self._reg,
-                    xact=xact,
-                    key_name="name_ref",
-                    )
+            try:
+                add_cfgs = scratch["projects"]["added"]
+            except KeyError:
+                add_cfgs = []
+
+            try:
+                del_cfgs = scratch["projects"]["deleted"]
+            except KeyError:
+                del_cfgs = []
+
+            try:
+                update_cfgs = scratch["projects"]["updated"]
+            except KeyError:
+                update_cfgs = []
+
 
             # Handle Deletes
-            for cfg in delete_cfgs:
-                self.delete_project(cfg.name_ref)
+            for name in del_cfgs:
+                self.delete_project(name)
 
             # Handle Adds
-            for cfg in add_cfgs:
-                self.add_project(cfg.name_ref)
+            for name, msg in add_cfgs:
+                self.add_project(name)
 
             # Handle Updates
-            for cfg in update_cfgs:
-                self.update_project(cfg.name_ref)
+            for name, msg in update_cfgs:
+                self.update_project(name)
 
             return RwTypes.RwStatus.SUCCESS
 
@@ -493,38 +519,29 @@ class ProjectDtsHandler(object):
             """ Prepare callback from DTS for Project """
 
             action = xact_info.query_action
-            # xpath = ks_path.to_xpath(RwProjectYang.get_schema())
-            # name = ManoProject.from_xpath(xpath, self._log)
-            # if not name:
-            #     self._log.error("Did not find the project name in ks: {}".
-            #                     format(xpath))
-            #     xact_info.respond_xpath(rwdts.XactRspCode.NACK)
-            #     return
-
-            # if name != msg.name_ref:
-            #     self._log.error("The project name {} did not match the name {} in config".
-            #                     format(name, msg.name_ref))
-            # projects = scratch.setdefault('projects', {
-            #     'create': [],
-            #     'update': [],
-            #     'delete': [],
-            # })
-
-            # self._log.error("prepare msg type {}".format(type(msg)))
-            name = msg.name_ref
+            xpath = ks_path.to_xpath(RwProjectManoYang.get_schema())
+            self._log.debug("Project xpath: {}".format(xpath))
+            name = ManoProject.from_xpath(xpath, self._log)
 
             self._log.debug("Project %s on_prepare config received (action: %s): %s",
                             name, xact_info.query_action, msg)
 
-            if action in [rwdts.QueryAction.CREATE, rwdts.QueryAction.UPDATE]:
+            if action == rwdts.QueryAction.CREATE:
                 if name in self.projects:
                     self._log.debug("Project {} already exists. Ignore request".
                                     format(name))
+                else:
+                    yield from self._callbacks.on_add_prepare(name)
+                    scratch["projects"]["added"].append((name, msg))
 
+            elif action == rwdts.QueryAction.UPDATE:
+                if name in self.projects:
+                    scratch["projects"]["updated"].append(name, msg)
                 else:
                     self._log.debug("Project {}: Invoking on_prepare add request".
                                     format(name))
                     yield from self._callbacks.on_add_prepare(name)
+                    scratch["projects"]["added"].append((name, msg))
 
 
             elif action == rwdts.QueryAction.DELETE:
@@ -538,6 +555,9 @@ class ProjectDtsHandler(object):
                             self._log.error("Project {} should not be deleted".
                                             format(name))
                             xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                            return
+
+                        scratch["projects"]["deleted"].append(name)
                     else:
                         self._log.warning("Delete on unknown project: {}".
                                           format(name))
@@ -555,7 +575,7 @@ class ProjectDtsHandler(object):
 
         acg_handler = rift.tasklets.AppConfGroup.Handler(
                         on_apply=apply_config,
-                        )
+                        on_init=on_init)
 
         with self._dts.appconf_group_create(acg_handler) as acg:
             self._reg = acg.register(
@@ -563,6 +583,7 @@ class ProjectDtsHandler(object):
                     flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
                     on_prepare=on_prepare,
                     )
+
 
 class ProjectHandler(object):
     def __init__(self, tasklet, project_class, **kw):
@@ -629,7 +650,7 @@ class ProjectHandler(object):
                     self._class(name, self._tasklet, **(self._kw))
         except Exception as e:
             self._log.exception("Project {} create for {} failed: {}".
-                                formatname, self._get_tasklet_name(), e())
+                                format(name, self._get_tasklet_name(), e))
 
         try:
             yield from self._get_project(name).register()

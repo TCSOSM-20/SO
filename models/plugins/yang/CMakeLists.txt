@@ -38,16 +38,6 @@ set(source_yang_files
   )
 
 rift_add_yang_target(
-  TARGET rwprojectmano_yang
-  YANG_FILES
-    rw-project-mano.yang
-  GIR_PATHS ${CMAKE_CURRENT_BINARY_DIR}
-  COMPONENT ${PKG_LONG_NAME}
-  LIBRARIES
-    rw_project_yang_gen
-  )
-
-rift_add_yang_target(
   TARGET mano-types_yang
   YANG_FILES
     mano-types.yang

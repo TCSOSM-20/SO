@@ -54,6 +54,7 @@ set(subdirs
   rwmon
   rwcm
   rwlaunchpad
+  rwprojectmano
   )
 
 if (NOT RIFT_AGENT_BUILD STREQUAL "XML_ONLY")

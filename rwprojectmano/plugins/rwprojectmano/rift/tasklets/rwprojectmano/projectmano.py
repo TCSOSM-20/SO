@@ -1,0 +1,278 @@
+#
+#   Copyright 2017 RIFT.IO Inc
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+
+"""
+Project Manager tasklet is responsible for managing the Projects
+configurations required for Role Based Access Control feature.
+"""
+
+
+import asyncio
+
+import gi
+gi.require_version('RwDts', '1.0')
+from gi.repository import (
+    RwDts as rwdts,
+    ProtobufC,
+    RwTypes,
+)
+
+import rift.tasklets
+from rift.mano.utils.project import (
+    NS_PROJECT,
+    get_add_delete_update_cfgs,
+    ProjectConfigCallbacks,
+)
+
+
+class ProjectDtsHandler(object):
+    XPATH = "C,/{}".format(NS_PROJECT)
+
+    def __init__(self, dts, log, callbacks):
+        self._dts = dts
+        self._log = log
+        self._callbacks = callbacks
+
+        self.reg = None
+        self.projects = []
+
+    @property
+    def log(self):
+        return self._log
+
+    @property
+    def dts(self):
+        return self._dts
+
+    def add_project(self, cfg):
+        name = cfg.name
+        self.log.info("Adding project: {}".format(name))
+
+        if name not in self.projects:
+            self._callbacks.on_add_apply(name, cfg)
+            self.projects.append(name)
+        else:
+            self.log.error("Project already present: {}".
+                           format(name))
+
+    def delete_project(self, name):
+        self._log.info("Deleting project: {}".format(name))
+        if name in self.projects:
+            self._callbacks.on_delete_apply(name)
+            self.projects.remove(name)
+        else:
+            self.log.error("Unrecognized project: {}".
+                           format(name))
+
+    def update_project(self, cfg):
+        """ Update an existing project
+
+        Currently, we do not take any action on MANO for this,
+        so no callbacks are defined
+
+        Arguments:
+            msg - The project config message
+        """
+        name = cfg.name
+        self._log.info("Updating project: {}".format(name))
+        if name in self.projects:
+            pass
+        else:
+            self.log.error("Unrecognized project: {}".
+                           format(name))
+
+    def register(self):
+        @asyncio.coroutine
+        def apply_config(dts, acg, xact, action, scratch):
+            self._log.debug("Got project apply config (xact: %s) (action: %s)", xact, action)
+
+            if xact.xact is None:
+                if action == rwdts.AppconfAction.INSTALL:
+                    curr_cfg = self._reg.elements
+                    for cfg in curr_cfg:
+                        self._log.debug("Project being re-added after restart.")
+                        self.add_project(cfg.name)
+                else:
+                    # When RIFT first comes up, an INSTALL is called with the current config
+                    # Since confd doesn't actally persist data this never has any data so
+                    # skip this for now.
+                    self._log.debug("No xact handle.  Skipping apply config")
+
+                return
+
+            add_cfgs, delete_cfgs, update_cfgs = get_add_delete_update_cfgs(
+                    dts_member_reg=self._reg,
+                    xact=xact,
+                    key_name="name",
+                    )
+
+            # Handle Deletes
+            for cfg in delete_cfgs:
+                self.delete_project(cfg.name)
+
+            # Handle Adds
+            for cfg in add_cfgs:
+                self.add_project(cfg)
+
+            # Handle Updates
+            for cfg in update_cfgs:
+                self.update_project(cfg)
+
+            return RwTypes.RwStatus.SUCCESS
+
+        @asyncio.coroutine
+        def on_prepare(dts, acg, xact, xact_info, ks_path, msg, scratch):
+            """ Prepare callback from DTS for Project """
+
+            action = xact_info.query_action
+            name = msg.name
+
+            self._log.debug("Project %s on_prepare config received (action: %s): %s",
+                            name, xact_info.query_action, msg)
+
+            if action in [rwdts.QueryAction.CREATE, rwdts.QueryAction.UPDATE]:
+                if name in self.projects:
+                    self._log.debug("Project {} already exists. Ignore request".
+                                    format(name))
+
+                else:
+                    self._log.debug("Project {}: Invoking on_prepare add request".
+                                    format(name))
+                    yield from self._callbacks.on_add_prepare(name, msg)
+
+
+            elif action == rwdts.QueryAction.DELETE:
+                # Check if the entire project got deleted
+                fref = ProtobufC.FieldReference.alloc()
+                fref.goto_whole_message(msg.to_pbcm())
+                if fref.is_field_deleted():
+                    if name in self.projects:
+                        rc = yield from self._callbacks.on_delete_prepare(name)
+                        if not rc:
+                            self._log.error("Project {} should not be deleted".
+                                            format(name))
+                            xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                            return
+                    else:
+                        self._log.warning("Delete on unknown project: {}".
+                                          format(name))
+
+            else:
+                self._log.error("Action (%s) NOT SUPPORTED", action)
+                xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                return
+
+            xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+
+        self._log.debug("Registering for project config using xpath: %s",
+                        ProjectDtsHandler.XPATH)
+
+        acg_handler = rift.tasklets.AppConfGroup.Handler(
+            on_apply=apply_config,
+        )
+
+        with self._dts.appconf_group_create(acg_handler) as acg:
+            self._reg = acg.register(
+                xpath=ProjectDtsHandler.XPATH,
+                flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
+                on_prepare=on_prepare,
+            )
+
+
+class ProjectHandler(object):
+    def __init__(self, tasklet, project_class):
+        self._tasklet = tasklet
+        self._log = tasklet.log
+        self._log_hdl = tasklet.log_hdl
+        self._dts = tasklet.dts
+        self._loop = tasklet.loop
+        self._class = project_class
+
+        self._log.debug("Creating project config handler")
+        self.project_cfg_handler = ProjectDtsHandler(
+            self._dts, self._log,
+            ProjectConfigCallbacks(
+                on_add_apply=self.on_project_added,
+                on_add_prepare=self.on_add_prepare,
+                on_delete_apply=self.on_project_deleted,
+                on_delete_prepare=self.on_delete_prepare,
+            )
+        )
+
+    def _get_tasklet_name(self):
+        return self._tasklet.tasklet_info.instance_name
+
+    def _get_project(self, name):
+        try:
+            proj = self._tasklet.projects[name]
+        except Exception as e:
+            self._log.exception("Project {} ({})not found for tasklet {}: {}".
+                                format(name, list(self._tasklet.projects.keys()),
+                                       self._get_tasklet_name(), e))
+            raise e
+
+        return proj
+
+    def on_project_deleted(self, name):
+        self._log.debug("Project {} deleted".format(name))
+        try:
+            self._get_project(name).deregister()
+        except Exception as e:
+            self._log.exception("Project {} deregister for {} failed: {}".
+                                format(name, self._get_tasklet_name(), e))
+
+        try:
+            proj = self._tasklet.projects.pop(name)
+            del proj
+        except Exception as e:
+            self._log.exception("Project {} delete for {} failed: {}".
+                                format(name, self._get_tasklet_name(), e))
+
+    def on_project_added(self, name, cfg):
+        self._log.debug("Project {} added to tasklet {}".
+                        format(name, self._get_tasklet_name()))
+        self._get_project(name)._apply = True
+
+    @asyncio.coroutine
+    def on_add_prepare(self, name, msg):
+        self._log.debug("Project {} to be added to {}".
+                        format(name, self._get_tasklet_name()))
+
+        try:
+            self._tasklet.projects[name] = \
+                    self._class(name, self._tasklet)
+        except Exception as e:
+            self._log.exception("Project {} create for {} failed: {}".
+                                format(name, self._get_tasklet_name(), e))
+
+        try:
+            yield from self._get_project(name).register()
+        except Exception as e:
+            self._log.exception("Project {} register for tasklet {} failed: {}".
+                                format(name, self._get_tasklet_name(), e))
+
+        self._log.debug("Project {} added to {}".
+                        format(name, self._get_tasklet_name()))
+
+    @asyncio.coroutine
+    def on_delete_prepare(self, name):
+        self._log.debug("Project {} being deleted for tasklet {}".
+                        format(name, self._get_tasklet_name()))
+        rc = yield from self._get_project(name).delete_prepare()
+        return rc
+
+    def register(self):
+        self.project_cfg_handler.register()

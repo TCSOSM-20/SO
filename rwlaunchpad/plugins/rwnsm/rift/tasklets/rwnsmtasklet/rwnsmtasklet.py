@@ -1086,7 +1086,7 @@ class VirtualNetworkFunctionRecord(object):
                 for vnfd_cp in vlr.vld_msg.vnfd_connection_point_ref:
                     if (vnfd_cp.vnfd_id_ref == self._vnfd.id and
                             vnfd_cp.vnfd_connection_point_ref == conn.name and
-                            vnfd_cp.member_vnf_index_ref == str(self.member_vnf_index) and
+                            vnfd_cp.member_vnf_index_ref == self.member_vnf_index and
                              vlr.cloud_account_name == self.cloud_account_name):
                         self._log.debug("Found VLR for cp_name:%s and vnf-index:%d",
                                         conn.name, self.member_vnf_index)

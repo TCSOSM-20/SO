@@ -2025,8 +2025,9 @@ class VnfdDtsHandler(object):
         @asyncio.coroutine
         def on_prepare(dts, acg, xact, xact_info, ks_path, msg, scratch):
             """ on prepare callback """
-            self._log.debug("Got on prepare for VNFD (path: %s) (action: %s)",
-                            ks_path.to_xpath(RwVnfmYang.get_schema()), msg)
+            self._log.debug("Got on prepare for VNFD (path: %s) (action: %s) (msg: %s)",
+                            ks_path.to_xpath(RwVnfmYang.get_schema()),
+                            xact_info.query_action, msg)
             fref = ProtobufC.FieldReference.alloc()
             fref.goto_whole_message(msg.to_pbcm())
 

@@ -257,7 +257,7 @@ class VnffgRecord(object):
                        "vnffgd_id_ref": self._vnffgd_msg.id,
                        "vnffgd_name_ref": self._vnffgd_msg.name,
                        "sdn_account": self._sdn_account_name,
-                    }
+                       }
         vnffgr = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_Vnffgr.from_dict(vnffgr_dict)
         for rsp in self._vnffgd_msg.rsp:
             vnffgr_rsp = vnffgr.rsp.add()
@@ -281,38 +281,38 @@ class VnffgRecord(object):
                 vnfr_cp_ref.vnfd_id_ref =rsp_cp_ref.vnfd_id_ref
                 vnfr_cp_ref.service_function_type = vnfd[0].service_function_type
                 for nsr_vnfr in self._nsr.vnfrs.values():
-                   if (nsr_vnfr.vnfd.id == vnfr_cp_ref.vnfd_id_ref and
-                      nsr_vnfr.member_vnf_index == vnfr_cp_ref.member_vnf_index_ref):
-                       vnfr_cp_ref.vnfr_id_ref = nsr_vnfr.id
-                       vnfr_cp_ref.vnfr_name_ref = nsr_vnfr.name
-                       vnfr_cp_ref.vnfr_connection_point_ref = rsp_cp_ref.vnfd_connection_point_ref
+                    if (nsr_vnfr.vnfd.id == vnfr_cp_ref.vnfd_id_ref and
+                                nsr_vnfr.member_vnf_index == vnfr_cp_ref.member_vnf_index_ref):
+                        vnfr_cp_ref.vnfr_id_ref = nsr_vnfr.id
+                        vnfr_cp_ref.vnfr_name_ref = nsr_vnfr.name
+                        vnfr_cp_ref.vnfr_connection_point_ref = rsp_cp_ref.vnfd_connection_point_ref
 
-                       vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
-                       self._log.debug(" Received VNFR is %s", vnfr)
-                       while vnfr.operational_status != 'running':
-                           self._log.info("Received vnf op status is %s; retrying",vnfr.operational_status)
-                           if vnfr.operational_status == 'failed':
-                               self._log.error("Fetching VNFR for  %s failed", vnfr.id)
-                               raise NsrInstantiationFailed("Failed NS %s instantiation due to VNFR %s failure" % (self.id, vnfr.id))
-                           yield from asyncio.sleep(2, loop=self._loop)
-                           vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
-                           self._log.debug("Received VNFR is %s", vnfr)
+                        vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
+                        self._log.debug(" Received VNFR is %s", vnfr)
+                        while vnfr.operational_status != 'running':
+                            self._log.info("Received vnf op status is %s; retrying",vnfr.operational_status)
+                            if vnfr.operational_status == 'failed':
+                                self._log.error("Fetching VNFR for  %s failed", vnfr.id)
+                                raise NsrInstantiationFailed("Failed NS %s instantiation due to VNFR %s failure" % (self.id, vnfr.id))
+                            yield from asyncio.sleep(2, loop=self._loop)
+                            vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
+                            self._log.debug("Received VNFR is %s", vnfr)
 
-                       vnfr_cp_ref.connection_point_params.mgmt_address =  vnfr.mgmt_interface.ip_address
-                       for cp in vnfr.connection_point:
-                           if cp.name == vnfr_cp_ref.vnfr_connection_point_ref:
-                               vnfr_cp_ref.connection_point_params.port_id = cp.connection_point_id
-                               vnfr_cp_ref.connection_point_params.name = self._nsr.name + '.' + cp.name
-                               for vdu in vnfr.vdur:
-                                   for ext_intf in vdu.external_interface:
-                                       if ext_intf.name == vnfr_cp_ref.vnfr_connection_point_ref:
-                                           vnfr_cp_ref.connection_point_params.vm_id =  vdu.vim_id
-                                           self._log.debug("VIM ID for CP %s in VNFR %s is %s",cp.name,nsr_vnfr.id,
+                        vnfr_cp_ref.connection_point_params.mgmt_address =  vnfr.mgmt_interface.ip_address
+                        for cp in vnfr.connection_point:
+                            if cp.name == vnfr_cp_ref.vnfr_connection_point_ref:
+                                vnfr_cp_ref.connection_point_params.port_id = cp.connection_point_id
+                                vnfr_cp_ref.connection_point_params.name = self._nsr.name + '.' + cp.name
+                                for vdu in vnfr.vdur:
+                                    for ext_intf in vdu.external_interface:
+                                        if ext_intf.name == vnfr_cp_ref.vnfr_connection_point_ref:
+                                            vnfr_cp_ref.connection_point_params.vm_id =  vdu.vim_id
+                                            self._log.debug("VIM ID for CP %s in VNFR %s is %s",cp.name,nsr_vnfr.id,
                                                             vnfr_cp_ref.connection_point_params.vm_id)
-                                           break
+                                            break
 
-                               vnfr_cp_ref.connection_point_params.address =  cp.ip_address
-                               vnfr_cp_ref.connection_point_params.port = VnffgRecord.SFF_DP_PORT
+                                vnfr_cp_ref.connection_point_params.address =  cp.ip_address
+                                vnfr_cp_ref.connection_point_params.port = VnffgRecord.SFF_DP_PORT
 
         for vnffgd_classifier in self._vnffgd_msg.classifier:
             _rsp =  [rsp for rsp in vnffgr.rsp if rsp.vnffgd_rsp_id_ref == vnffgd_classifier.rsp_id_ref]
@@ -329,37 +329,37 @@ class VnffgRecord(object):
             vnffgr_classifier.rsp_id_ref = rsp_id_ref
             vnffgr_classifier.rsp_name = rsp_name
             for nsr_vnfr in self._nsr.vnfrs.values():
-               if (nsr_vnfr.vnfd.id == vnffgd_classifier.vnfd_id_ref and
-                      nsr_vnfr.member_vnf_index == vnffgd_classifier.member_vnf_index_ref):
-                       vnffgr_classifier.vnfr_id_ref = nsr_vnfr.id
-                       vnffgr_classifier.vnfr_name_ref = nsr_vnfr.name
-                       vnffgr_classifier.vnfr_connection_point_ref = vnffgd_classifier.vnfd_connection_point_ref
+                if (nsr_vnfr.vnfd.id == vnffgd_classifier.vnfd_id_ref and
+                            nsr_vnfr.member_vnf_index == vnffgd_classifier.member_vnf_index_ref):
+                    vnffgr_classifier.vnfr_id_ref = nsr_vnfr.id
+                    vnffgr_classifier.vnfr_name_ref = nsr_vnfr.name
+                    vnffgr_classifier.vnfr_connection_point_ref = vnffgd_classifier.vnfd_connection_point_ref
 
-                       if nsr_vnfr.vnfd.service_function_chain == 'CLASSIFIER':
-                           vnffgr_classifier.sff_name = nsr_vnfr.name
+                    if nsr_vnfr.vnfd.service_function_chain == 'CLASSIFIER':
+                        vnffgr_classifier.sff_name = nsr_vnfr.name
 
-                       vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
-                       self._log.debug(" Received VNFR is %s", vnfr)
-                       while vnfr.operational_status != 'running':
-                           self._log.info("Received vnf op status is %s; retrying",vnfr.operational_status)
-                           if vnfr.operational_status == 'failed':
-                               self._log.error("Fetching VNFR for  %s failed", vnfr.id)
-                               raise NsrInstantiationFailed("Failed NS %s instantiation due to VNFR %s failure" % (self.id, vnfr.id))
-                           yield from asyncio.sleep(2, loop=self._loop)
-                           vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
-                           self._log.debug("Received VNFR is %s", vnfr)
+                    vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
+                    self._log.debug(" Received VNFR is %s", vnfr)
+                    while vnfr.operational_status != 'running':
+                        self._log.info("Received vnf op status is %s; retrying",vnfr.operational_status)
+                        if vnfr.operational_status == 'failed':
+                            self._log.error("Fetching VNFR for  %s failed", vnfr.id)
+                            raise NsrInstantiationFailed("Failed NS %s instantiation due to VNFR %s failure" % (self.id, vnfr.id))
+                        yield from asyncio.sleep(2, loop=self._loop)
+                        vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
+                        self._log.debug("Received VNFR is %s", vnfr)
 
-                       for cp in vnfr.connection_point:
-                           if cp.name == vnffgr_classifier.vnfr_connection_point_ref:
-                               vnffgr_classifier.port_id = cp.connection_point_id
-                               vnffgr_classifier.ip_address = cp.ip_address
-                               for vdu in vnfr.vdur:
-                                   for ext_intf in vdu.external_interface:
-                                       if ext_intf.name == vnffgr_classifier.vnfr_connection_point_ref:
-                                           vnffgr_classifier.vm_id =  vdu.vim_id
-                                           self._log.debug("VIM ID for CP %s in VNFR %s is %s",cp.name,nsr_vnfr.id,
-                                                            vnfr_cp_ref.connection_point_params.vm_id)
-                                           break
+                    for cp in vnfr.connection_point:
+                        if cp.name == vnffgr_classifier.vnfr_connection_point_ref:
+                            vnffgr_classifier.port_id = cp.connection_point_id
+                            vnffgr_classifier.ip_address = cp.ip_address
+                            for vdu in vnfr.vdur:
+                                for ext_intf in vdu.external_interface:
+                                    if ext_intf.name == vnffgr_classifier.vnfr_connection_point_ref:
+                                        vnffgr_classifier.vm_id =  vdu.vim_id
+                                        self._log.debug("VIM ID for CP %s in VNFR %s is %s",cp.name,nsr_vnfr.id,
+                                                        vnfr_cp_ref.connection_point_params.vm_id)
+                                        break
 
         self._log.info("VNFFGR msg to be sent is %s", vnffgr)
         return vnffgr
@@ -377,8 +377,8 @@ class VnffgRecord(object):
                 while vnfr.operational_status != 'running':
                     self._log.info("Received vnf op status is %s; retrying",vnfr.operational_status)
                     if vnfr.operational_status == 'failed':
-                       self._log.error("Fetching VNFR for  %s failed", vnfr.id)
-                       raise NsrInstantiationFailed("Failed NS %s instantiation due to VNFR %s failure" % (self.id, vnfr.id))
+                        self._log.error("Fetching VNFR for  %s failed", vnfr.id)
+                        raise NsrInstantiationFailed("Failed NS %s instantiation due to VNFR %s failure" % (self.id, vnfr.id))
                     yield from asyncio.sleep(2, loop=self._loop)
                     vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
                     self._log.debug("Received VNFR is %s", vnfr)
@@ -431,8 +431,8 @@ class VnffgRecord(object):
     def vnffgr_in_vnffgrm(self):
         """ Is there a VNFR record in VNFM """
         if (self._vnffgr_state == VnffgRecordState.ACTIVE or
-                self._vnffgr_state == VnffgRecordState.INSTANTIATION_PENDING or
-                self._vnffgr_state == VnffgRecordState.FAILED):
+                    self._vnffgr_state == VnffgRecordState.INSTANTIATION_PENDING or
+                    self._vnffgr_state == VnffgRecordState.FAILED):
             return True
 
         return False
@@ -469,21 +469,21 @@ class VirtualLinkRecord(object):
             VirtualLinkRecord
         """
         vlr_obj = VirtualLinkRecord(
-                      dts,
-                      log,
-                      loop,
-                      nsr_name,
-                      vld_msg,
-                      cloud_account_name,
-                      om_datacenter,
-                      ip_profile,
-                      nsr_id,
-                      )
+            dts,
+            log,
+            loop,
+            nsr_name,
+            vld_msg,
+            cloud_account_name,
+            om_datacenter,
+            ip_profile,
+            nsr_id,
+        )
 
         if restart_mode:
             res_iter = yield from dts.query_read(
-                              "D,/vlr:vlr-catalog/vlr:vlr",
-                              rwdts.XactFlag.MERGE)
+                "D,/vlr:vlr-catalog/vlr:vlr",
+                rwdts.XactFlag.MERGE)
 
             for fut in res_iter:
                 response = yield from fut
@@ -632,9 +632,9 @@ class VirtualLinkRecord(object):
         for conn in self.vld_msg.vnfd_connection_point_ref:
             for vnfr in vnfrs:
                 if (vnfr.vnfd.id == conn.vnfd_id_ref and
-                        vnfr.member_vnf_index == conn.member_vnf_index_ref and
-                        self.cloud_account_name == vnfr.cloud_account_name and
-                        self.om_datacenter_name == vnfr.om_datacenter_name):
+                            vnfr.member_vnf_index == conn.member_vnf_index_ref and
+                            self.cloud_account_name == vnfr.cloud_account_name and
+                            self.om_datacenter_name == vnfr.om_datacenter_name):
                     cp_entry = nsr_vlr.vnfr_connection_point_ref.add()
                     cp_entry.vnfr_id = vnfr.id
                     cp_entry.connection_point = conn.vnfd_connection_point_ref
@@ -678,9 +678,9 @@ class VirtualLinkRecord(object):
     def vlr_in_vns(self):
         """ Is there a VLR record in VNS """
         if (self._state == VlRecordState.ACTIVE or
-            self._state == VlRecordState.INSTANTIATION_PENDING or
-            self._state == VlRecordState.TERMINATE_PENDING or
-            self._state == VlRecordState.FAILED):
+                    self._state == VlRecordState.INSTANTIATION_PENDING or
+                    self._state == VlRecordState.TERMINATE_PENDING or
+                    self._state == VlRecordState.FAILED):
             return True
 
         return False
@@ -722,8 +722,8 @@ class VirtualNetworkFunctionRecord(object):
     @staticmethod
     @asyncio.coroutine
     def create_record(dts, log, loop, vnfd, const_vnfd_msg, nsd_id, nsr_name,
-                cloud_account_name, om_datacenter_name, nsr_id, group_name, group_instance_id,
-                placement_groups, restart_mode=False):
+                      cloud_account_name, om_datacenter_name, nsr_id, group_name, group_instance_id,
+                      placement_groups, restart_mode=False):
         """Creates a new VNFR object based on the given data.
 
         If restart mode is enabled, then we look for existing records in the
@@ -733,25 +733,25 @@ class VirtualNetworkFunctionRecord(object):
             VirtualNetworkFunctionRecord
         """
         vnfr_obj = VirtualNetworkFunctionRecord(
-                          dts,
-                          log,
-                          loop,
-                          vnfd,
-                          const_vnfd_msg,
-                          nsd_id,
-                          nsr_name,
-                          cloud_account_name,
-                          om_datacenter_name,
-                          nsr_id,
-                          group_name,
-                          group_instance_id,
-                          placement_groups,
-                          restart_mode=restart_mode)
+            dts,
+            log,
+            loop,
+            vnfd,
+            const_vnfd_msg,
+            nsd_id,
+            nsr_name,
+            cloud_account_name,
+            om_datacenter_name,
+            nsr_id,
+            group_name,
+            group_instance_id,
+            placement_groups,
+            restart_mode=restart_mode)
 
         if restart_mode:
             res_iter = yield from dts.query_read(
-                              "D,/vnfr:vnfr-catalog/vnfr:vnfr",
-                              rwdts.XactFlag.MERGE)
+                "D,/vnfr:vnfr-catalog/vnfr:vnfr",
+                rwdts.XactFlag.MERGE)
 
             for fut in res_iter:
                 response = yield from fut
@@ -931,34 +931,34 @@ class VirtualNetworkFunctionRecord(object):
 
     def configure(self):
         self.config_store.merge_vnfd_config(
-                    self._nsd_id,
-                    self._vnfd,
-                    self.member_vnf_index,
-                    )
+            self._nsd_id,
+            self._vnfd,
+            self.member_vnf_index,
+        )
 
     def create_vnfr_msg(self):
         """ VNFR message for this VNFR """
         vnfd_fields = [
-                "short_name",
-                "vendor",
-                "description",
-                "version",
-                "type_yang",
-                ]
+            "short_name",
+            "vendor",
+            "description",
+            "version",
+            "type_yang",
+        ]
         vnfd_copy_dict = {k: v for k, v in self._vnfd.as_dict().items() if k in vnfd_fields}
         vnfr_dict = {
-                "id": self.id,
-                "nsr_id_ref": self._nsr_id,
-                "name": self.name,
-                "cloud_account": self._cloud_account_name,
-                "om_datacenter": self._om_datacenter_name,
-                "config_status": self.config_status
-                }
+            "id": self.id,
+            "nsr_id_ref": self._nsr_id,
+            "name": self.name,
+            "cloud_account": self._cloud_account_name,
+            "om_datacenter": self._om_datacenter_name,
+            "config_status": self.config_status
+        }
         vnfr_dict.update(vnfd_copy_dict)
 
         vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict(vnfr_dict)
         vnfr.vnfd = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vnfd.from_dict(self.vnfd.as_dict(),
-                                                                          ignore_missing_keys=True)
+                                                                           ignore_missing_keys=True)
         vnfr.member_vnf_index_ref = self.member_vnf_index
         vnfr.vnf_configuration.from_dict(self._vnfd.vnf_configuration.as_dict())
 
@@ -980,10 +980,10 @@ class VirtualNetworkFunctionRecord(object):
         self._log.debug("Send an update to VNFM for VNFR {} with {}".
                         format(self.name, self.vnfr_msg))
         yield from self._dts.query_update(
-                self.xpath,
-                rwdts.XactFlag.TRACE,
-                self.vnfr_msg
-                )
+            self.xpath,
+            rwdts.XactFlag.TRACE,
+            self.vnfr_msg
+        )
 
     def get_config_status(self):
         """Return the config status as YANG ENUM"""
@@ -1030,7 +1030,7 @@ class VirtualNetworkFunctionRecord(object):
                     yield from self.update_vnfm()
                 except Exception as e:
                     self._log.error("Exception updating VNFM with new status {} of VNFR {}: {}".
-                                format(status, self.name, e))
+                                    format(status, self.name, e))
                     self._log.exception(e)
 
     def is_configured(self):
@@ -1059,9 +1059,9 @@ class VirtualNetworkFunctionRecord(object):
             for vlr in nsr.vlrs:
                 for vnfd_cp in vlr.vld_msg.vnfd_connection_point_ref:
                     if (vnfd_cp.vnfd_id_ref == self._vnfd.id and
-                            vnfd_cp.vnfd_connection_point_ref == conn.name and
-                            vnfd_cp.member_vnf_index_ref == self.member_vnf_index and
-                             vlr.cloud_account_name == self.cloud_account_name):
+                                vnfd_cp.vnfd_connection_point_ref == conn.name and
+                                vnfd_cp.member_vnf_index_ref == self.member_vnf_index and
+                                vlr.cloud_account_name == self.cloud_account_name):
                         self._log.debug("Found VLR for cp_name:%s and vnf-index:%d",
                                         conn.name, self.member_vnf_index)
                         return vlr
@@ -1073,13 +1073,13 @@ class VirtualNetworkFunctionRecord(object):
             cpr.name = conn_p.name
             cpr.type_yang = conn_p.type_yang
             if conn_p.has_field('port_security_enabled'):
-              cpr.port_security_enabled = conn_p.port_security_enabled
+                cpr.port_security_enabled = conn_p.port_security_enabled
 
             vlr_ref = find_vlr_for_cp(conn_p)
             if vlr_ref is None:
                 msg = "Failed to find VLR for cp = %s" % conn_p.name
                 self._log.debug("%s", msg)
-#                raise VirtualNetworkFunctionRecordError(msg)
+                #                raise VirtualNetworkFunctionRecordError(msg)
                 continue
 
             cpr.vlr_ref = vlr_ref.id
@@ -1127,8 +1127,8 @@ class VirtualNetworkFunctionRecord(object):
     def vnfr_in_vnfm(self):
         """ Is there a VNFR record in VNFM """
         if (self._state == VnfRecordState.ACTIVE or
-                self._state == VnfRecordState.INSTANTIATION_PENDING or
-                self._state == VnfRecordState.FAILED):
+                    self._state == VnfRecordState.INSTANTIATION_PENDING or
+                    self._state == VnfRecordState.FAILED):
             return True
 
         return False
@@ -1208,7 +1208,7 @@ class NetworkServiceStatus(object):
                             "FAILED": "failed",
                             "VL_INSTANTIATE": "vl_instantiate",
                             "VL_TERMINATE": "vl_terminate",
-        }
+                            }
         return state_to_str_map[self._state.name]
 
     @property
@@ -1405,8 +1405,8 @@ class NetworkServiceRecord(object):
 
     def __str__(self):
         return "NSR(name={}, nsd_id={}, cloud_account={})".format(
-                self.name, self.nsd_id, self.cloud_account_name
-                )
+            self.name, self.nsd_id, self.cloud_account_name
+        )
 
     def _get_vnfd(self, vnfd_id, config_xact):
         """  Fetch vnfd msg for the passed vnfd id """
@@ -1415,10 +1415,10 @@ class NetworkServiceRecord(object):
     def _get_vnfd_cloud_account(self, vnfd_member_index):
         """  Fetch Cloud Account for the passed vnfd id """
         if self._nsr_cfg_msg.vnf_cloud_account_map:
-           vim_accounts = [(vnf.cloud_account,vnf.om_datacenter)  for vnf in self._nsr_cfg_msg.vnf_cloud_account_map \
-                           if vnfd_member_index == vnf.member_vnf_index_ref]
-           if vim_accounts and vim_accounts[0]:
-               return vim_accounts[0]
+            vim_accounts = [(vnf.cloud_account,vnf.om_datacenter)  for vnf in self._nsr_cfg_msg.vnf_cloud_account_map \
+                            if vnfd_member_index == vnf.member_vnf_index_ref]
+            if vim_accounts and vim_accounts[0]:
+                return vim_accounts[0]
         return (self.cloud_account_name,self.om_datacenter_name)
 
     def _get_constituent_vnfd_msg(self, vnf_index):
@@ -1573,7 +1573,7 @@ class NetworkServiceRecord(object):
         tmp_file = None
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(yaml.dump(data, default_flow_style=True)
-                    .encode("UTF-8"))
+                           .encode("UTF-8"))
 
         self._log.debug("Creating a temp file: {} with input data: {}".
                         format(tmp_file.name, data))
@@ -1646,19 +1646,19 @@ class NetworkServiceRecord(object):
                 err_msg = None
                 if not rc:
                     err_msg = "Failed config for trigger {} using config script '{}'". \
-                              format(self.scaling_trigger_str(trigger),
-                                     config_primitive.user_defined_script)
+                        format(self.scaling_trigger_str(trigger),
+                               config_primitive.user_defined_script)
                 yield from update_config_status(success=rc, err_msg=err_msg)
                 return rc
             else:
                 err_msg = "Failed config for trigger {} as config script is not specified". \
-                          format(self.scaling_trigger_str(trigger))
+                    format(self.scaling_trigger_str(trigger))
                 yield from update_config_status(success=False, err_msg=err_msg)
                 raise NotImplementedError("Only script based config support for scale group for now: {}".
                                           format(group.name))
         else:
-            err_msg = "Failed config for trigger {} as config primitive is not specified".\
-                      format(self.scaling_trigger_str(trigger))
+            err_msg = "Failed config for trigger {} as config primitive is not specified". \
+                format(self.scaling_trigger_str(trigger))
             yield from update_config_status(success=False, err_msg=err_msg)
             self._log.error("Config primitive not specified for config action in scale group %s" %
                             (group.name))
@@ -1673,9 +1673,9 @@ class NetworkServiceRecord(object):
                             scaling_group_msg.name, self.id)
 
             group_record = scale_group.ScalingGroup(
-                    self._log,
-                    scaling_group_msg
-                    )
+                self._log,
+                scaling_group_msg
+            )
 
             self._scaling_groups[group_record.name] = group_record
 
@@ -1701,7 +1701,6 @@ class NetworkServiceRecord(object):
                     vnfr = yield from self.create_vnf_record(vnfd_msg, const_vnfd_msg, cloud_account_name, om_datacenter_name, group_name, index)
                     scale_instance.add_vnfr(vnfr)
                     vnfrs.append(vnfr)
-
             return vnfrs
 
         @asyncio.coroutine
@@ -1722,7 +1721,7 @@ class NetworkServiceRecord(object):
                                     format(group.name, index))
                     scale_instance.operational_status = "failed"
                 else:
-                    yield from self.instantiate_vnfs(vnfrs)
+                    yield from self.instantiate_vnfs(vnfrs, scaleout=True)
 
             except Exception as e:
                 self._log.exception("Failed to begin instantiatiation of vnfs for scale group {}: {}".
@@ -1803,7 +1802,7 @@ class NetworkServiceRecord(object):
                     if all([state == VnfRecordState.TERMINATED for state in instance_vnf_state_list]):
                         instance.operational_status = "terminated"
                         rc = yield from self.apply_scaling_group_config(NsdYang.ScalingTrigger.POST_SCALE_IN,
-                                                                         group, instance)
+                                                                        group, instance)
                         if rc:
                             self._log.debug("Scale in for group {} and instance {} succeeded".
                                             format(group.name, instance.instance_id))
@@ -1847,16 +1846,16 @@ class NetworkServiceRecord(object):
             VirtualLinkRecord
         """
         vlr = yield from VirtualLinkRecord.create_record(
-                self._dts,
-                self._log,
-                self._loop,
-                self.name,
-                vld,
-                cloud_account,
-                om_datacenter,
-                self.resolve_vld_ip_profile(self.nsd_msg, vld),
-                self.id,
-                restart_mode=self.restart_mode)
+            self._dts,
+            self._log,
+            self._loop,
+            self.name,
+            vld,
+            cloud_account,
+            om_datacenter,
+            self.resolve_vld_ip_profile(self.nsd_msg, vld),
+            self.id,
+            restart_mode=self.restart_mode)
 
         return vlr
 
@@ -1883,8 +1882,8 @@ class NetworkServiceRecord(object):
 
             for vnfc in vld.vnfd_connection_point_ref:
                 cloud_account = vnf_cloud_map.get(
-                        vnfc.member_vnf_index_ref,
-                        (self.cloud_account_name,self.om_datacenter_name))
+                    vnfc.member_vnf_index_ref,
+                    (self.cloud_account_name,self.om_datacenter_name))
 
                 cloud_account_list.append(cloud_account)
 
@@ -1950,7 +1949,7 @@ class NetworkServiceRecord(object):
 
         except Exception as e:
             err_msg = "Error instantiating VL for NSR {} and VLD {}: {}". \
-                      format(self.id, vld.id, e)
+                format(self.id, vld.id, e)
             self._log.error(err_msg)
             self._log.exception(e)
             vlr.state = VlRecordState.FAILED
@@ -1973,7 +1972,7 @@ class NetworkServiceRecord(object):
 
                 except Exception as e:
                     err_msg = "Error terminating VL for NSR {} and VLD {}: {}". \
-                              format(self.id, vld.id, e)
+                        format(self.id, vld.id, e)
                     self._log.error(err_msg)
                     self._log.exception(e)
                     vlr.state = VlRecordState.FAILED
@@ -2008,7 +2007,7 @@ class NetworkServiceRecord(object):
         for group in self.nsd_msg.placement_groups:
             for member_vnfd in group.member_vnfd:
                 if (member_vnfd.vnfd_id_ref == vnfd_msg.id) and \
-                   (member_vnfd.member_vnf_index_ref == const_vnfd.member_vnf_index):
+                        (member_vnfd.member_vnf_index_ref == const_vnfd.member_vnf_index):
                     group_info = self.resolve_placement_group_cloud_construct(group)
                     if group_info is None:
                         self._log.error("Could not resolve cloud-construct for placement group: %s", group.name)
@@ -2026,26 +2025,25 @@ class NetworkServiceRecord(object):
         # Fetch the VNFD associated with this VNF
         placement_groups = self.get_placement_groups(vnfd_msg, const_vnfd)
         self._log.info("Cloud Account for VNF %d is %s",const_vnfd.member_vnf_index,cloud_account_name)
-        self._log.info("Launching VNF: %s (Member Index: %s) in NSD plancement Groups: %s, restart mode self.restart_mode %s",
+        self._log.info("Launching VNF: %s (Member Index: %s) in NSD plancement Groups: %s",
                        vnfd_msg.name,
                        const_vnfd.member_vnf_index,
-                       [ group.name for group in placement_groups],
-                       self.restart_mode)
+                       [ group.name for group in placement_groups])
         vnfr = yield from VirtualNetworkFunctionRecord.create_record(self._dts,
-                                            self._log,
-                                            self._loop,
-                                            vnfd_msg,
-                                            const_vnfd,
-                                            self.nsd_id,
-                                            self.name,
-                                            cloud_account_name,
-                                            om_datacenter_name,
-                                            self.id,
-                                            group_name,
-                                            group_instance_id,
-                                            placement_groups,
-                                            restart_mode=self.restart_mode,
-                                            )
+                                                                     self._log,
+                                                                     self._loop,
+                                                                     vnfd_msg,
+                                                                     const_vnfd,
+                                                                     self.nsd_id,
+                                                                     self.name,
+                                                                     cloud_account_name,
+                                                                     om_datacenter_name,
+                                                                     self.id,
+                                                                     group_name,
+                                                                     group_instance_id,
+                                                                     placement_groups,
+                                                                     restart_mode=self.restart_mode,
+                                                                     )
         if vnfr.id in self._vnfrs:
             err = "VNF with VNFR id %s already in vnf list" % (vnfr.id,)
             raise NetworkServiceRecordError(err)
@@ -2069,16 +2067,16 @@ class NetworkServiceRecord(object):
             end_value = param_pool.range.end_value
             if end_value < start_value:
                 raise NetworkServiceRecordError(
-                        "Parameter pool %s has invalid range (start: {}, end: {})".format(
-                            start_value, end_value
-                            )
-                        )
+                    "Parameter pool %s has invalid range (start: {}, end: {})".format(
+                        start_value, end_value
+                    )
+                )
 
             self._param_pools[param_pool.name] = config_value_pool.ParameterValuePool(
-                    self._log,
-                    param_pool.name,
-                    range(start_value, end_value)
-                    )
+                self._log,
+                param_pool.name,
+                range(start_value, end_value)
+            )
 
     @asyncio.coroutine
     def fetch_vnfr(self, vnfr_path):
@@ -2095,14 +2093,14 @@ class NetworkServiceRecord(object):
         return vnfr
 
     @asyncio.coroutine
-    def instantiate_vnfs(self, vnfrs):
+    def instantiate_vnfs(self, vnfrs, scaleout=False):
         """
         This function instantiates VNFs for every VNF in this Network Service
         """
         self._log.debug("Instantiating %u VNFs in NS %s", len(vnfrs), self.id)
         for vnf in vnfrs:
             self._log.debug("Instantiating VNF: %s in NS %s", vnf, self.id)
-            yield from self.nsm_plugin.instantiate_vnf(self, vnf)
+            yield from self.nsm_plugin.instantiate_vnf(self, vnf,scaleout)
 
     @asyncio.coroutine
     def instantiate_vnffgs(self):
@@ -2137,8 +2135,8 @@ class NetworkServiceRecord(object):
             for i in range(group.min_instance_count):
                 self._log.debug("Instantiating %s default scaling instance %s", group, i)
                 yield from self.create_scale_group_instance(
-                        group.name, i, config_xact, is_default=True
-                        )
+                    group.name, i, config_xact, is_default=True
+                )
 
             for group_msg in self._nsr_cfg_msg.scaling_group:
                 if group_msg.scaling_group_name_ref != group.name:
@@ -2147,8 +2145,8 @@ class NetworkServiceRecord(object):
                 for instance in group_msg.instance:
                     self._log.debug("Reloading %s scaling instance %s", group_msg, instance.id)
                     yield from self.create_scale_group_instance(
-                            group.name, instance.id, config_xact, is_default=False
-                            )
+                        group.name, instance.id, config_xact, is_default=False
+                    )
 
     def has_scaling_instances(self):
         """ Return boolean indicating if the network service has default scaling groups """
@@ -2192,7 +2190,7 @@ class NetworkServiceRecord(object):
         return(
             "D,/nsr:ns-instance-opdata" +
             "/nsr:nsr[nsr:ns-instance-config-ref = '{}']"
-            ).format(self.id)
+        ).format(self.id)
 
     @staticmethod
     def xpath_from_nsr(nsr):
@@ -2205,7 +2203,7 @@ class NetworkServiceRecord(object):
         """ Return NSD config xpath."""
         return(
             "C,/nsd:nsd-catalog/nsd:nsd[nsd:id = '{}']"
-            ).format(self.nsd_id)
+        ).format(self.nsd_id)
 
     @asyncio.coroutine
     def instantiate(self, config_xact):
@@ -2351,9 +2349,12 @@ class NetworkServiceRecord(object):
 
         def on_instantiate_done(fut):
             # If the do_instantiate fails, then publish NSR with failed result
-            if fut.exception() is not None:
-                self._log.error("NSR instantiation failed for NSR id %s: %s", self.id, str(fut.exception()))
-                self._loop.create_task(self.instantiation_failed(failed_reason=str(fut.exception())))
+            e = fut.exception()
+            if e is not None:
+                import traceback, sys
+                print(traceback.format_exception(None,e, e.__traceback__), file=sys.stderr, flush=True)
+                self._log.error("NSR instantiation failed for NSR id %s: %s", self.id, str(e))
+                self._loop.create_task(self.instantiation_failed(failed_reason=str(e)))
 
         instantiate_task = self._loop.create_task(do_instantiate())
         instantiate_task.add_done_callback(on_instantiate_done)
@@ -2368,7 +2369,7 @@ class NetworkServiceRecord(object):
 
             if self._config_status == NsrYang.ConfigStates.FAILED:
                 self.record_event("config-failed", "NS configuration failed",
-                        evt_details=self._config_status_details)
+                                  evt_details=self._config_status_details)
 
             yield from self.publish()
 
@@ -2502,7 +2503,7 @@ class NetworkServiceRecord(object):
 
         for cfg_prim in self.nsd_msg.service_primitive:
             cfg_prim = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ServicePrimitive.from_dict(
-                    cfg_prim.as_dict())
+                cfg_prim.as_dict())
             nsr.service_primitive.append(cfg_prim)
 
         for init_cfg in self.nsd_msg.initial_config_primitive:
@@ -2601,7 +2602,7 @@ class NetworkServiceRecord(object):
                     break
                 else:
                     self._log.info("VNFFGR %s in NSR %s is still not active; current state is: %s",
-                                    vnffgr.id, self.id, vnffgr.state)
+                                   vnffgr.id, self.id, vnffgr.state)
                     new_state = curr_state
 
         # Update all the scaling group instance operational status to
@@ -2679,11 +2680,11 @@ class InputParameterSubstitution(object):
                     continue
 
                 self.log.debug(
-                        "input-parameter:{} = {}".format(
-                            param.xpath,
-                            param.value,
-                            )
-                        )
+                    "input-parameter:{} = {}".format(
+                        param.xpath,
+                        param.value,
+                    )
+                )
 
                 try:
                     xpath.setxattr(nsd, param.xpath, param.value)
@@ -2839,7 +2840,7 @@ class NsdDtsHandler(object):
         self._log.debug(
             "Registering for NSD config using xpath: %s",
             NsdDtsHandler.XPATH,
-            )
+        )
 
         acg_hdl = rift.tasklets.AppConfGroup.Handler(on_apply=on_apply)
         with self._dts.appconf_group_create(handler=acg_hdl) as acg:
@@ -2914,7 +2915,7 @@ class VnfdDtsHandler(object):
         self._log.debug(
             "Registering for VNFD config using xpath: %s",
             VnfdDtsHandler.XPATH,
-            )
+        )
         acg_hdl = rift.tasklets.AppConfGroup.Handler(on_apply=on_apply)
         with self._dts.appconf_group_create(handler=acg_hdl) as acg:
             # Need a list in scratch to store VNFDs to create/update later
@@ -2971,15 +2972,15 @@ class NsrRpcDtsHandler(object):
                 self._log.debug("Attemping NsmTasklet netconf connection.")
 
                 manager = yield from ncclient.asyncio_manager.asyncio_connect(
-                        loop=self._loop,
-                        host=NsrRpcDtsHandler.NETCONF_IP_ADDRESS,
-                        port=NsrRpcDtsHandler.NETCONF_PORT,
-                        username=NsrRpcDtsHandler.NETCONF_USER,
-                        password=NsrRpcDtsHandler.NETCONF_PW,
-                        allow_agent=False,
-                        look_for_keys=False,
-                        hostkey_verify=False,
-                        )
+                    loop=self._loop,
+                    host=NsrRpcDtsHandler.NETCONF_IP_ADDRESS,
+                    port=NsrRpcDtsHandler.NETCONF_PORT,
+                    username=NsrRpcDtsHandler.NETCONF_USER,
+                    password=NsrRpcDtsHandler.NETCONF_PW,
+                    allow_agent=False,
+                    look_for_keys=False,
+                    hostkey_verify=False,
+                )
 
                 return manager
 
@@ -2990,7 +2991,7 @@ class NsrRpcDtsHandler(object):
             yield from asyncio.sleep(5, loop=self._loop)
 
         raise NsrInstantiationFailed("Failed to connect to Launchpad within %s seconds" %
-                                      timeout_secs)
+                                     timeout_secs)
 
     def _apply_ns_instance_config(self,payload_dict):
         #self._log.debug("At apply NS instance config with payload %s",payload_dict)
@@ -3007,8 +3008,8 @@ class NsrRpcDtsHandler(object):
             assert action == rwdts.QueryAction.RPC
             rpc_ip = msg
             rpc_op = NsrYang.YangOutput_Nsr_StartNetworkService.from_dict({
-                    "nsr_id":str(uuid.uuid4())
-                })
+                "nsr_id":str(uuid.uuid4())
+            })
 
             if not ('name' in rpc_ip and  'nsd_ref' in rpc_ip and ('cloud_account' in rpc_ip or 'om_datacenter' in rpc_ip)):
                 self._log.error("Mandatory parameters name or nsd_ref or cloud account not found in start-network-service {}".format(rpc_ip))
@@ -3026,7 +3027,7 @@ class NsrRpcDtsHandler(object):
                 #    self._manager = yield from self._connect()
 
                 self._log.debug("Configuring ns-instance-config with name  %s nsd-ref: %s",
-                        rpc_ip.name, rpc_ip.nsd_ref)
+                                rpc_ip.name, rpc_ip.nsd_ref)
 
                 ns_instance_config_dict = {"id":rpc_op.nsr_id, "admin_status":"ENABLED"}
                 ns_instance_config_copy_dict = {k:v for k, v in rpc_ip.as_dict().items()
@@ -3044,7 +3045,7 @@ class NsrRpcDtsHandler(object):
                 #self._log.debug("Sending configure ns-instance-config xml to %s: %s",
                 #        netconf_xml, NsrRpcDtsHandler.NETCONF_IP_ADDRESS)
                 self._log.debug("Sending configure ns-instance-config json to %s: %s",
-                        self._nsr_config_url,ns_instance_config)
+                                self._nsr_config_url,ns_instance_config)
 
                 #response = yield from self._manager.edit_config(
                 #           target="running",
@@ -3054,7 +3055,7 @@ class NsrRpcDtsHandler(object):
                     None,
                     self._apply_ns_instance_config,
                     payload_dict
-                    )
+                )
                 response.raise_for_status()
                 self._log.debug("Received edit config response: %s", response.json())
 
@@ -3075,7 +3076,7 @@ class NsrRpcDtsHandler(object):
             self._ns_regh = group.register(xpath=NsrRpcDtsHandler.EXEC_NSR_CONF_XPATH,
                                            handler=hdl_ns,
                                            flags=rwdts.Flag.PUBLISHER,
-                                          )
+                                           )
 
 
 class NsrDtsHandler(object):
@@ -3248,7 +3249,7 @@ class NsrDtsHandler(object):
                     raise NetworkServiceRecordError(err)
 
                 self._log.debug("Creating NetworkServiceRecord %s  from nsr config  %s",
-                               msg.id, msg.as_dict())
+                                msg.id, msg.as_dict())
                 nsr = self.nsm.create_nsr(msg, key_pairs=key_pairs, restart_mode=restart_mode)
                 return nsr
 
@@ -3337,9 +3338,9 @@ class NsrDtsHandler(object):
             xpath = ks_path.to_xpath(RwNsrYang.get_schema())
             action = xact_info.query_action
             self._log.debug(
-                    "Got Nsr prepare callback (xact: %s) (action: %s) (info: %s), %s:%s)",
-                    xact, action, xact_info, xpath, msg
-                    )
+                "Got Nsr prepare callback (xact: %s) (action: %s) (info: %s), %s:%s)",
+                xact, action, xact_info, xpath, msg
+            )
 
             @asyncio.coroutine
             def delete_instantiation(ns_id):
@@ -3408,18 +3409,18 @@ class NsrDtsHandler(object):
         acg_hdl = rift.tasklets.AppConfGroup.Handler(on_apply=on_apply)
         with self._dts.appconf_group_create(handler=acg_hdl) as acg:
             self._nsr_regh = acg.register(xpath=NsrDtsHandler.NSR_XPATH,
-                                      flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
-                                      on_prepare=on_prepare)
+                                          flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
+                                          on_prepare=on_prepare)
 
             self._scale_regh = acg.register(
-                                      xpath=NsrDtsHandler.SCALE_INSTANCE_XPATH,
-                                      flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY| rwdts.Flag.CACHE,
-                                      )
+                xpath=NsrDtsHandler.SCALE_INSTANCE_XPATH,
+                flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY| rwdts.Flag.CACHE,
+            )
 
             self._key_pair_regh = acg.register(
-                                      xpath=NsrDtsHandler.KEY_PAIR_XPATH,
-                                      flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
-                                       )
+                xpath=NsrDtsHandler.KEY_PAIR_XPATH,
+                flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
+            )
 
 
 class NsrOpDataDtsHandler(object):
@@ -3522,7 +3523,7 @@ class VnfrDtsHandler(object):
             self._log.debug(
                 "Got vnfr on_prepare cb (xact_info: %s, action: %s): %s:%s",
                 xact_info, action, ks_path, msg
-                )
+            )
 
             schema = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.schema()
             path_entry = schema.keyspec_to_entry(ks_path)
@@ -3620,11 +3621,11 @@ class NsManager(object):
 
         self._ro_plugin_selector = ro_plugin_selector
         self._ncclient = rift.mano.ncclient.NcClient(
-              host="127.0.0.1",
-              port=2022,
-              username="admin",
-              password="admin",
-              loop=self._loop)
+            host="127.0.0.1",
+            port=2022,
+            username="admin",
+            password="admin",
+            loop=self._loop)
 
         self._nsrs = {}
         self._nsds = {}
@@ -3641,6 +3642,7 @@ class NsManager(object):
                               VnfrDtsHandler(dts, log, loop, self),
                               NsdRefCountDtsHandler(dts, log, loop, self),
                               NsrDtsHandler(dts, log, loop, self),
+                              ScalingRpcHandler(log, dts, loop, self.scale_rpc_callback),
                               NsrRpcDtsHandler(dts,log,loop,self),
                               self._vnfd_dts_handler,
                               self.cfgmgr_obj,
@@ -3749,6 +3751,74 @@ class NsManager(object):
 
         self._loop.create_task(nsr.delete_scale_group_instance(scale_group_name, instance_id))
 
+    def scale_rpc_callback(self, xact, msg, action):
+        """Callback handler for RPC calls
+        Args:
+            xact : Transaction Handler
+            msg : RPC input
+            action : Scaling Action
+        """
+        ScalingGroupInstance = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup_Instance
+        ScalingGroup = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup
+
+        xpath = ('C,/nsr:ns-instance-config/nsr:nsr[nsr:id="{}"]').format(
+            msg.nsr_id_ref)
+        instance = ScalingGroupInstance.from_dict({"id": msg.instance_id})
+
+        @asyncio.coroutine
+        def get_nsr_scaling_group():
+            results = yield from self._dts.query_read(xpath, rwdts.XactFlag.MERGE)
+
+            for result in results:
+                res = yield from result
+                nsr_config = res.result
+
+            for scaling_group in nsr_config.scaling_group:
+                if scaling_group.scaling_group_name_ref == msg.scaling_group_name_ref:
+                    break
+            else:
+                scaling_group = nsr_config.scaling_group.add()
+                scaling_group.scaling_group_name_ref = msg.scaling_group_name_ref
+
+            return (nsr_config, scaling_group)
+
+        @asyncio.coroutine
+        def update_config(nsr_config):
+            xml = self._ncclient.convert_to_xml(RwNsrYang, nsr_config)
+            xml = '<config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">{}</config>'.format(xml)
+            yield from self._ncclient.connect()
+            yield from self._ncclient.manager.edit_config(target="running", config=xml, default_operation="replace")
+
+        @asyncio.coroutine
+        def scale_out():
+            nsr_config, scaling_group = yield from get_nsr_scaling_group()
+            scaling_group.instance.append(instance)
+            yield from update_config(nsr_config)
+
+        @asyncio.coroutine
+        def scale_in():
+            nsr_config, scaling_group = yield from get_nsr_scaling_group()
+            scaling_group.instance.remove(instance)
+            yield from update_config(nsr_config)
+
+        if action == ScalingRpcHandler.ACTION.SCALE_OUT:
+            self._loop.create_task(scale_out())
+        else:
+            self._loop.create_task(scale_in())
+
+            # Opdata based calls, disabled for now!
+            # if action == ScalingRpcHandler.ACTION.SCALE_OUT:
+            #     self.scale_nsr_out(
+            #           msg.nsr_id_ref,
+            #           msg.scaling_group_name_ref,
+            #           msg.instance_id,
+            #           xact)
+            # else:
+            #     self.scale_nsr_in(
+            #           msg.nsr_id_ref,
+            #           msg.scaling_group_name_ref,
+            #           msg.instance_id)
+
     def nsr_update_cfg(self, nsr_id, msg):
         nsr = self._nsrs[nsr_id]
         nsr.nsr_cfg_msg= msg
@@ -3778,10 +3848,9 @@ class NsManager(object):
             self._log.error(msg)
             raise NetworkServiceRecordError(msg)
 
-        self._log.info("Create NetworkServiceRecord nsr id %s from nsd_id %s, restart mode %s",
+        self._log.info("Create NetworkServiceRecord nsr id %s from nsd_id %s",
                        nsr_msg.id,
-                       nsr_msg.nsd.id,
-                       restart_mode)
+                       nsr_msg.nsd.id)
 
         nsm_plugin = self._ro_plugin_selector.ro_plugin
         sdn_account_name = self._cloud_account_handler.get_cloud_account_sdn_name(nsr_msg.cloud_account)
@@ -3908,12 +3977,12 @@ class NsManager(object):
             raise NetworkServiceDescriptorError("NSD already exists-%s", nsd_msg.id)
 
         nsd = NetworkServiceDescriptor(
-                self._dts,
-                self._log,
-                self._loop,
-                nsd_msg,
-                self
-                )
+            self._dts,
+            self._log,
+            self._loop,
+            nsd_msg,
+            self
+        )
         self._nsds[nsd_msg.id] = nsd
 
         return nsd
@@ -4122,6 +4191,91 @@ class NsmRecordsPublisherProxy(object):
         path = VirtualLinkRecord.vlr_xpath(vlr)
         return (yield from self._vlr_pub_hdlr.delete(xact, path))
 
+
+class ScalingRpcHandler(mano_dts.DtsHandler):
+    """ The Network service Monitor DTS handler """
+    SCALE_IN_INPUT_XPATH = "I,/nsr:exec-scale-in"
+    SCALE_IN_OUTPUT_XPATH = "O,/nsr:exec-scale-in"
+
+    SCALE_OUT_INPUT_XPATH = "I,/nsr:exec-scale-out"
+    SCALE_OUT_OUTPUT_XPATH = "O,/nsr:exec-scale-out"
+
+    ACTION = Enum('ACTION', 'SCALE_IN SCALE_OUT')
+
+    def __init__(self, log, dts, loop, callback=None):
+        super().__init__(log, dts, loop)
+        self.callback = callback
+        self.last_instance_id = defaultdict(int)
+
+    @asyncio.coroutine
+    def register(self):
+
+        @asyncio.coroutine
+        def on_scale_in_prepare(xact_info, action, ks_path, msg):
+            assert action == rwdts.QueryAction.RPC
+
+            try:
+                if self.callback:
+                    self.callback(xact_info.xact, msg, self.ACTION.SCALE_IN)
+
+                rpc_op = NsrYang.YangOutput_Nsr_ExecScaleIn.from_dict({
+                    "instance_id": msg.instance_id})
+
+                xact_info.respond_xpath(
+                    rwdts.XactRspCode.ACK,
+                    self.__class__.SCALE_IN_OUTPUT_XPATH,
+                    rpc_op)
+
+            except Exception as e:
+                self.log.exception(e)
+                xact_info.respond_xpath(
+                    rwdts.XactRspCode.NACK,
+                    self.__class__.SCALE_IN_OUTPUT_XPATH)
+
+        @asyncio.coroutine
+        def on_scale_out_prepare(xact_info, action, ks_path, msg):
+            assert action == rwdts.QueryAction.RPC
+
+            try:
+                scaling_group = msg.scaling_group_name_ref
+                if not msg.instance_id:
+                    last_instance_id = self.last_instance_id[scale_group]
+                    msg.instance_id  = last_instance_id + 1
+                    self.last_instance_id[scale_group] += 1
+
+                if self.callback:
+                    self.callback(xact_info.xact, msg, self.ACTION.SCALE_OUT)
+
+                rpc_op = NsrYang.YangOutput_Nsr_ExecScaleOut.from_dict({
+                    "instance_id": msg.instance_id})
+
+                xact_info.respond_xpath(
+                    rwdts.XactRspCode.ACK,
+                    self.__class__.SCALE_OUT_OUTPUT_XPATH,
+                    rpc_op)
+
+            except Exception as e:
+                self.log.exception(e)
+                xact_info.respond_xpath(
+                    rwdts.XactRspCode.NACK,
+                    self.__class__.SCALE_OUT_OUTPUT_XPATH)
+
+        scale_in_hdl = rift.tasklets.DTS.RegistrationHandler(
+            on_prepare=on_scale_in_prepare)
+        scale_out_hdl = rift.tasklets.DTS.RegistrationHandler(
+            on_prepare=on_scale_out_prepare)
+
+        with self.dts.group_create() as group:
+            group.register(
+                xpath=self.__class__.SCALE_IN_INPUT_XPATH,
+                handler=scale_in_hdl,
+                flags=rwdts.Flag.PUBLISHER)
+            group.register(
+                xpath=self.__class__.SCALE_OUT_INPUT_XPATH,
+                handler=scale_out_hdl,
+                flags=rwdts.Flag.PUBLISHER)
+
+
 class NsmTasklet(rift.tasklets.Tasklet):
     """
     The network service manager  tasklet
@@ -4193,28 +4347,28 @@ class NsmTasklet(rift.tasklets.Tasklet):
         self._vnfd_pub_handler = publisher.VnfdPublisher(use_ssl, ssl_cert, ssl_key, self.loop)
 
         self._records_publisher_proxy = NsmRecordsPublisherProxy(
-                self._dts,
-                self.log,
-                self.loop,
-                self._nsr_pub_handler,
-                self._vnfr_pub_handler,
-                self._vlr_pub_handler,
-                )
+            self._dts,
+            self.log,
+            self.loop,
+            self._nsr_pub_handler,
+            self._vnfr_pub_handler,
+            self._vlr_pub_handler,
+        )
 
         # Register the NSM to receive the nsm plugin
         # when cloud account is configured
         self._ro_plugin_selector = cloud.ROAccountPluginSelector(
-                self._dts,
-                self.log,
-                self.loop,
-                self._records_publisher_proxy,
-                )
+            self._dts,
+            self.log,
+            self.loop,
+            self._records_publisher_proxy,
+        )
         yield from self._ro_plugin_selector.register()
 
         self._cloud_account_handler = cloud.CloudAccountConfigSubscriber(
-                self._log,
-                self._dts,
-                self.log_hdl)
+            self._log,
+            self._dts,
+            self.log_hdl)
 
         yield from self._cloud_account_handler.register()
 
@@ -4222,17 +4376,17 @@ class NsmTasklet(rift.tasklets.Tasklet):
         yield from self._vnffgmgr.register()
 
         self._nsm = NsManager(
-                self._dts,
-                self.log,
-                self.loop,
-                self._nsr_pub_handler,
-                self._vnfr_pub_handler,
-                self._vlr_pub_handler,
-                self._ro_plugin_selector,
-                self._vnffgmgr,
-                self._vnfd_pub_handler,
-                self._cloud_account_handler
-                )
+            self._dts,
+            self.log,
+            self.loop,
+            self._nsr_pub_handler,
+            self._vnfr_pub_handler,
+            self._vlr_pub_handler,
+            self._ro_plugin_selector,
+            self._vnffgmgr,
+            self._vnfd_pub_handler,
+            self._cloud_account_handler
+        )
 
         yield from self._nsm.register()
 

@@ -2622,7 +2622,7 @@ class VnfManager(object):
     def deregister(self):
         self.log.debug("De-register VNFM project {}".format(self.name))
         for hdl in self._dts_handlers:
-            yield from hdl.deregister()
+            hdl.deregister()
 
     @asyncio.coroutine
     def run(self):

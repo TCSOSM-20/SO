@@ -128,6 +128,7 @@ class CloudAccountConfigSubscriber(object):
             self._reg.deregister()
             self._reg = None
 
+    @asyncio.coroutine
     def register(self):
         @asyncio.coroutine
         def apply_config(dts, acg, xact, action, scratch):

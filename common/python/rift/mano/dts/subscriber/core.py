@@ -161,11 +161,6 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
     def register(self):
         """ Register for VNFD configuration"""
 
-        if self.reg:
-            self._log.warning("RPC already registered for project {}".
-                              format(self._project.name))
-            return
-
         def on_apply(dts, acg, xact, action, scratch):
             """Apply the  configuration"""
             is_recovery = xact.xact is None and action == rwdts.AppconfAction.INSTALL
@@ -188,6 +183,8 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
         @asyncio.coroutine
         def on_prepare(dts, acg, xact, xact_info, ks_path, msg, scratch):
             """ on prepare callback """
+            self._log.debug("Subscriber DTS prepare for project %s: %s",
+                            self.project, xact_info.query_action)
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
         acg_hdl = rift.tasklets.AppConfGroup.Handler(on_apply=on_apply)

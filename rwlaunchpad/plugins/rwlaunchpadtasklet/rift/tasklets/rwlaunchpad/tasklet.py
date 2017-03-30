@@ -314,12 +314,12 @@ class CloudAccountHandlers(object):
 
     @asyncio.coroutine
     def register(self):
-        self.cloud_cfg_handler.register()
+        yield from self.cloud_cfg_handler.register()
         yield from self.cloud_operdata_handler.register()
 
     def deregister(self):
         self.cloud_cfg_handler.deregister()
-        yield from self.cloud_operdata_handler.deregister()
+        self.cloud_operdata_handler.deregister()
 
 
 class LaunchpadProject(ManoProject):
@@ -385,8 +385,9 @@ class LaunchpadProject(ManoProject):
 
     @asyncio.coroutine
     def delete_prepare(self):
-        if self.nsd_catalog or self.vnfd_catalog or self.vld_catalog:
-            return False
+        # TODO: Do we need this check
+        # if self.nsd_catalog or self.vnfd_catalog or self.vld_catalog:
+        #     return False
         return True
 
     @property

@@ -57,7 +57,7 @@ class ResourceMgrConfig(object):
     @asyncio.coroutine
     def register(self):
         yield from self.register_resource_pool_operational_data()
-        self.register_cloud_account_config()
+        yield from self.register_cloud_account_config()
 
     def deregister(self):
         self._log.debug("De-register for project {}".format(self._project.name))
@@ -71,6 +71,7 @@ class ResourceMgrConfig(object):
             self._res_sub.deregister()
             self._res_sub = None
 
+    @asyncio.coroutine
     def register_cloud_account_config(self):
         def on_add_cloud_account_apply(account):
             self._log.debug("Received on_add_cloud_account: %s", account)
@@ -95,7 +96,7 @@ class ResourceMgrConfig(object):
             self._dts, self._log, self._rwlog_hdl,
             self._project, cloud_callbacks
         )
-        self._cloud_sub.register()
+        yield from self._cloud_sub.register()
 
     @asyncio.coroutine
     def register_resource_pool_operational_data(self):

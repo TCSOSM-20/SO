@@ -73,6 +73,7 @@ class CloudAccountDtsOperdataHandler(object):
         self._log.info("Notification called by creating dts query: %s", ac_status)
 
 
+    @asyncio.coroutine
     def _register_show_status(self):
         def get_xpath(cloud_name=None):
             return "D,/rw-cloud:cloud/account{}/connection-status".format(
@@ -83,7 +84,8 @@ class CloudAccountDtsOperdataHandler(object):
         def on_prepare(xact_info, action, ks_path, msg):
             path_entry = RwCloudYang.CloudAcc.schema().keyspec_to_entry(ks_path)
             cloud_account_name = path_entry.key00.name
-            self._log.debug("Got show cloud connection status request: %s", ks_path.create_string())
+            self._log.debug("Got show cloud connection status request (action: %s): %s",
+                            xact_info.query_action, ks_path.create_string())
 
             try:
                 saved_accounts = self.get_saved_cloud_accounts(cloud_account_name)
@@ -111,6 +113,7 @@ class CloudAccountDtsOperdataHandler(object):
                 flags=rwdts.Flag.PUBLISHER,
                 )
 
+    @asyncio.coroutine
     def _register_validate_rpc(self):
         def get_xpath():
             return "/rw-cloud:update-cloud-status"
@@ -150,9 +153,11 @@ class CloudAccountDtsOperdataHandler(object):
 
     @asyncio.coroutine
     def register(self):
+        self._log.debug("Register cloud account for project %s", self._project.name)
         yield from self._register_show_status()
         yield from self._register_validate_rpc()
 
     def deregister(self):
-        yield from self._rpc.deregister()
-        yield from self._regh.deregister()
+        self._log.debug("De-register cloud account for project %s", self._project.name)
+        self._rpc.deregister()
+        self._regh.deregister()

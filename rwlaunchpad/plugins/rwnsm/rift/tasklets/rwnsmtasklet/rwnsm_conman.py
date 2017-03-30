@@ -120,7 +120,7 @@ class ROConfigManager(object):
     @asyncio.coroutine
     def register(self):
         """ Register for cm-state changes """
-        
+
         @asyncio.coroutine
         def on_prepare(xact_info, query_action, ks_path, msg):
             """ cm-state changed """
@@ -152,4 +152,9 @@ class ROConfigManager(object):
                                                              handler=handler)
         except Exception as e:
             self._log.error("Failed to register for cm-state changes as %s", str(e))
-            
+
+
+    def deregister(self):
+        if self.dts_reg_hdl:
+            self.dts_reg_hdl.deregister()
+            self.dts_reg_hdl = None

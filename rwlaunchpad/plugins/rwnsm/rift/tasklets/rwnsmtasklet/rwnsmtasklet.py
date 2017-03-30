@@ -2823,11 +2823,17 @@ class NsdDtsHandler(object):
             is_recovery = xact.xact is None and action == rwdts.AppconfAction.INSTALL
             self._log.debug("Got nsd apply cfg (xact:%s) (action:%s)",
                             xact, action)
-            # Create/Update an NSD record
-            for cfg in self._regh.get_xact_elements(xact):
-                # Only interested in those NSD cfgs whose ID was received in prepare callback
-                if cfg.id in scratch.get('nsds', []) or is_recovery:
-                    self._nsm.update_nsd(cfg)
+
+            if self._regh:
+                # Create/Update an NSD record
+                for cfg in self._regh.get_xact_elements(xact):
+                    # Only interested in those NSD cfgs whose ID was received in prepare callback
+                    if cfg.id in scratch.get('nsds', []) or is_recovery:
+                        self._nsm.update_nsd(cfg)
+
+            else:
+                self._log.error("No reg handle for {} for project {}".
+                                format(self.__class__, self._project.name))
 
             scratch.pop('nsds', None)
 
@@ -2929,15 +2935,20 @@ class VnfdDtsHandler(object):
             self._log.debug("Got NSM VNFD apply (xact: %s) (action: %s)(scr: %s)",
                             xact, action, scratch)
 
-            # Create/Update a VNFD record
-            for cfg in self._regh.get_xact_elements(xact):
-                # Only interested in those VNFD cfgs whose ID was received in prepare callback
-                if cfg.id in scratch.get('vnfds', []):
-                    self._nsm.update_vnfd(cfg)
+            if self._regh:
+                # Create/Update a VNFD record
+                for cfg in self._regh.get_xact_elements(xact):
+                    # Only interested in those VNFD cfgs whose ID was received in prepare callback
+                    if cfg.id in scratch.get('vnfds', []):
+                        self._nsm.update_vnfd(cfg)
 
-            for cfg in self._regh.elements:
-                if cfg.id in scratch.get('deleted_vnfds', []):
-                    yield from self._nsm.delete_vnfd(cfg.id)
+                        for cfg in self._regh.elements:
+                            if cfg.id in scratch.get('deleted_vnfds', []):
+                                yield from self._nsm.delete_vnfd(cfg.id)
+
+            else:
+                self._log.error("Reg handle none for {} in project {}".
+                                format(self.__class__, self._project))
 
             scratch.pop('vnfds', None)
             scratch.pop('deleted_vnfds', None)
@@ -3349,11 +3360,20 @@ class NsrDtsHandler(object):
 
             if action == rwdts.AppconfAction.INSTALL and xact.id is None:
                 key_pairs = []
-                for element in self._key_pair_regh.elements:
-                    key_pairs.append(element)
-                for element in self._nsr_regh.elements:
-                    nsr = handle_create_nsr(element, key_pairs, restart_mode=True)
-                    self._loop.create_task(begin_instantiation(nsr))
+                if self._key_pair_regh:
+                    for element in self._key_pair_regh.elements:
+                        key_pairs.append(element)
+                else:
+                    self._log.error("Reg handle none for key pair in project {}".
+                                    format(self._project))
+
+                if self._nsr_regh:
+                    for element in self._nsr_regh.elements:
+                        nsr = handle_create_nsr(element, key_pairs, restart_mode=True)
+                        self._loop.create_task(begin_instantiation(nsr))
+                else:
+                    self._log.error("Reg handle none for NSR in project {}".
+                                    format(self._project))
 
 
             (added_msgs, deleted_msgs, updated_msgs) = get_add_delete_update_cfgs(self._nsr_regh,
@@ -3662,7 +3682,7 @@ class VnfrDtsHandler(object):
 
     def deregister(self):
         self._log.debug("De-register VNFR for project {}".
-                        format(self._project.name))
+                        format(self._nsm._project.name))
         if self._regh:
             self._regh.deregister()
             self._regh = None
@@ -3724,7 +3744,7 @@ class NsdRefCountDtsHandler(object):
 
     def deregister(self):
         self._log.debug("De-register NSD Ref count for project {}".
-                        format(self._project.name))
+                        format(self._nsm._project.name))
         if self._regh:
             self._regh.deregister()
             self._regh = None
@@ -3850,7 +3870,7 @@ class NsManager(object):
     def deregister(self):
         """ Register all static DTS handlers """
         for dts_handle in self._dts_handlers:
-            yield from dts_handle.deregister()
+            dts_handle.deregister()
 
 
     def get_ns_by_nsr_id(self, nsr_id):
@@ -4537,6 +4557,14 @@ class NsmProject(ManoProject):
         self._vnffgmgr.deregister()
         self._cloud_account_handler.deregister()
         self._ro_plugin_selector.deregister()
+        self._nsm = None
+
+    @asyncio.coroutine
+    def delete_prepare(self):
+        # Check if any NS instance is present
+        if self._nsm and self._nsm._nsrs:
+            return False
+        return True
 
 
 class NsmTasklet(rift.tasklets.Tasklet):

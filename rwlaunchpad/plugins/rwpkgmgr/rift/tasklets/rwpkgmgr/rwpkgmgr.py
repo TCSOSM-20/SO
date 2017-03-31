@@ -50,33 +50,42 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
             self.log.exception(e)
 
     def start(self):
-        super().start()
 
         self.log.debug("Registering with dts")
 
-        self.dts = rift.tasklets.DTS(
+        try:
+            super().start()
+            self.dts = rift.tasklets.DTS(
                 self.tasklet_info,
                 RwPkgMgmtYang.get_schema(),
                 self.loop,
                 self.on_dts_state_change
                 )
+        
+            proxy = filesystem.FileSystemProxy(self.loop, self.log)
+            args = [self.log, self.dts, self.loop]
 
-        proxy = filesystem.FileSystemProxy(self.loop, self.log)
-
-        args = [self.log, self.dts, self.loop]
-        self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
+        # create catalog publishers 
+            self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
+            self.copy_publisher = pkg_publisher.CopyStatusPublisher(*args +[self.tasklet_info])
 
         # create catalog subscribers 
-        self.vnfd_catalog_sub = subscriber.VnfdStatusSubscriber(*args)
-        self.nsd_catalog_sub = subscriber.NsdStatusSubscriber(*args)
+            self.vnfd_catalog_sub = subscriber.VnfdStatusSubscriber(*args)
+            self.nsd_catalog_sub = subscriber.NsdStatusSubscriber(*args)
 
-        args.append(proxy)
-        self.endpoint_rpc = rpc.EndpointDiscoveryRpcHandler(*args)
-        self.schema_rpc = rpc.SchemaRpcHandler(*args)
-        self.delete_rpc = rpc.PackageDeleteOperationsRpcHandler(*args)
+            args.append(proxy)
+            self.endpoint_rpc = rpc.EndpointDiscoveryRpcHandler(*args)
+            self.schema_rpc = rpc.SchemaRpcHandler(*args)
+            self.delete_rpc = rpc.PackageDeleteOperationsRpcHandler(*args)
+            self.copy_rpc = rpc.PackageCopyOperationsRpcHandler(*(args + [self.copy_publisher]))
 
-        args.append(self.job_handler)
-        self.pkg_op = rpc.PackageOperationsRpcHandler(*args)
+            args.append(self.job_handler)
+            self.pkg_op = rpc.PackageOperationsRpcHandler(*args)
+
+        except Exception as e:
+            self.log.error("Exception caught rwpkgmgr start: %s", str(e))
+        else:
+            self.log.debug("rwpkgmgr started successfully!")
 
     def stop(self):
         try:
@@ -86,13 +95,18 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
 
     @asyncio.coroutine
     def init(self):
-        yield from self.endpoint_rpc.register()
-        yield from self.schema_rpc.register()
-        yield from self.pkg_op.register()
-        yield from self.job_handler.register()
-        yield from self.delete_rpc.register()
-        yield from self.vnfd_catalog_sub.register()
-        yield from self.nsd_catalog_sub.register()
+        try:
+            yield from self.endpoint_rpc.register()
+            yield from self.schema_rpc.register()
+            yield from self.pkg_op.register()
+            yield from self.job_handler.register()
+            yield from self.delete_rpc.register()
+            yield from self.copy_rpc.register()
+            yield from self.copy_publisher.register()
+            yield from self.vnfd_catalog_sub.register()
+            yield from self.nsd_catalog_sub.register()
+        except Exception as e:
+            self.log.error("Exception caught rwpkgmgr init %s", str(e))
 
     @asyncio.coroutine
     def run(self):

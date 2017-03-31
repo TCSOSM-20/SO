@@ -14,3 +14,4 @@
 #   limitations under the License.
 #
 from .download_status import DownloadStatusPublisher
+from .copy_status import CopyStatusPublisher

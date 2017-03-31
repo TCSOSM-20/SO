@@ -161,6 +161,16 @@ class DescriptorPackage(object):
 
         return self.descriptor_msg.id
 
+    @property
+    def descriptor_name(self):
+        """  The descriptor name of this descriptor in the system """
+        if not self.descriptor_msg.has_field("name"):
+            msg = "Descriptor name not present"
+            self._log.error(msg)
+            raise PackageError(msg)
+
+        return self.descriptor_msg.name
+
     @classmethod
     def get_descriptor_patterns(cls):
         """ Returns a tuple of descriptor regex and Package Types  """

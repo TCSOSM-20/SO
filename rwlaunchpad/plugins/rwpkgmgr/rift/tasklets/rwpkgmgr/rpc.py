@@ -34,6 +34,7 @@ RPC_PKG_ENDPOINT = RwPkgMgmtYang.YangOutput_RwPkgMgmt_GetPackageEndpoint
 RPC_SCHEMA_ENDPOINT = RwPkgMgmtYang.YangOutput_RwPkgMgmt_GetPackageSchema
 RPC_PACKAGE_ADD_ENDPOINT = RwPkgMgmtYang.YangOutput_RwPkgMgmt_PackageFileAdd
 RPC_PACKAGE_DELETE_ENDPOINT = RwPkgMgmtYang.YangOutput_RwPkgMgmt_PackageFileDelete
+RPC_PACKAGE_COPY_ENDPOINT = RwPkgMgmtYang.YangOutput_RwPkgMgmt_PackageCopy
 
 
 class EndpointDiscoveryRpcHandler(mano_dts.AbstractRpcHandler):
@@ -144,6 +145,33 @@ class PackageOperationsRpcHandler(mano_dts.AbstractRpcHandler):
 
         return rpc_op
 
+class PackageCopyOperationsRpcHandler(mano_dts.AbstractRpcHandler):
+    def __init__(self, log, dts, loop, proxy, publisher):
+        """
+        Args:
+            proxy: Any impl of .proxy.AbstractPackageManagerProxy
+            publisher: CopyStatusPublisher object
+        """
+        super().__init__(log, dts, loop)
+        self.proxy = proxy
+        self.publisher = publisher
+
+    @property
+    def xpath(self):
+        return "/rw-pkg-mgmt:package-copy"
+
+    @asyncio.coroutine
+    def callback(self, ks_path, msg):
+        import uuid 
+        copier = pkg_downloader.PackageFileCopier.from_rpc_input(msg, proxy=self.proxy, log=self.log)
+
+        transaction_id, dest_package_id = yield from self.publisher.register_copier(copier)
+        rpc_op = RPC_PACKAGE_COPY_ENDPOINT.from_dict({
+            "transaction_id":transaction_id,
+            "package_id":dest_package_id, 
+            "package_type":msg.package_type})
+
+        return rpc_op
 
 class PackageDeleteOperationsRpcHandler(mano_dts.AbstractRpcHandler):
     def __init__(self, log, dts, loop, proxy):

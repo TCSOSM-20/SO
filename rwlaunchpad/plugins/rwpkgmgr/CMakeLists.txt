@@ -37,11 +37,13 @@ rift_python_install_tree(
     rift/tasklets/${TASKLET_NAME}/rpc.py
     rift/tasklets/${TASKLET_NAME}/downloader/__init__.py
     rift/tasklets/${TASKLET_NAME}/downloader/url.py
+    rift/tasklets/${TASKLET_NAME}/downloader/copy.py
     rift/tasklets/${TASKLET_NAME}/proxy/__init__.py
     rift/tasklets/${TASKLET_NAME}/proxy/base.py
     rift/tasklets/${TASKLET_NAME}/proxy/filesystem.py
     rift/tasklets/${TASKLET_NAME}/publisher/__init__.py
     rift/tasklets/${TASKLET_NAME}/publisher/download_status.py
+    rift/tasklets/${TASKLET_NAME}/publisher/copy_status.py
     rift/tasklets/${TASKLET_NAME}/subscriber/__init__.py
     rift/tasklets/${TASKLET_NAME}/subscriber/download_status.py
   COMPONENT ${PKG_LONG_NAME}

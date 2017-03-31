@@ -591,8 +591,6 @@ module nsd-base
 
     uses manotypes:ip-profile-list;
 
-    uses manotypes:ns-service-primitive;
-
     list initial-config-primitive {
       rwpb:msg-new NsdInitialConfigPrimitive;
       description

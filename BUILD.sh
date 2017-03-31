@@ -184,16 +184,16 @@ if [[ $PLATFORM == ub16 ]]; then
     # remove these packages since some files moved from one to the other, and one was obsoleted
     # ignore failures
 
-    DEL_PACKAGES="rw.toolchain-rwbase rw.toolchain-rwtoolchain rw.core.mgmt-mgmt rw.core.util-util \
-	          rw.core.rwvx-rwvx rw.core.rwvx-rwdts rw.automation.core-RWAUTO rw.core.rwvx-rwha-1.0"
-    for package in $DEL_PACKAGES; do
-        apt remove -y $package || true
+    PACKAGES="rw.toolchain-rwbase rw.toolchain-rwtoolchain rw.core.mgmt-mgmt rw.core.util-util \
+	            rw.core.rwvx-rwvx rw.core.rwvx-rwdts rw.automation.core-RWAUTO"
+    # this package is obsolete.
+    OLD_PACKAGES="rw.core.rwvx-rwha-1.0"
+    for package in $PACKAGES $OLD_PACKAGES; do
+        sudo apt remove -y $package || true
     done
 
-    INST_PACKAGES="rw.toolchain-rwbase rw.toolchain-rwtoolchain rw.core.mgmt-mgmt rw.core.util-util \
-	           rw.core.rwvx-rwvx rw.core.rwvx-rwdts rw.automation.core-RWAUTO"
     packages=""
-    for package in $INST_PACKAGES; do
+    for package in $PACKAGES; do
         packages="$packages $package=${PLATFORM_VERSION}"
     done
     sudo apt-get install -y --allow-downgrades $packages

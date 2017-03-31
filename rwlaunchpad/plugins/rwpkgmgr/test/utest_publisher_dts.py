@@ -99,7 +99,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
                 "package_id": "123",
                 "download_id": str(uuid.uuid4())})
 
-        self.job_handler.on_download_progress(mock_msg)
+        yield from self.job_handler._dts_publisher(mock_msg)
         yield from asyncio.sleep(5, loop=self.loop)
 
         itr = yield from self.dts.query_read("/download-jobs/job[download-id='{}']".format(
@@ -110,12 +110,12 @@ class TestCase(rift.test.dts.AbstractDTSTest):
             result = yield from fut
             result = result.result
 
-        print (mock_msg)
+        print ("Mock ", mock_msg)
         assert result == mock_msg
 
         # Modify the msg
         mock_msg.url = "http://bar/foo"
-        self.job_handler.on_download_finished(mock_msg)
+        yield from self.job_handler._dts_publisher(mock_msg)
         yield from asyncio.sleep(5, loop=self.loop)
         
         itr = yield from self.dts.query_read("/download-jobs/job[download-id='{}']".format(
@@ -138,17 +138,18 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         proxy = mock.MagicMock()
 
-        url = "https://raw.githubusercontent.com/RIFTIO/RIFT.ware/master/rift-shell"
+        url = "http://boson.eng.riftio.com/common/unittests/plantuml.jar"
         url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
         assert download_id is not None
-        
+       
+        # Waiting for 5 secs to be sure that the file is downloaded
         yield from asyncio.sleep(5, loop=self.loop)
         xpath = "/download-jobs/job[download-id='{}']".format(
             download_id)
         result = yield from self.read_xpath(xpath)
-        print (result)
+        self.log.debug("Test result before complete check - %s", result)
         assert result.status == "COMPLETED"
         assert len(self.job_handler.tasks) == 0
 
@@ -163,7 +164,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         yield from self.job_handler.register()
 
         proxy = mock.MagicMock()
-        url = "http://mirror.0x.sg/fedora/linux/releases/24/CloudImages/x86_64/images/Fedora-Cloud-Base-24-1.2.x86_64.qcow2"
+        url = "http://boson.eng.riftio.com/common/unittests/Fedora-x86_64-20-20131211.1-sda-ping.qcow2"
         url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
@@ -171,14 +172,16 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         xpath = "/download-jobs/job[download-id='{}']".format(
             download_id)
 
-        yield from asyncio.sleep(3, loop=self.loop)
+        yield from asyncio.sleep(1, loop=self.loop)
 
         result = yield from self.read_xpath(xpath)
+        self.log.debug("Test result before in_progress check - %s", result)
         assert result.status == "IN_PROGRESS"
 
         yield from self.job_handler.cancel_download(download_id)
         yield from asyncio.sleep(3, loop=self.loop)
         result = yield from self.read_xpath(xpath)
+        self.log.debug("Test result before cancel check - %s", result)
         assert result.status == "CANCELLED"
         assert len(self.job_handler.tasks) == 0
     

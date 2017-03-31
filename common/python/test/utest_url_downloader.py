@@ -29,9 +29,13 @@ import rift.downloader as downloader
 
 TEST_URL = "https://raw.githubusercontent.com/RIFTIO/RIFT.ware/master/rift-shell"
 
-class TestCase(unittest.TestCase):
+class UrlTestCase(unittest.TestCase):
     def setUp(self):
         pass
+
+    @classmethod
+    def set_logger(cls, log):
+        cls.log = log
 
     def _common_checks(self, job):
         if job.status != "COMPLETED":
@@ -42,6 +46,9 @@ class TestCase(unittest.TestCase):
         assert job.start_time > 0
         assert job.stop_time >= job.start_time
 
+    def _display_result(self, url_downl):
+        UrlTestCase.log.debug("URL download result: {}".format(url_downl))
+
     def test_file_download(self):
         """
         Asserts:
@@ -50,9 +57,9 @@ class TestCase(unittest.TestCase):
         """
         url_downl = downloader.UrlDownloader(TEST_URL)
         url_downl.download()
-        assert os.path.isfile(url_downl.filename)
+        assert os.path.isfile(url_downl.filepath)
 
-
+        self._display_result(url_downl)
         assert url_downl.meta.status == downloader.DownloadStatus.COMPLETED
         # assert url_downl.job.progress_percent == 100
         assert "success" in url_downl.meta.detail
@@ -67,7 +74,8 @@ class TestCase(unittest.TestCase):
         url_downl = downloader.UrlDownloader(TEST_URL + ".blah")
         url_downl.download()
 
-        assert not os.path.isfile(url_downl.filename)
+        self._display_result(url_downl)
+        assert not os.path.isfile(url_downl.filepath)
         assert url_downl.meta.status == downloader.DownloadStatus.FAILED
         assert "Max retries" in url_downl.meta.detail or "404" in url_downl.meta.detail
 
@@ -79,7 +87,7 @@ class TestCase(unittest.TestCase):
             1. Cancel for a download and clean up of the downloaded file.
             2. Model attributes (Process percent, detail, status)
         """
-        url = "http://speedtest.ftp.otenet.gr/files/test1Mb.db"
+        url = "http://speedtest.ftp.otenet.gr/files/test10Mb.db"
         url_dwld = downloader.UrlDownloader(url)
         loop = asyncio.get_event_loop()
         fut = loop.run_in_executor(None, url_dwld.download)
@@ -96,6 +104,7 @@ class TestCase(unittest.TestCase):
 
         loop.run_until_complete(sleep())
 
+        self._display_result(url_dwld)
         assert url_dwld.meta.status == downloader.DownloadStatus.CANCELLED
         assert url_dwld.meta.bytes_downloaded == url_dwld.meta.bytes_downloaded
         assert "cancel" in url_dwld.meta.detail
@@ -106,6 +115,7 @@ class TestCase(unittest.TestCase):
                 'https://api.github.com/user')
 
         url_downl.download()
+        self._display_result(url_downl)
 
 
     def tearDown(self):
@@ -125,7 +135,9 @@ def main(argv=sys.argv[1:]):
         runner = None
 
     # Set the global logging level
-    logging.getLogger().setLevel(logging.DEBUG if args.verbose else logging.ERROR)
+    log = logging.getLogger()
+    log.setLevel(logging.DEBUG if args.verbose else logging.ERROR)
+    UrlTestCase.set_logger(log)
 
     # The unittest framework requires a program name, so use the name of this
     # file instead (we do not want to have to pass a fake program name to main

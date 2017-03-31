@@ -40,7 +40,7 @@ from rift.mano.utils.project import (
 from . import rpc
 from .proxy import filesystem
 from . import publisher as pkg_publisher
-
+from . import subscriber 
 
 class PackageManagerProject(ManoProject):
 
@@ -48,15 +48,23 @@ class PackageManagerProject(ManoProject):
         super(PackageManagerProject, self).__init__(tasklet.log, name)
         self.update(tasklet)
 
-        self.job_handler = pkg_publisher.DownloadStatusPublisher(
-            self._log, self._dts, self._loop, self)
+        args = [self.log, self.dts, self.loop, self]
+        self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
+        # create catalog subscribers 
+        self.vnfd_catalog_sub = subscriber.VnfdStatusSubscriber(*args)
+        self.nsd_catalog_sub = subscriber.NsdStatusSubscriber(*args)
+
 
     @asyncio.coroutine
     def register (self):
+        yield from self.vnfd_catalog_sub.register()
+        yield from self.nsd_catalog_sub.register()
         yield from self.job_handler.register()
 
     def deregister (self):
         yield from self.job_handler.deregister()
+        yield from self.vnfd_catalog_sub.deregister()
+        yield from self.nsd_catalog_sub.deregister()
 
 
 class PackageManagerTasklet(rift.tasklets.Tasklet):

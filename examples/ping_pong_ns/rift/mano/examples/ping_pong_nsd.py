@@ -761,7 +761,7 @@ exit 0
                 member.vnfd_id_ref = member_vnfd.descriptor.vnfd[0].id
                 member.member_vnf_index_ref = vnfd_index_map[member_vnfd]
 
-        # self.create_mon_params(vnfd_list)
+        self.create_mon_params(vnfd_list)
 
     def write_config(self, outdir, vnfds):
 

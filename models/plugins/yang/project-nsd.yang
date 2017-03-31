@@ -357,10 +357,12 @@ module project-nsd
           }
         }
 
-        leaf-list member-vnf-index-ref {
+        leaf member-vnf-index-ref {
           description
             "Optional reference to member-vnf within constituent-vnfds";
-          type uint64;
+          type leafref {
+            path "../../../constituent-vnfd/member-vnf-index";
+          }
         }
       }
     }
@@ -401,10 +403,12 @@ module project-nsd
           }
         }
 
-        leaf-list member-vnf-index-ref {
+        leaf member-vnf-index-ref {
           description
             "Optional reference to member-vnf within constituent-vnfds";
-          type uint64;
+          type leafref {
+            path "../../../constituent-vnfd/member-vnf-index";
+          }
         }
       }
     }

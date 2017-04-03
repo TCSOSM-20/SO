@@ -49,8 +49,8 @@ from rift.mano.utils.project import (
 
 
 MANO_PROJECT_ROLES = [
-            'rw-project-mano:mano-oper',
-            'rw-project-mano:mano-admin',
+            'rw-project-mano:catalog-oper',
+            'rw-project-mano:catalog-admin',
 ]
 
 
@@ -80,6 +80,8 @@ class ProjectConfigSubscriber(object):
 
     def delete_user(self, cfg):
         user = User().pb(cfg)
+        self._log.error("Delete user {} for project {}".
+                        format(user.key, self.project_name))
         if user.key in self.users:
             roles = self.users[user.key]
             for role_key in list(roles):
@@ -88,6 +90,8 @@ class ProjectConfigSubscriber(object):
 
     def update_user(self, cfg):
         user = User().pb(cfg)
+        self._log.debug("Update user {} for project {}".
+                        format(user.key, self.project_name))
         cfg_roles = {}
         for cfg_role in cfg.mano_role:
             r = self.role_inst(cfg_role)
@@ -106,6 +110,8 @@ class ProjectConfigSubscriber(object):
                 self.update_role(user, cfg_roles[role_key])
 
     def delete_role(self, user, role_key):
+        self._log.error("Delete role {} for user {}".
+                        format(role_key, user.key))
         user_key = user.key
 
         try:
@@ -119,6 +125,8 @@ class ProjectConfigSubscriber(object):
             self.pub.delete_role(role_key, user_key)
 
     def update_role(self, user, role):
+        self._log.debug("Update role {} for user {}".
+                        format(role.role, user.key))
         user_key = user.key
 
         try:
@@ -237,6 +245,7 @@ class ProjectConfigSubscriber(object):
     def deregister(self):
         self._log.debug("De-registering DTS handler for project {}".
                         format(self.project_name))
+
         if self._reg:
             self._reg.deregister()
             self._reg = None
@@ -276,9 +285,24 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
             self.create_project_role(role)
 
     def create_project_role(self, role):
+        self.log.error("Create project role for {}: {}".
+                       format(self.project_name, role.role))
         xpath = self.role_xpath(role.key)
         pb_role = self.pb_role(role)
         self._regh.update_element(xpath, pb_role)
+
+    def delete_project_roles(self):
+        for name in self.proj_roles:
+            role = RoleKeys()
+            role.role = name
+            role.keys = self.project_name
+            self.delete_project_role(role)
+
+    def delete_project_role(self, role):
+        self.log.error("Delete project role for {}: {}".
+                       format(self.project_name, role.role))
+        xpath = self.role_xpath(role.key)
+        self._regh.delete_element(xpath)
 
     def create_role(self, role_key, user_key):
         return  RoleKeysUsers(role_key, user_key)
@@ -288,6 +312,7 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
         pbRole = self.rbac_int.create_role()
         pbRole.role = role.role
         pbRole.keys = role.keys
+        pbRole.state_machine.state = role.state.name
 
         return pbRole
 
@@ -322,12 +347,16 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
             role.add_user(user)
             update = False
 
-        user.state = StateMachine.new
+        if update:
+            user.state = StateMachine.new
+        else:
+            user.state = StateMachine.new
 
         xpath = self.role_xpath(role_key)
+        self.log.debug("update role: {} user: {} ".format(role_key, user_key))
+
 
         pb_role_user = self.pb_role_user(role, user)
-        self.log.debug("add_update_role: xpath:{} pb_role:{}".format(xpath, pb_role_user))
 
         self._regh.update_element(xpath, pb_role_user)
 
@@ -340,13 +369,13 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
 
         user.state = StateMachine.delete
         xpath = self.role_xpath(role_key)
-        self.log.debug("deleting role: {} user: {} ".format(role_key, user_key))
+        self.log.error("deleting role: {} user: {} ".format(role_key, user_key))
 
         pb_role = self.pb_role_user(role, user)
         self._regh.update_element(xpath, pb_role)
 
     def do_prepare(self, xact_info, action, ks_path, msg):
-        """Handle on_prepare.  To be overridden by Concreate Publisher Handler
+        """Handle on_prepare.
         """
         self.log.debug("do_prepare: action: {}, path: {} ks_path, msg: {}".format(action, ks_path, msg))
 
@@ -371,5 +400,6 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
 
     def deregister(self):
         if self._regh:
+            self.delete_project_roles()
             self._regh.deregister()
             self._regh = None

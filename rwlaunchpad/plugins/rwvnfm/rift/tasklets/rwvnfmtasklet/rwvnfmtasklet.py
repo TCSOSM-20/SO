@@ -2042,7 +2042,7 @@ class VnfdDtsHandler(object):
     def deregister(self):
         '''De-register from DTS'''
         self._log.debug("De-register VNFD DTS handler for project {}".
-                        format(self._project))
+                        format(self._vnfm._project.name))
         if self._regh:
             self._regh.deregister()
             self._regh = None
@@ -2113,7 +2113,7 @@ class VcsComponentDtsHandler(object):
     def deregister(self):
         '''De-register from DTS'''
         self._log.debug("De-register VCS DTS handler for project {}".
-                        format(self._project))
+                        format(self._vnfm._project))
         if self._regh:
             self._regh.deregister()
             self._regh = None
@@ -2454,7 +2454,7 @@ class VnfdRefCountDtsHandler(object):
     def deregister(self):
         '''De-register from DTS'''
         self._log.debug("De-register VNFD Ref DTS handler for project {}".
-                        format(self._project))
+                        format(self._vnfm._project))
         if self._regh:
             self._regh.deregister()
             self._regh = None

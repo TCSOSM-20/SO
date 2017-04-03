@@ -3653,7 +3653,7 @@ class VnfrDtsHandler(object):
 
             schema = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr.schema()
             path_entry = schema.keyspec_to_entry(ks_path)
-            if path_entry.key00.id not in self._nsm._vnfrs:
+            if not path_entry or (path_entry.key00.id not in self._nsm._vnfrs):
                 # Check if this is a monitoring param xpath
                 if 'vnfr:monitoring-param' not in xpath:
                     self._log.error("%s request for non existent record path %s",

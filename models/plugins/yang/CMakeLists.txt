@@ -44,6 +44,9 @@ rift_add_yang_target(
   COMPONENT ${PKG_LONG_NAME}
   LIBRARIES
     rwprojectmano_yang_gen
+  ASSOCIATED_FILES
+    project-vnfd.role.xml
+    project-nsd.role.xml
   )
 
 rift_add_yang_target(

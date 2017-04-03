@@ -536,7 +536,7 @@ class ProjectDtsHandler(object):
 
             elif action == rwdts.QueryAction.UPDATE:
                 if name in self.projects:
-                    scratch["projects"]["updated"].append(name, msg)
+                    scratch["projects"]["updated"].append((name, msg))
                 else:
                     self._log.debug("Project {}: Invoking on_prepare add request".
                                     format(name))

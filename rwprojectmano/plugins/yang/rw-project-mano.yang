@@ -45,6 +45,23 @@ module rw-project-mano
       "Derived from earlier versions of base YANG files";
   }
 
+  identity catalog-oper {
+    base rw-project:project-role;
+    description
+      "The catalog-oper Role has read permission to the VNFD and NSD
+      catalogs within a Project.  The catalog-oper Role may also have
+      execute permission to specific non-mutating RPCs.";
+  }
+
+  identity catalog-admin {
+    base rw-project:project-role;
+    description
+      "The catalog-admin Role has full CRUDX permissions to the VNFD
+      and NSD catalogs within a Project.  The catalog-admin Role does
+      not provide general CRUDX permissions to the Project as a whole,
+      nor to the RIFT.ware platform in general.";
+  }
+
   augment /rw-project:project/rw-project:project-config/rw-project:user {
     description
       "Configuration for MANO application-specific Roles.";

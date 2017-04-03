@@ -24,4 +24,3 @@ rift_add_yang_target(
   LIBRARIES
     rw_project_yang_gen
   )
-

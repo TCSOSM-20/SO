@@ -38,7 +38,7 @@ rw-nsr
 rw-pb-ext
 rw-resource-mgr
 rw-restportforward
-rwsdn
+rwsdnal
 rw-sdn
 rwshell-mgmt
 rw-sorch

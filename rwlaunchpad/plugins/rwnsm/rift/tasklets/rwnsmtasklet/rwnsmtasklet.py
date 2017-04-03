@@ -51,7 +51,7 @@ from gi.repository import (
     VnfrYang,
     RwVnfrYang,
     RwNsmYang,
-    RwsdnYang,
+    RwsdnalYang,
     RwDts as rwdts,
     RwTypes,
     ProtobufC,
@@ -383,7 +383,7 @@ class VnffgRecord(object):
                     vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
                     self._log.debug("Received VNFR is %s", vnfr)
 
-                sff =  RwsdnYang.VNFFGSff()
+                sff =  RwsdnalYang.VNFFGSff()
                 sff_list[nsr_vnfr.vnfd.id] = sff
                 sff.name = nsr_vnfr.name
                 sff.function_type = nsr_vnfr.vnfd.service_function_chain

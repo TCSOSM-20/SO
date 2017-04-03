@@ -25,9 +25,9 @@
 import pytest
 
 import gi
-gi.require_version('RwsdnYang', '1.0')
+gi.require_version('RwsdnalYang', '1.0')
 
-from gi.repository import RwsdnYang
+from gi.repository import RwsdnalYang
 
 @pytest.mark.setup('sdn')
 @pytest.mark.feature('sdn')
@@ -39,8 +39,8 @@ class TestSdnSetup:
         Asserts:
             SDN name and accout type.
         '''
-        proxy = mgmt_session.proxy(RwsdnYang)
-        sdn_account = RwsdnYang.SDNAccount(
+        proxy = mgmt_session.proxy(RwsdnalYang)
+        sdn_account = RwsdnalYang.SDNAccount(
                 name=sdn_account_name,
                 account_type=sdn_account_type)
         xpath = "/sdn-accounts/sdn-account-list[name='%s']" % sdn_account_name
@@ -57,7 +57,7 @@ class TestSdn:
         Asserts:
             sdn_account.account_type is what was configured
         '''
-        proxy = mgmt_session.proxy(RwsdnYang)
+        proxy = mgmt_session.proxy(RwsdnalYang)
         xpath = "/sdn-accounts/sdn-account-list[name='%s']" % sdn_account_name
         sdn_account = proxy.get_config(xpath)
         assert sdn_account.account_type == sdn_account_type
@@ -68,7 +68,7 @@ class TestSdn:
 class TestSdnTeardown:
     def test_delete_odl_sdn_account(self, mgmt_session, sdn_account_name):
         '''Unconfigure sdn account'''
-        proxy = mgmt_session.proxy(RwsdnYang)
+        proxy = mgmt_session.proxy(RwsdnalYang)
         xpath = "/sdn-accounts/sdn-account-list[name='%s']" % sdn_account_name
         proxy.delete_config(xpath)
 

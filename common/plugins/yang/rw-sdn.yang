@@ -28,8 +28,8 @@ module rw-sdn
     prefix "rwpb";
   }
 
-  import rwsdn {
-    prefix "rwsdn";
+  import rwsdnal {
+    prefix "rwsdnal";
   }
 
   revision 2015-09-14 {
@@ -38,15 +38,16 @@ module rw-sdn
   }
 
   container sdn {
+    rwpb:msg-new SDNAccountConfig;
     list account {
-      rwpb:msg-new SDNAccountConfig;
+      rwpb:msg-new SDNAccount;
       key "name";
       leaf name {
 	type string;
       }
 
-      uses rwsdn:sdn-provider-auth;
-      uses rwsdn:connection-status;
+      uses rwsdnal:sdn-provider-auth;
+      uses rwsdnal:connection-status;
     }
   }
 

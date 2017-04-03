@@ -1,5 +1,6 @@
+
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -13,24 +14,17 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
-# Author(s): Ravi Chamarty
-# Creation Date: 10/28/2015
-# 
 
-from .rwtopmgr import (
-    NwtopDiscoveryDtsHandler,
-    NwtopStaticDtsHandler,
+from .accounts import (
+    SDNAccount,
+    SDNAccountCalError,
+    )
+
+from .config import (
+    SDNAccountConfigSubscriber,
+    SDNAccountConfigCallbacks
+    )
+
+from .operdata import (
+     SDNAccountDtsOperdataHandler,
 )
-
-from .rwtopdatastore import (
-    NwtopDataStore,
-)
-
-try:
-    from .sdnsim import SdnSim
-    from .core import Topology
-    from .mock import Mock
-
-except ImportError as e:
-    print("Error: Unable to load sdn implementation: %s" % str(e))
-

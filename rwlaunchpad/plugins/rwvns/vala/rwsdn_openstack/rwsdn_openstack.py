@@ -41,7 +41,7 @@ from gi.repository import (
     GObject,
     RwCal,
     RwSdn, # Vala package
-    RwsdnYang,
+    RwsdnalYang,
     RwTypes,
     RwcalYang)
 
@@ -255,7 +255,7 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
         Returns:
             Validation Code and Details String
         """
-        status = RwsdnYang.SdnConnectionStatus()
+        status = RwsdnalYang.SdnConnectionStatus()
         drv = self._use_driver(account)
         try:
             drv.validate_account_creds()
@@ -366,7 +366,7 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
            @param account - a SDN account
         """
         self.log.debug('Received get VNFFG rendered path for account %s ', account)
-        vnffg_rsps = RwsdnYang.VNFFGRenderedPaths() 
+        vnffg_rsps = RwsdnalYang.VNFFGRenderedPaths() 
         drv = self._use_driver(account)
         port_chain_list = drv.get_port_chain_list()
         for port_chain in port_chain_list:

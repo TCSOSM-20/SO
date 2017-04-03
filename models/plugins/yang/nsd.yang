@@ -137,7 +137,7 @@ module nsd
     }
 
     leaf short-name {
-      description "NSD short name.";
+      description "Short name to appear as label in the UI";
       type string;
     }
 
@@ -213,7 +213,7 @@ module nsd
 
       leaf short-name {
         description
-            "Short name for VLD for UI";
+            "Short name to appear as label in the UI";
         type string;
       }
 
@@ -574,7 +574,7 @@ module nsd
 
       leaf short-name {
         description
-            "Short name for VNFFGD for UI";
+            "Short name to appear as label in the UI";
         type string;
       }
 

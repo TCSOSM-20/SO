@@ -274,7 +274,7 @@ module nsr
           NOTE: An issue with confd is preventing the
           use of xpath. Seems to be an issue with leafref
           to leafref, whose target is in a different module.
-          Once that is resovled this will switched to use
+          Once that is resolved this will switched to use
           leafref";
       type yang:uuid;
     }
@@ -872,7 +872,7 @@ module nsr
                   NOTE: An issue with confd is preventing the
                   use of xpath. Seems to be an issue with leafref
                   to leafref, whose target is in a different module.
-                  Once that is resovled this will switched to use
+                  Once that is resolved this will switched to use
                   leafref";
 
                type string;
@@ -1181,7 +1181,7 @@ module nsr
                NOTE: An issue with confd is preventing the
                use of xpath. Seems to be an issue with leafref
                to leafref, whose target is in a different module.
-               Once that is resovled this will switched to use
+               Once that is resolved this will switched to use
                leafref";
 
           type string;

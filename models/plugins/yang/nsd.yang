@@ -119,7 +119,7 @@ module nsd
     }
 
     leaf parameter-pool {
-      description "NSD Parameter pool name to use for this paramter";
+      description "NSD parameter pool name to use for this parameter";
       type string;
     }
   }

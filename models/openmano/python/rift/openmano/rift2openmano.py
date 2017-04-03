@@ -499,12 +499,11 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                 if vdu.vm_flavor.has_field("vcpu_count"):
                     vnfc["numas"][0]["cores"] = max(vdu.vm_flavor.vcpu_count, 1)
 
-        else:
-            if vdu.vm_flavor.has_field("vcpu_count") and vdu.vm_flavor.vcpu_count:
-                vnfc["vcpus"] = vdu.vm_flavor.vcpu_count
+        if vdu.vm_flavor.has_field("vcpu_count") and vdu.vm_flavor.vcpu_count:
+            vnfc["vcpus"] = vdu.vm_flavor.vcpu_count
 
-            if vdu.vm_flavor.has_field("memory_mb") and vdu.vm_flavor.memory_mb:
-                vnfc["ram"] = vdu.vm_flavor.memory_mb
+        if vdu.vm_flavor.has_field("memory_mb") and vdu.vm_flavor.memory_mb:
+            vnfc["ram"] = vdu.vm_flavor.memory_mb
 
 
         if vdu.has_field("hypervisor_epa"):

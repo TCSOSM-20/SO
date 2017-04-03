@@ -413,7 +413,7 @@ module nsr
             description
                 "Type of Service Function.
                 NOTE: This needs to map with Service Function Type in ODL to
-                support VNFFG. Service Function Type is manadatory param in ODL
+                support VNFFG. Service Function Type is mandatory param in ODL
                 SFC. This is temporarily set to string for ease of use";
             type string;
           }

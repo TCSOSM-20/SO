@@ -150,7 +150,7 @@ module mano-types
     leaf image {
       description
             "Image name for the software image.
-             If the image name is found within the VNF packaage it will
+             If the image name is found within the VNF package it will
              be uploaded to all VIM accounts during onboarding process.
              Otherwise, the image must be added to the VIM account with
              the same name as entered here.

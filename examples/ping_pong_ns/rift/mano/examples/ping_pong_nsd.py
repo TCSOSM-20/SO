@@ -742,7 +742,7 @@ exit 0
             group_desc.min_instance_count = scale_group.min_count
             for vnfd, count in scale_group.vnfd_count_map.items():
                 member = group_desc.vnfd_member.add()
-                member.member_vnf_index_ref = str(vnfd_index_map[vnfd])
+                member.member_vnf_index_ref = vnfd_index_map[vnfd]
                 member.count = count
 
             for trigger in scale_group.config_action:

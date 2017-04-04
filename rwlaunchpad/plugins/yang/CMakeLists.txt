@@ -27,6 +27,7 @@ set(source_yang_files
   rw-image-mgmt.yang
   rw-pkg-mgmt.yang
   rw-staging-mgmt.yang
+  rw-project-person-db.yang
   )
 
 ##
@@ -80,4 +81,3 @@ rift_add_yang_target(
     mano-types_yang
     rwprojectmano_yang
 )
-

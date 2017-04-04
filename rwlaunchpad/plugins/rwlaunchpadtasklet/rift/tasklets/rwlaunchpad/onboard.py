@@ -112,7 +112,7 @@ class DescriptorOnboarder(object):
 
         return request_args
 
-    def update(self, descriptor_msg, auth=None):
+    def update(self, descriptor_msg, auth=None, project=None):
         """ Update the descriptor config
 
         Arguments:

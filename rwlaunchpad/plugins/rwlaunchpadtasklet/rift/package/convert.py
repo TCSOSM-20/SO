@@ -141,21 +141,19 @@ class ProtoMessageSerializer(object):
         return self.yang_class.from_xml_v2(self.model, decode(xml), strict=False)
 
     def _from_json_file_hdl(self, file_hdl):
-        json = file_hdl.read()
+        jstr = file_hdl.read()
+        self._log.debug("Convert from json file: {}".format(jstr))
 
-        return self.yang_class.from_json(self.model, decode(json), strict=False)
+        try:
+            desc_msg = self.yang_class.from_json(self.model, decode(jstr), strict=False)
+            self._log.debug("desc_msg: {}".format(desc_msg.as_dict()))
+            return self.yang_class_project.from_dict(desc_msg.as_dict())
+        except Exception as e:
+            self._log.exception(e)
+            raise e
 
     def _from_yaml_file_hdl(self, file_hdl):
         yml = file_hdl.read()
-
-        # Need to prefix project on to the descriptor and then
-        # convert to yang pb
-        # TODO: See if there is a better way to do this
-        # desc = {NS_PROJECT: []}
-        # desc[NS_PROJECT].append(yaml.load(decode(yml)))
-        # log = logging.getLogger('rw-mano-log')
-        # log.error("Desc from yaml: {}".format(desc))
-        # return self.yang_class.from_yaml(self.model, yaml.dump(desc), strict=False)
 
         try:
             desc_msg = self.yang_class.from_yaml(self.model, decode(yml), strict=False)
@@ -167,6 +165,7 @@ class ProtoMessageSerializer(object):
     def to_desc_msg(self, pb_msg, project_rooted=True):
         """Convert to and from project rooted pb msg  descriptor to catalog
            rooted pb msg
+           project_rooted: if pb_msg is project rooted or not
         """
         if project_rooted:
             if isinstance(pb_msg, self._yang_pb_project_cls):
@@ -198,6 +197,7 @@ class ProtoMessageSerializer(object):
             SerializationError - Message could not be serialized
             TypeError - Incorrect protobuf type provided
         """
+        self._log.debug("Convert desc to json (ns:{}): {}".format(project_ns, pb_msg.as_dict()))
         try:
             # json_str = pb_msg.to_json(self.model)
 
@@ -207,6 +207,8 @@ class ProtoMessageSerializer(object):
                 # Remove rw-project:project top level element
                 dic = json.loads(json_str)
                 jstr = json.dumps(dic[NS_PROJECT][0])
+            else:
+                jstr = json_str
 
         except Exception as e:
             raise SerializationError(e)

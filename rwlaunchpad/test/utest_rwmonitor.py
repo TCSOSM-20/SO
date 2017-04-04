@@ -60,6 +60,7 @@ from rift.tasklets.rwmonitor.core import (
         UnknownAccountError,
         )
 import rw_peas
+from rift.mano.utils.project import ManoProject, DEFAULT_PROJECT
 
 
 class wait_for_pending_tasks(object):
@@ -553,8 +554,9 @@ class TestMonitor(unittest.TestCase):
 
         self.loop = asyncio.get_event_loop()
         self.logger = logging.getLogger('test-logger')
+        self.project = ManoProject(self.logger, name=DEFAULT_PROJECT)
         self.config = InstanceConfiguration()
-        self.monitor = Monitor(self.loop, self.logger, self.config)
+        self.monitor = Monitor(self.loop, self.logger, self.config, self.project)
 
         self.account = RwcalYang.CloudAccount(
                 name='test-cloud-account',

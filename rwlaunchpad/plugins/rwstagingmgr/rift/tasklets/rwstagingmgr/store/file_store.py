@@ -33,6 +33,7 @@ import gi
 gi.require_version("RwStagingMgmtYang", "1.0")
 from gi.repository import RwStagingMgmtYang
 import rift.mano.dts as mano_dts
+from rift.mano.utils.project import DEFAULT_PROJECT
 
 from .. import model
 from ..protocol import StagingStorePublisherProtocol
@@ -82,9 +83,12 @@ class StagingFileStore(StagingStorePublisherProtocol):
         return self._cache[area_id]
 
 
-    def get_delegate(self, msg):
+    def get_delegate(self, project_name):
+        if not project_name:
+            project_name = DEFAULT_PROJECT
+
         try:
-            proj = self.tasklet.projects[msg.project_name]
+            proj = self.tasklet.projects[project_name]
         except Exception as e:
             err = "Project or project name not found {}: {}". \
                   format(msg.as_dict(), e)
@@ -104,7 +108,7 @@ class StagingFileStore(StagingStorePublisherProtocol):
         Raises:
             StagingAreaExists: if the staging area already exists
         """
-        delegate = self.get_delegate(staging_area_config)
+        delegate = self.get_delegate(staging_area_config.project_name)
 
         area_id = str(uuid.uuid4())
 
@@ -144,10 +148,10 @@ class StagingFileStore(StagingStorePublisherProtocol):
             staging_area (str or model.StagingArea): Staging ID or the
                 StagingArea object
         """
-        delegate = self.get_delegate(staging_area_config)
-
         if type(staging_area) is str:
             staging_area = self.get_staging_area(staging_area)
+
+        delegate = self.get_delegate(staging_area.project_name)
 
         if os.path.isdir(staging_area.model.path):
             shutil.rmtree(staging_area.model.path)

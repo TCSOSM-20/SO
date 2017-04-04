@@ -24,10 +24,11 @@ import uuid
 import rift.test.dts
 import rift.tasklets.rwnsmtasklet.cloud as cloud
 import rift.tasklets.rwnsmtasklet.openmano_nsm as openmano_nsm
+from rift.mano.utils.project import ManoProject
 import rw_peas
 
 import gi
-gi.require_version('RwDtsYang', '1.0')
+gi.require_version('RwDts', '1.0')
 from gi.repository import (
         RwLaunchpadYang as launchpadyang,
         RwDts as rwdts,
@@ -35,7 +36,7 @@ from gi.repository import (
         RwVnfrYang,
         RwNsrYang,
         RwProjectNsdYang as RwNsdYang,
-        VnfrYang
+        VnfrYang,
         )
 
 
@@ -94,6 +95,7 @@ class RoAccountDtsTestCase(rift.test.dts.AbstractDTSTest):
         self.log.debug("STARTING - %s", test_id)
         self.tinfo = self.new_tinfo(str(test_id))
         self.dts = rift.tasklets.DTS(self.tinfo, self.schema, self.loop)
+        self.project = ManoProject(self.log)
 
         self.tinfo_sub = self.new_tinfo(str(test_id) + "_sub")
         self.dts_sub = rift.tasklets.DTS(self.tinfo_sub, self.schema, self.loop)
@@ -105,7 +107,7 @@ class RoAccountDtsTestCase(rift.test.dts.AbstractDTSTest):
 
     @rift.test.dts.async_test
     def test_orch_account_create(self):
-        orch = cloud.ROAccountPluginSelector(self.dts, self.log, self.loop, None)
+        orch = cloud.ROAccountPluginSelector(self.dts, self.log, self.loop, self.project, None)
 
         yield from orch.register()
 
@@ -115,7 +117,7 @@ class RoAccountDtsTestCase(rift.test.dts.AbstractDTSTest):
                 {'name': 'rift-ro', 'account_type': 'rift_ro', 'rift_ro': {'rift_ro': True}})
 
         # Test rift-ro plugin CREATE
-        w_xpath = "C,/rw-project:project/rw-launchpad:resource-orchestrator"
+        w_xpath = self.project.add_project("C,/rw-launchpad:resource-orchestrator")
         xpath = w_xpath
         yield from self.publisher.publish(w_xpath, xpath, mock_orch_acc)
         yield from asyncio.sleep(5, loop=self.loop)
@@ -139,7 +141,7 @@ class RoAccountDtsTestCase(rift.test.dts.AbstractDTSTest):
         # Test update
         mock_orch_acc.openmano.port = 9789
         mock_orch_acc.openmano.host = "10.64.11.78"
-        yield from self.dts.query_update("C,/rw-project:project/rw-launchpad:resource-orchestrator",
+        yield from self.dts.query_update(w_xpath,
                 rwdts.XactFlag.ADVISE, mock_orch_acc)
         assert orch.ro_plugin._cli_api._port  == mock_orch_acc.openmano.port
         assert orch.ro_plugin._cli_api._host  == mock_orch_acc.openmano.host
@@ -150,11 +152,11 @@ class RoAccountDtsTestCase(rift.test.dts.AbstractDTSTest):
         mock_orch_acc.openmano.port = 9788
 
         with self.assertRaises(Exception):
-            yield from self.dts.query_update("C,/rw-project:project/rw-launchpad:resource-orchestrator",
+            yield from self.dts.query_update(w_xpath,
                     rwdts.XactFlag.ADVISE, mock_orch_acc)
 
         # Test delete
-        yield from self.dts.query_delete("C,/rw-project:project/rw-launchpad:resource-orchestrator",
+        yield from self.dts.query_delete(w_xpath,
                 flags=rwdts.XactFlag.ADVISE)
         assert orch.ro_plugin == None
 

@@ -94,6 +94,13 @@ module rw-staging-mgmt
       type uint64;
       default 3600;
     }
+
+    leaf project-name {
+      description "Project to which this belongs";
+      type leafref {
+        path "/rw-project:project/rw-project:name";
+      }
+    }
   }
 
   grouping staging-area-meta {
@@ -151,7 +158,6 @@ module rw-staging-mgmt
 
     input {
       uses staging-area-config;
-      uses manotypes:rpc-project-name;
     }
 
     output {

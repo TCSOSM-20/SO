@@ -39,8 +39,35 @@ from rift.tasklets.rwpkgmgr.proxy import filesystem
 import rift.tasklets.rwpkgmgr.publisher as pkg_publisher
 import rift.tasklets.rwpkgmgr.rpc as rpc
 import rift.test.dts
+from rift.mano.utils.project import ManoProject, DEFAULT_PROJECT
 
 TEST_STRING = "foobar"
+
+
+class MockPublisher(object):
+    def __init__(self, uid):
+        self.assert_uid = uid
+
+    @asyncio.coroutine
+    def register_downloader(self, *args):
+        return self.assert_uid
+
+
+class MockProject(ManoProject):
+    def __init__(self, log, uid=None):
+        super().__init__(log, name=DEFAULT_PROJECT)
+        self.job_handler = MockPublisher(uid)
+
+
+class MockTasklet:
+    def __init__(self, log, uid=None):
+        self.log = log
+        self.projects = {}
+        project = MockProject(self.log,
+                              uid=uid)
+        project.publisher = None
+        self.projects[project.name] = project
+
 
 class TestCase(rift.test.dts.AbstractDTSTest):
     @classmethod
@@ -86,7 +113,8 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         ip = RwPkgMgmtYang.YangInput_RwPkgMgmt_GetPackageEndpoint.from_dict({
                 "package_type": "VNFD",
-                "package_id": "BLAHID"})
+                "package_id": "BLAHID",
+                "project_name": DEFAULT_PROJECT})
 
         rpc_out = yield from self.dts.query_rpc(
                     "I,/get-package-endpoint",
@@ -108,7 +136,8 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         yield from endpoint.register()
 
         ip = RwPkgMgmtYang.YangInput_RwPkgMgmt_GetPackageSchema.from_dict({
-                "package_type": "VNFD"})
+                "package_type": "VNFD",
+                "project_name": DEFAULT_PROJECT})
 
         rpc_out = yield from self.dts.query_rpc(
                     "I,/get-package-schema",
@@ -125,10 +154,6 @@ class TestCase(rift.test.dts.AbstractDTSTest):
             1. The file RPC returns a valid UUID thro' DTS
         """
         assert_uid = str(uuid.uuid4())
-        class MockPublisher:
-            @asyncio.coroutine
-            def register_downloader(self, *args):
-                return assert_uid
 
         uid, path = self.create_mock_package()
 
@@ -138,14 +163,15 @@ class TestCase(rift.test.dts.AbstractDTSTest):
             self.dts,
             self.loop,
             proxy,
-            MockPublisher())
+            MockTasklet(self.log, uid=assert_uid))
         yield from endpoint.register()
 
         ip = RwPkgMgmtYang.YangInput_RwPkgMgmt_PackageFileAdd.from_dict({
                 "package_type": "VNFD",
                 "package_id": uid,
                 "external_url": "https://raw.githubusercontent.com/RIFTIO/RIFT.ware/master/rift-shell",
-                "package_path": "script/rift-shell"})
+                "package_path": "script/rift-shell",
+                "project_name": DEFAULT_PROJECT})
 
         rpc_out = yield from self.dts.query_rpc(
                     "I,/rw-pkg-mgmt:package-file-add",
@@ -167,13 +193,16 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         uid, path = self.create_mock_package()
 
         proxy = filesystem.FileSystemProxy(self.loop, self.log)
-        publisher = pkg_publisher.DownloadStatusPublisher(self.log, self.dts, self.loop)
+        tasklet = MockTasklet(self.log, uid=uid)
+        project = tasklet.projects[DEFAULT_PROJECT]
+        publisher = pkg_publisher.DownloadStatusPublisher(self.log, self.dts, self.loop, project)
+        project.job_handler = publisher
         endpoint = rpc.PackageOperationsRpcHandler(
             self.log,
             self.dts,
             self.loop,
             proxy,
-            publisher)
+            tasklet)
 
         yield from publisher.register()
         yield from endpoint.register()
@@ -182,7 +211,8 @@ class TestCase(rift.test.dts.AbstractDTSTest):
                 "package_type": "VNFD",
                 "package_id": uid,
                 "external_url": "https://raw.githubusercontent.com/RIFTIO/RIFT.ware/master/rift-shell",
-                "package_path": "icons/rift-shell"})
+                "package_path": "icons/rift-shell",
+                "project_name": DEFAULT_PROJECT})
 
         rpc_out = yield from self.dts.query_rpc(
                     "I,/rw-pkg-mgmt:package-file-add",
@@ -191,6 +221,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         yield from asyncio.sleep(5, loop=self.loop)
         filepath = os.path.join(path, ip.package_path)
+        self.log.debug("Filepath: {}".format(filepath))
         assert os.path.isfile(filepath)
         mode = oct(os.stat(filepath)[stat.ST_MODE])
         assert str(mode) == "0o100664"
@@ -218,7 +249,8 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         ip = RwPkgMgmtYang.YangInput_RwPkgMgmt_PackageFileDelete.from_dict({
                 "package_type": "VNFD",
                 "package_id": uid,
-                "package_path": "logo.png"})
+                "package_path": "logo.png",
+                "project_name": DEFAULT_PROJECT})
 
         assert os.path.isfile(os.path.join(path, ip.package_path))
 

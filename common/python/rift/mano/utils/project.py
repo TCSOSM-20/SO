@@ -22,7 +22,7 @@ import logging
 
 import gi
 gi.require_version('RwProjectManoYang', '1.0')
-gi.require_version('RwDtsYang', '1.0')
+gi.require_version('RwDts', '1.0')
 from gi.repository import (
     RwProjectManoYang,
     RwDts as rwdts,

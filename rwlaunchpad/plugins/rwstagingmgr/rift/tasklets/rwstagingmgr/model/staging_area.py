@@ -44,6 +44,10 @@ class StagingArea(object):
         return self._model
 
     @property
+    def project_name(self):
+        return self._model.project_name
+
+    @property
     def has_expired(self):
         current_time = time.time()
         expiry_time = self.model.created_time + self.model.validity_time

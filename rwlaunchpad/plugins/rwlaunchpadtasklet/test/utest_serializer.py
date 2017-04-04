@@ -34,21 +34,29 @@ from rift.package.convert import (
 
 import gi
 gi.require_version('RwpersonDbYang', '1.0')
+gi.require_version('RwProjectPersonDbYang', '1.0')
 gi.require_version('RwYang', '1.0')
 
 from gi.repository import (
         RwpersonDbYang,
+        RwProjectPersonDbYang,
         RwYang,
         )
+
+from rift.package.convert import SerializationError
+
 
 class TestSerializer(unittest.TestCase):
     def setUp(self):
         self._serializer = ProtoMessageSerializer(
                 RwpersonDbYang,
-                RwpersonDbYang.Person
+                RwpersonDbYang.Person,
+                RwProjectPersonDbYang,
+                RwProjectPersonDbYang.Person,
                 )
 
         self._sample_person = RwpersonDbYang.Person(name="Fred")
+        self._project_person = RwProjectPersonDbYang.Person(name="Fred")
         self._model = RwYang.model_create_libncx()
         self._model.load_schema_ypbc(RwpersonDbYang.get_schema())
 
@@ -63,14 +71,14 @@ class TestSerializer(unittest.TestCase):
         with io.StringIO(sample_person_yaml) as file_hdl:
 
             person = self._serializer.from_file_hdl(file_hdl, ".yml")
-            self.assertEqual(person, self._sample_person)
+            self.assertEqual(person, self._project_person)
 
     def test_from_json_file(self):
         sample_person_json = self._sample_person.to_json(self._model)
         with io.StringIO(sample_person_json) as file_hdl:
 
             person = self._serializer.from_file_hdl(file_hdl, ".json")
-            self.assertEqual(person, self._sample_person)
+            self.assertEqual(person, self._project_person)
 
     def test_unknown_file_extension(self):
         with io.StringIO("asdf") as file_hdl:
@@ -90,7 +98,7 @@ class TestSerializer(unittest.TestCase):
         self.assertEqual(person, self._sample_person)
 
     def test_to_json_string_invalid_type(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(SerializationError):
             self._serializer.to_json_string(RwpersonDbYang.FlatPerson(name="bob"))
 
 

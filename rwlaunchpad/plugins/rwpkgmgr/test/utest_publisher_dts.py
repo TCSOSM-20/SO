@@ -36,6 +36,7 @@ from gi.repository import (
 import rift.tasklets.rwpkgmgr.downloader as downloader
 import rift.tasklets.rwpkgmgr.publisher as pkg_publisher
 import rift.test.dts
+from rift.mano.utils.project import ManoProject, DEFAULT_PROJECT
 
 
 class TestCase(rift.test.dts.AbstractDTSTest):
@@ -51,8 +52,10 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         self.log.debug("STARTING - %s", test_id)
         self.tinfo = self.new_tinfo(str(test_id))
         self.dts = rift.tasklets.DTS(self.tinfo, self.schema, self.loop)
+        self.project = ManoProject(self.log, name=DEFAULT_PROJECT)
 
-        self.job_handler = pkg_publisher.DownloadStatusPublisher(self.log, self.dts, self.loop)
+        self.job_handler = pkg_publisher.DownloadStatusPublisher(self.log, self.dts,
+                                                                 self.loop, self.project)
 
     def tearDown(self):
         super().tearDown()
@@ -102,24 +105,24 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         yield from self.job_handler._dts_publisher(mock_msg)
         yield from asyncio.sleep(5, loop=self.loop)
 
-        itr = yield from self.dts.query_read("/download-jobs/job[download-id='{}']".format(
-            mock_msg.download_id))
+        xpath = self.project.add_project("/download-jobs/job[download-id='{}']".
+                                         format(mock_msg.download_id))
+        itr = yield from self.dts.query_read(xpath)
 
         result = None
         for fut in itr:
             result = yield from fut
             result = result.result
 
-        print ("Mock ", mock_msg)
+        self.log.debug("Mock msg: {}".format(mock_msg))
         assert result == mock_msg
 
         # Modify the msg
         mock_msg.url = "http://bar/foo"
         yield from self.job_handler._dts_publisher(mock_msg)
         yield from asyncio.sleep(5, loop=self.loop)
-        
-        itr = yield from self.dts.query_read("/download-jobs/job[download-id='{}']".format(
-            mock_msg.download_id))
+
+        itr = yield from self.dts.query_read(xpath)
 
         result = None
         for fut in itr:
@@ -143,13 +146,25 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
         assert download_id is not None
-       
-        # Waiting for 5 secs to be sure that the file is downloaded
-        yield from asyncio.sleep(5, loop=self.loop)
-        xpath = "/download-jobs/job[download-id='{}']".format(
-            download_id)
-        result = yield from self.read_xpath(xpath)
-        self.log.debug("Test result before complete check - %s", result)
+
+        # Waiting to be sure that the file is downloaded
+        # From BLR, it sometimes take longer for the file to
+        # be downloaded
+        max_time = 60
+        total_time = 0
+        while True:
+            yield from asyncio.sleep(5, loop=self.loop)
+            xpath = self.project.add_project("/download-jobs/job[download-id='{}']".
+                                             format(download_id))
+            result = yield from self.read_xpath(xpath)
+            self.log.debug("Test result before complete check - %s", result)
+            if result.status != "COMPLETED":
+                total_time = total_time + 5
+                if total_time <= max_time:
+                    continue
+            else:
+                break
+
         assert result.status == "COMPLETED"
         assert len(self.job_handler.tasks) == 0
 
@@ -169,10 +184,10 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
         assert download_id is not None
-        xpath = "/download-jobs/job[download-id='{}']".format(
-            download_id)
+        xpath = self.project.add_project("/download-jobs/job[download-id='{}']".
+                                         format(download_id))
 
-        yield from asyncio.sleep(1, loop=self.loop)
+        yield from asyncio.sleep(10, loop=self.loop)
 
         result = yield from self.read_xpath(xpath)
         self.log.debug("Test result before in_progress check - %s", result)
@@ -184,7 +199,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         self.log.debug("Test result before cancel check - %s", result)
         assert result.status == "CANCELLED"
         assert len(self.job_handler.tasks) == 0
-    
+
 
 def main():
     runner = xmlrunner.XMLTestRunner(output=os.environ["RIFT_MODULE_TEST"])

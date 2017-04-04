@@ -21,7 +21,7 @@ import unittest
 import uuid
 
 import gi
-gi.require_version('RwDtsYang', '1.0')
+gi.require_version('RwDts', '1.0')
 gi.require_version('RwPkgMgmtYang', '1.0')
 from gi.repository import (
         RwPkgMgmtYang,
@@ -29,6 +29,7 @@ from gi.repository import (
         )
 import rift.tasklets.rwpkgmgr.subscriber as pkg_subscriber
 import rift.test.dts
+from rift.mano.utils.project import ManoProject, DEFAULT_PROJECT
 
 
 class DescriptorPublisher(object):
@@ -88,6 +89,7 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
         self.tinfo = self.new_tinfo(str(test_id))
         self.dts = rift.tasklets.DTS(self.tinfo, self.schema, self.loop)
         self.publisher = DescriptorPublisher(self.log, self.dts, self.loop)
+        self.project = ManoProject(self.log, name=DEFAULT_PROJECT)
 
     def tearDown(self):
         super().tearDown()
@@ -100,7 +102,7 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
                 "package_id": "123",
                 "download_id": str(uuid.uuid4())})
 
-        w_xpath = "D,/rw-pkg-mgmt:download-jobs/rw-pkg-mgmt:job"
+        w_xpath = self.project.add_project("D,/rw-pkg-mgmt:download-jobs/rw-pkg-mgmt:job")
         xpath = "{}[download-id='{}']".format(w_xpath, mock_msg.download_id)
 
         mock_called = False
@@ -113,6 +115,7 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
             self.log,
             self.dts,
             self.loop,
+            self.project,
             callback=mock_cb)
 
         yield from sub.register()

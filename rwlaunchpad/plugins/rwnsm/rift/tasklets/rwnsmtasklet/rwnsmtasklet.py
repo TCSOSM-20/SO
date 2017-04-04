@@ -2682,6 +2682,26 @@ class InputParameterSubstitution(object):
         self.log = log
         self.project = project
 
+    def _fix_xpath(self, xpath):
+        # Fix the parameter.xpath to include project and correct namespace
+        self.log.error("Provided xpath: {}".format(xpath))
+        #Split the xpath at the /
+        attrs = xpath.split('/')
+        new_xp = attrs[0]
+        for attr in attrs[1:]:
+            new_ns = 'project-nsd'
+            name = attr
+            if ':' in attr:
+                # Includes namespace
+                ns, name = attr.split(':', 2)
+                if ns == "rw-nsd":
+                    ns = "rw-project-nsd"
+
+            new_xp = new_xp + '/' + new_ns + ':' + name
+
+        self.log.error("Updated xpath: {}".format(new_xp))
+        return new_xp
+
     def __call__(self, nsd, nsr_config):
         """Substitutes input parameters from the NSR config into the NSD
 
@@ -2700,7 +2720,7 @@ class InputParameterSubstitution(object):
         # to be modified
         optional_input_parameters = set()
         for input_parameter in nsd.input_parameter_xpath:
-            optional_input_parameters.add(self.project.add_project(input_parameter.xpath))
+            optional_input_parameters.add(input_parameter.xpath)
 
         # Apply the input parameters to the descriptor
         if nsr_config.input_parameter:
@@ -2718,7 +2738,8 @@ class InputParameterSubstitution(object):
                         )
 
                 try:
-                    xpath.setxattr(nsd, param.xpath, param.value)
+                    xp = self._fix_xpath(param.xpath)
+                    xpath.setxattr(nsd, xp, param.value)
 
                 except Exception as e:
                     self.log.exception(e)

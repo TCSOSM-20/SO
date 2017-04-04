@@ -22,6 +22,7 @@ import asyncio
 import base64
 import concurrent.futures
 import io
+import json
 import logging
 import os
 import sys
@@ -36,21 +37,20 @@ from rift.tasklets.rwlaunchpad import onboard
 import rift.test.dts
 
 import gi
+gi.require_version('NsdYang', '1.0')
+gi.require_version('VnfdYang', '1.0')
 gi.require_version('ProjectNsdYang', '1.0')
 gi.require_version('ProjectVnfdYang', '1.0')
 
 from gi.repository import (
-        ProjectNsdYang as NsdYang,
-        ProjectVnfdYang as VnfdYang,
+        NsdYang,
+        VnfdYang,
+        ProjectNsdYang,
+        ProjectVnfdYang,
         )
 
 
 class RestconfDescriptorHandler(tornado.web.RequestHandler):
-    DESC_SERIALIZER_MAP = {
-            "nsd": convert.NsdSerializer(),
-            "vnfd": convert.VnfdSerializer(),
-            }
-
     class AuthError(Exception):
         pass
 
@@ -129,16 +129,14 @@ class RestconfDescriptorHandler(tornado.web.RequestHandler):
         self._verify_content_type_header()
 
     def _verify_request_body(self, descriptor_type):
-        if descriptor_type not in RestconfDescriptorHandler.DESC_SERIALIZER_MAP:
+        if descriptor_type not in ['nsd', 'vnfd']:
             raise ValueError("Unsupported descriptor type: %s" % descriptor_type)
 
-        body = self.request.body
-        bytes_hdl = io.BytesIO(body)
-
-        serializer = RestconfDescriptorHandler.DESC_SERIALIZER_MAP[descriptor_type]
+        body = convert.decode(self.request.body)
+        self._logger.debug("Received msg: {}".format(body))
 
         try:
-            message = serializer.from_file_hdl(bytes_hdl, ".json")
+            message = json.loads(body)
         except convert.SerializationError as e:
             self.set_status(400)
             self._transforms = []
@@ -150,7 +148,7 @@ class RestconfDescriptorHandler(tornado.web.RequestHandler):
 
         self._info.last_request_message = message
 
-        self._logger.debug("Received a valid descriptor request")
+        self._logger.debug("Received a valid descriptor request: {}".format(message))
 
     def put(self, descriptor_type):
         self._info.last_descriptor_type = descriptor_type
@@ -195,6 +193,11 @@ class HandlerInfo(object):
 
 
 class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
+    DESC_SERIALIZER_MAP = {
+            "nsd": convert.NsdSerializer(),
+            "vnfd": convert.VnfdSerializer(),
+            }
+
     AUTH = ("admin", "admin")
     def setUp(self):
         self._log = logging.getLogger(__file__)
@@ -213,28 +216,44 @@ class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
     def get_app(self):
         attrs = dict(auth=OnboardTestCase.AUTH, log=self._log, info=self._handler_info)
         return tornado.web.Application([
-            (r"/api/config/.*/(nsd|vnfd)", RestconfDescriptorHandler, attrs),
+            (r"/api/config/project/default/.*/(nsd|vnfd)",
+             RestconfDescriptorHandler, attrs),
             ])
+
+
+    def get_msg(self, desc=None):
+        if desc is None:
+            desc = NsdYang.YangData_Nsd_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        serializer = OnboardTestCase.DESC_SERIALIZER_MAP['nsd']
+        jstr = serializer.to_json_string(desc, project_ns=False)
+        self._desc = jstr
+        hdl = io.BytesIO(str.encode(jstr))
+        return serializer.from_file_hdl(hdl, ".json")
+
+    def get_json(self, msg):
+        serializer = OnboardTestCase.DESC_SERIALIZER_MAP['nsd']
+        json_data = serializer.to_json_string(msg, project_ns=True)
+        return json.loads(json_data)
 
     @rift.test.dts.async_test
     def test_onboard_nsd(self):
-        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        nsd_msg = self.get_msg()
         yield from self._loop.run_in_executor(None, self._onboarder.onboard, nsd_msg)
-        self.assertEqual(self._handler_info.last_request_message, nsd_msg)
+        self.assertEqual(self._handler_info.last_request_message, self.get_json(nsd_msg))
         self.assertEqual(self._handler_info.last_descriptor_type, "nsd")
         self.assertEqual(self._handler_info.last_method, "POST")
 
     @rift.test.dts.async_test
     def test_update_nsd(self):
-        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        nsd_msg = self.get_msg()
         yield from self._loop.run_in_executor(None, self._onboarder.update, nsd_msg)
-        self.assertEqual(self._handler_info.last_request_message, nsd_msg)
+        self.assertEqual(self._handler_info.last_request_message, self.get_json(nsd_msg))
         self.assertEqual(self._handler_info.last_descriptor_type, "nsd")
         self.assertEqual(self._handler_info.last_method, "PUT")
 
     @rift.test.dts.async_test
     def test_bad_descriptor_type(self):
-        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog()
+        nsd_msg = NsdYang.YangData_Nsd_NsdCatalog_Nsd()
         with self.assertRaises(TypeError):
             yield from self._loop.run_in_executor(None, self._onboarder.update, nsd_msg)
 
@@ -246,7 +265,7 @@ class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
         # Use a port not used by the instantiated server
         new_port = self._port - 1
         self._onboarder.port = new_port
-        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        nsd_msg = self.get_msg()
 
         with self.assertRaises(onboard.OnboardError):
             yield from self._loop.run_in_executor(None, self._onboarder.onboard, nsd_msg)
@@ -259,7 +278,7 @@ class OnboardTestCase(tornado.testing.AsyncHTTPTestCase):
         # Set the timeout to something minimal to speed up test
         self._onboarder.timeout = .1
 
-        nsd_msg = NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd(id=str(uuid.uuid4()), name="nsd_name")
+        nsd_msg = self.get_msg()
 
         # Force the request to timeout by running the call synchronously so the
         with self.assertRaises(onboard.OnboardError):

@@ -40,28 +40,18 @@ import rift.package.checksums
 import rift.package.cloud_init
 
 
-import gi
-gi.require_version('RwpersonDbYang', '1.0')
-gi.require_version('RwYang', '1.0')
-
-from gi.repository import (
-        RwpersonDbYang,
-        RwYang,
-        )
-
-
-nsd_yaml = b"""project-nsd:nsd-catalog:
-  project-nsd:nsd:
-  - project-nsd:id: gw_corpA
-    project-nsd:name: gw_corpA
-    project-nsd:description: Gateways to access as corpA to PE1 and PE2
+nsd_yaml = b"""nsd:nsd-catalog:
+  nsd:nsd:
+  - nsd:id: gw_corpA
+    nsd:name: gw_corpA
+    nsd:description: Gateways to access as corpA to PE1 and PE2
 """
 
-vnfd_yaml = b"""project-vnfd:vnfd-catalog:
-  project-vnfd:vnfd:
-  - project-vnfd:id: gw_corpA_vnfd
-    project-vnfd:name: gw_corpA_vnfd
-    project-vnfd:description: Gateways to access as corpA to PE1 and PE2
+vnfd_yaml = b"""vnfd:vnfd-catalog:
+  vnfd:vnfd:
+  - vnfd:id: gw_corpA_vnfd
+    vnfd:name: gw_corpA_vnfd
+    vnfd:description: Gateways to access as corpA to PE1 and PE2
 """
 
 nsd_filename = "gw_corpA__nsd.yaml"
@@ -169,7 +159,7 @@ class TestPackage(PackageTestCase):
 
         json_str = package.json_descriptor
         desc_dict = json.loads(json_str)
-        self.assertIn("project-nsd:nsd-catalog", desc_dict)
+        self.assertIn("nsd:nsd-catalog", desc_dict)
 
     def test_create_vnfd_package_from_archive(self):
         package = self.create_vnfd_package()
@@ -177,7 +167,7 @@ class TestPackage(PackageTestCase):
 
         json_str = package.json_descriptor
         desc_dict = json.loads(json_str)
-        self.assertIn("project-vnfd:vnfd-catalog", desc_dict)
+        self.assertIn("vnfd:vnfd-catalog", desc_dict)
 
     def test_create_vnfd_archive_from_package(self):
         package = self.create_vnfd_package()

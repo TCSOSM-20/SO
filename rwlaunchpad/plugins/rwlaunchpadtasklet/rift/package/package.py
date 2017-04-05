@@ -352,9 +352,14 @@ class DescriptorPackage(object):
 
         try:
             # Copy the contents of the file to the correct path
+            # For folder creation (or nested folders), dest_file appears w/ trailing "/" like: dir1/ or dir1/dir2/
+            # For regular file upload, dest_file appears as dir1/abc.txt
             dest_dir_path = os.path.dirname(dest_file)
             if not os.path.isdir(dest_dir_path):
                 os.makedirs(dest_dir_path)
+                if not os.path.basename(dest_file): 
+                    self._log.debug("Created dir path, no filename to insert in {}, skipping..".format(dest_dir_path))
+                    return
 
             with open(dest_file, 'wb') as dst_hdl:
                 with open(new_file, 'rb') as src_hdl:

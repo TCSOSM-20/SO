@@ -29,6 +29,7 @@ from . import utils as drv_utils
 
 # Exceptions
 import keystoneclient.exceptions as KeystoneExceptions
+import neutronclient.common.exceptions as NeutronException
 
 
 class ValidationError(Exception):
@@ -137,7 +138,7 @@ class OpenstackDriver(object):
            self.cinder_drv = ci_drv.CinderDriver(self.sess_drv,
                                               region_name = region,
                                               logger = self.log)
-        except Exception as e:
+        except Exception:
            self.cinder_drv = None
         
         self.ceilo_drv = ce_drv.CeilometerDriver(self.sess_drv,
@@ -171,7 +172,10 @@ class OpenstackDriver(object):
         return self._cache['cinder']
     
     def build_resource_cache(self):
-        self.build_network_resource_cache()
+        try:
+            self.build_network_resource_cache()
+        except KeyError:
+            raise
         self.build_nova_resource_cache()
         self.build_cinder_resource_cache()
         self.build_glance_resource_cache()
@@ -215,11 +219,13 @@ class OpenstackDriver(object):
             self.log.info("Discovering management network %s", self._mgmt_network)
             network_list = self._cache_populate(self.neutron_drv.network_get,
                                                 None,
-                                                **{'network_name':self._mgmt_network})
+                                                **{'network_name': self._mgmt_network})
             if network_list:
                 self.neutron_cache['mgmt_net'] = network_list['id']
             else:
-                raise KeyError("Error")
+                msg = "Could not find management network %s" % self._mgmt_network
+                self.log.error(msg)
+                raise KeyError(msg)
 
             
     def _build_glance_image_list(self):
@@ -231,7 +237,6 @@ class OpenstackDriver(object):
     
     def _build_cinder_volume_list(self):
         self.log.info("Discovering volumes")
-        vollist = self.cinder_volume_list()
         self.cinder_cache['volumes'] = self._cache_populate(self.cinder_volume_list,
                                                            list())
         return self.cinder_cache['volumes']
@@ -244,7 +249,10 @@ class OpenstackDriver(object):
             
     def build_network_resource_cache(self):
         self.log.info("Building network resource cache")
-        self._get_neutron_mgmt_network()
+        try:
+            self._get_neutron_mgmt_network()
+        except KeyError:
+            raise
         self._build_neutron_security_group_list()
         self._build_neutron_subnet_prefix_list()
 
@@ -316,22 +324,28 @@ class OpenstackDriver(object):
             self.sess_drv.invalidate_auth_token()
             self.sess_drv.auth_token
             self.build_resource_cache()
+        except KeystoneExceptions.Unauthorized as e:
+            self.log.error("Invalid credentials ")
+            raise ValidationError("Invalid Credentials: "+ str(e))
         except KeystoneExceptions.AuthorizationFailure as e:
             self.log.error("Unable to authenticate or validate the existing credentials. Exception: %s", str(e))
             raise ValidationError("Invalid Credentials: "+ str(e))
+        except NeutronException.NotFound as e:
+            self.log.error("Given management network could not be found for Openstack account ")
+            raise ValidationError("Neutron network not found "+ str(e))
         except Exception as e:
             self.log.error("Could not connect to Openstack. Exception: %s", str(e))
             raise ValidationError("Connection Error: "+ str(e))
 
-    
+
     def glance_image_create(self, **kwargs):
-        if not 'disk_format' in kwargs:
+        if 'disk_format' not in kwargs:
             kwargs['disk_format'] = 'qcow2'
-        if not 'container_format' in kwargs:
+        if 'container_format' not in kwargs:
             kwargs['container_format'] = 'bare'
-        if not 'min_disk' in kwargs:
+        if 'min_disk' not in kwargs:
             kwargs['min_disk'] = 0
-        if not 'min_ram' in kwargs:
+        if 'min_ram' not in kwargs:
             kwargs['min_ram'] = 0
         return self.glance_drv.image_create(**kwargs)
 
@@ -374,7 +388,7 @@ class OpenstackDriver(object):
 
     def nova_server_create(self, **kwargs):
         if 'security_groups' not in kwargs:
-            kwargs['security_groups'] = [ s['name'] for s in self._nova_security_groups ]
+            kwargs['security_groups'] = [s['name'] for s in self._nova_security_groups]
         return self.nova_drv.server_create(**kwargs)
 
     def nova_server_add_port(self, server_id, port_id):
@@ -427,6 +441,9 @@ class OpenstackDriver(object):
 
     def nova_volume_list(self, server_id):
         return self.nova_drv.volume_list(server_id)
+
+    def neutron_extensions_list(self):
+        return self.neutron_drv.extensions_list()
 
     def neutron_network_list(self):
         return self.neutron_drv.network_list()
@@ -592,7 +609,7 @@ class OpenstackDriver(object):
     def cinder_volume_list(self):
         return self.cinder_drv.volume_list()
   
-    def cinder_volume_get(self,vol_id):
+    def cinder_volume_get(self, vol_id):
         return self.cinder_drv.volume_get(vol_id)
   
     def cinder_volume_set_metadata(self, volumeid, metadata):

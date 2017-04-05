@@ -20,8 +20,8 @@
 
 module rw-project-person-db
 {
-  namespace "http://riftio.com/ns/riftware-1.0/rw-launchpad";
-  prefix "rw-launchpad";
+  namespace "http://riftio.com/ns/riftware-1.0/rw-project-person-db";
+  prefix "rw-project-person-db";
 
   import rw-pb-ext {
     prefix "rwpb";

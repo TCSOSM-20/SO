@@ -27,7 +27,6 @@ set(source_yang_files
   rw-image-mgmt.yang
   rw-pkg-mgmt.yang
   rw-staging-mgmt.yang
-  rw-project-person-db.yang
   )
 
 ##
@@ -79,5 +78,20 @@ rift_add_yang_target(
     rw_conman_yang
     rwconfig_agent_yang
     mano-types_yang
+    rwprojectmano_yang
+    # Added to make sure that the target is built,
+    # Not required b mano yang
+    rw_project_person_yang
+
+)
+
+rift_add_yang_target(
+  TARGET rw_project_person_yang
+  YANG_FILES
+    rw-project-person-db.yang
+  COMPONENT ${PKG_LONG_NAME}
+  LIBRARIES
+    rwprojectmano_yang_gen
+  DEPENDS
     rwprojectmano_yang
 )

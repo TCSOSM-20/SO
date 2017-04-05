@@ -143,8 +143,8 @@ class OpenmanoCliAPI(object):
 
         if proc.returncode != 0:
             self._log.error(
-                    "Openmano command failed (rc=%s) with stdout: %s",
-                    proc.returncode, stdout
+                    "Openmano command %s failed (rc=%s) with stdout: %s",
+                    cmd_args[1], proc.returncode, stdout
                     )
             raise OpenmanoCommandFailed(stdout)
 

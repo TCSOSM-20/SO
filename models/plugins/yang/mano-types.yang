@@ -1026,7 +1026,12 @@ module mano-types
 
       leaf overlay-type {
         description
-            "Type of the overlay network.";
+            "Type of the overlay network.
+             LOCAL - Provider network implemented in a single compute node
+             FLAT - Provider network shared by all tenants 
+             VLAN - Provider network implemented using 802.1Q tagging
+             VXLAN - Provider networks implemented using RFC 7348
+             GRE - Provider networks implemented using GRE tunnels";
         type enumeration {
           enum LOCAL;
           enum FLAT;

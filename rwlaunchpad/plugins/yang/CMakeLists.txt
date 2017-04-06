@@ -94,4 +94,6 @@ rift_add_yang_target(
     rwprojectmano_yang_gen
   DEPENDS
     rwprojectmano_yang
+  ASSOCIATED_FILES
+    rw-launchpad.role.xml
 )

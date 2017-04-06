@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<config xmlns="http://riftio.com/ns/riftware-1.0/rw-rbac-role-def">
+  <key-definition>
+    <role>rw-project-mano:nsr-role</role>
+    <key-set>
+      <name>project-name</name>
+      <path>/nsr:exec-scale-out/nsr:project-name</path>
+      <path>/nsr:exec-scale-in/nsr:project-name</path>
+      <path>/nsr:exec-ns-service-primitive/nsr:project-name</path>
+      <path>/nsr:get-ns-service-primitive-values/nsr:project-name</path>
+      <path>/nsr:start-network-service/nsr:project-name</path>
+    </key-set>
+  </key-definition>
+
+  <role-definition>
+    <role>rw-project-mano:lcm-oper</role>
+    <keys-role>rw-project-mano:nsr-role</keys-role>
+    <authorize>
+      <permissions>read execute</permissions>
+      <path>/rw-project:project/nsr:ns-instance-config</path>
+      <path>/rw-project:project/nsr:ns-instance-opdata</path>
+    </authorize>
+  </role-definition>
+
+  <role-definition>
+    <role>rw-project-mano:lcm-admin</role>
+    <keys-role>rw-project-mano:nsr-role</keys-role>
+    <authorize>
+      <permissions>create read update delete execute</permissions>
+      <path>/rw-project:project/nsr:ns-instance-config</path>
+      <path>/rw-project:project/nsr:ns-instance-opdata</path>
+      <path>/nsr:exec-scale-out</path>
+      <path>/nsr:exec-scale-in</path>
+      <path>/nsr:exec-ns-service-primitive</path>
+      <path>/nsr:get-ns-service-primitive-values</path>
+      <path>/nsr:start-network-service</path>
+    </authorize>
+  </role-definition>
+</config>

@@ -35,6 +35,9 @@ rift_add_yang_target(
     rwsdn_yang
     rwprojectmano_yang
     mano-types_yang
+  ASSOCIATED_FILES
+    rw-cloud.role.xml
+    rw-sdn.role.xml
 )
 
 rift_add_yang_target(
@@ -47,4 +50,6 @@ rift_add_yang_target(
   DEPENDS
     rwcal_yang
     rwprojectmano_yang
+  ASSOCIATED_FILES
+    rw-config-agent.role.xml
 )

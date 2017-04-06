@@ -62,6 +62,40 @@ module rw-project-mano
       nor to the RIFT.ware platform in general.";
   }
 
+  identity lcm-oper {
+    base rw-project:project-role;
+    description
+      "The lcm-oper Role has read permission to the VL, VNF and NS
+      records within a Project.  The lcm-oper Role may also have
+      execute permission to specific non-mutating RPCs.";
+  }
+
+  identity lcm-admin {
+    base rw-project:project-role;
+    description
+      "The lcm-admin Role has full CRUDX permissions to the VL, VNF
+      and NS records within a Project.  The lcm-admin Role does
+      not provide general CRUDX permissions to the Project as a whole,
+      nor to the RIFT.ware platform in general.";
+  }
+
+  identity account-oper {
+    base rw-project:project-role;
+    description
+      "The account-oper Role has read permission to the VIM, SDN, VCA
+      and RO accounts within a Project.  The account-oper Role may also have
+      execute permission to specific non-mutating RPCs.";
+  }
+
+  identity account-admin {
+    base rw-project:project-role;
+    description
+      "The account-admin Role has full CRUDX permissions to the VIM, SDN, VCA
+      and RO accounts within a Project.  The account-admin Role does
+      not provide general CRUDX permissions to the Project as a whole,
+      nor to the RIFT.ware platform in general.";
+  }
+
   augment /rw-project:project/rw-project:project-config/rw-project:user {
     description
       "Configuration for MANO application-specific Roles.";

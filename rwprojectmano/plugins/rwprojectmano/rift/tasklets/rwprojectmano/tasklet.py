@@ -41,6 +41,7 @@ from rift.mano.utils.project import (
 
 from .projectmano import (
     ProjectHandler,
+    ProjectStateRolePublisher,
 )
 
 from .rolesmano import (
@@ -61,9 +62,11 @@ class ProjectMgrManoProject(ManoProject):
     def register (self):
         self._log.info("Initializing the ProjectMgrMano for %s", self.name)
         yield from self.project_sub.register()
+        self.tasklet.project_state_role_pub.publish_roles(self.name)
 
     def deregister(self):
         self._log.debug("De-register project %s", self.name)
+        self.tasklet.project_state_role_pub.unpublish_roles(self.name)
         self.project_sub.deregister()
 
 
@@ -110,8 +113,10 @@ class ProjectMgrManoTasklet(rift.tasklets.Tasklet):
         try:
             self.log.info("Registering for Project Config")
             self.project_handler = ProjectHandler(self, ProjectMgrManoProject)
-
             self.project_handler.register()
+
+            self.project_state_role_pub = ProjectStateRolePublisher(self)
+            yield from self.project_state_role_pub.register()
 
         except Exception as e:
             self.log.exception("Registering for project failed: {}".format(e))

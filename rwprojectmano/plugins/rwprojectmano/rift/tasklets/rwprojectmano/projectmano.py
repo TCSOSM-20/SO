@@ -24,10 +24,12 @@ import asyncio
 
 import gi
 gi.require_version('RwDts', '1.0')
+gi.require_version('RwProjectManoYang', '1.0')
 from gi.repository import (
     RwDts as rwdts,
     ProtobufC,
     RwTypes,
+    RwProjectManoYang,
 )
 
 import rift.tasklets
@@ -36,6 +38,44 @@ from rift.mano.utils.project import (
     get_add_delete_update_cfgs,
     ProjectConfigCallbacks,
 )
+
+
+MANO_PROJECT_ROLES = [
+    { 'mano-role':"rw-project-mano:catalog-oper",
+      'description':("The catalog-oper Role has read permission to nsd-catalog "
+                     "and vnfd-catalog under specific Projects, "
+                     "as identified by /rw-project:project/rw-project:name.  The "
+                     "catatlog-oper Role may also have execute permission to specific "
+                     "non-mutating RPCs.  This Role is intended for read-only access to "
+                     "catalogs under a specific project.") },
+
+    { 'mano-role':"rw-project-mano:catalog-admin",
+      'description':("The catalog-admin Role has full CRUDX permissions to vnfd and nsd "
+                     "catalogs under specific Projects, as identified by "
+                     "/rw-project:project/rw-project:name.") },
+
+    { 'mano-role':"rw-project-mano:lcm-oper",
+      'description':("The lcm-oper Role has read permission to the VL, VNF and NS "
+                     "records within a Project.  The lcm-oper Role may also have "
+                     "execute permission to specific non-mutating RPCs.") },
+
+    { 'mano-role':"rw-project-mano:lcm-admin",
+      'description':("The lcm-admin Role has full CRUDX permissions to the VL, VNF "
+                     "and NS records within a Project.  The lcm-admin Role does "
+                     "not provide general CRUDX permissions to the Project as a whole, "
+                     "nor to the RIFT.ware platform in general.") },
+
+    { 'mano-role':"rw-project-mano:account-oper",
+      'description':("The account-oper Role has read permission to the VIM, SDN, VCA "
+                     "and RO accounts within a Project.  The account-oper Role may also have "
+                     "execute permission to specific non-mutating RPCs.") },
+
+    { 'mano-role':"rw-project-mano:account-admin",
+      'description':("The account-admin Role has full CRUDX permissions to the VIM, SDN, VCA "
+                     "and RO accounts within a Project.  The account-admin Role does "
+                     "not provide general CRUDX permissions to the Project as a whole, "
+                     "nor to the RIFT.ware platform in general.") },
+]
 
 
 class ProjectDtsHandler(object):
@@ -276,3 +316,43 @@ class ProjectHandler(object):
 
     def register(self):
         self.project_cfg_handler.register()
+
+
+class ProjectStateRolePublisher(rift.tasklets.DtsConfigPublisher):
+
+    def __init__(self, tasklet):
+        super().__init__(tasklet)
+        self.proj_state = RwProjectManoYang.YangData_RwProject_Project_ProjectState()
+        self.projects = set()
+        self.roles = MANO_PROJECT_ROLES
+
+    def get_xpath(self):
+        return "D,/rw-project:project/rw-project:project-state/rw-project-mano:mano-role"
+
+    def role_xpath(self, project, role):
+        return "/rw-project:project[rw-project:name='{}']".format(project) + \
+            "/rw-project:project-state/rw-project-mano:mano-role" + \
+            "[rw-project-mano:role='{}']".format(role['mano-role'])
+
+    def pb_role(self, role):
+        pbRole = self.proj_state.create_mano_role()
+        pbRole.role = role['mano-role']
+        pbRole.description = role['description']
+        return pbRole
+
+    def publish_roles(self, project):
+        if not project in self.projects:
+            self.projects.add(project)
+            for role in self.roles:
+                xpath = self.role_xpath(project, role)
+                pb_role = self.pb_role(role)
+                self.log.debug("publishing xpath:{}".format(xpath))
+                self._regh.update_element(xpath, pb_role)
+
+    def unpublish_roles(self, project):
+        if project in self.projects:
+            self.projects.remove(project)
+            for role in self.roles:
+                xpath = self.role_xpath(project, role)
+                self.log.debug("unpublishing xpath:{}".format(xpath))
+                self._regh.delete_element(xpath)

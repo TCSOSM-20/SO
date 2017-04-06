@@ -34,7 +34,6 @@ from gi.repository import (
 )
 
 import rift.tasklets
-#TODO: Fix once merged to latest platform
 from rift.tasklets.rwproject.project import (
     StateMachine,
     User,
@@ -48,10 +47,7 @@ from rift.mano.utils.project import (
 )
 
 
-MANO_PROJECT_ROLES = [
-            'rw-project-mano:catalog-oper',
-            'rw-project-mano:catalog-admin',
-]
+from .projectmano import MANO_PROJECT_ROLES
 
 
 class ProjectConfigSubscriber(object):
@@ -260,7 +256,7 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
         self.project_name = project.name
         self.rbac_int = RwRbacInternalYang.YangData_RwRbacInternal_RwRbacInternal()
         self.roles = {}
-        self.proj_roles = MANO_PROJECT_ROLES
+        self.proj_roles = [role['mano-role'] for role in MANO_PROJECT_ROLES]
         self.proj_roles_published = False
 
     def get_xpath(self):

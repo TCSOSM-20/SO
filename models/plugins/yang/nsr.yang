@@ -112,7 +112,7 @@ module nsr
       leaf key-pair-ref {
         description "A reference to the key pair entry in the global key pair table";
         type leafref {
-          path "/nsr:key-pair/nsr:name";
+          path "../../../../key-pair/name";
         }
       }
     }
@@ -137,25 +137,10 @@ module nsr
         leaf key-pair-ref {
           description "A reference to the key pair entry in the global key pair table";
           type leafref {
-            path "/nsr:key-pair/nsr:name";
+            path "../../../../../key-pair/nsr:name";
           }
         }
       }
-    }
-  }
-
-  list key-pair {
-    key "name";
-    description "Used to configure the list of public keys to be injected as part
-                 of ns instantiation";
-    leaf name {
-      description "Name of this key pair";
-      type string;
-    }
-
-    leaf key {
-      description "Key associated with this key pair";
-      type string;
     }
   }
 

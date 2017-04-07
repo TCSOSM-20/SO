@@ -68,12 +68,12 @@ class EndpointDiscoveryRpcHandler(mano_dts.AbstractRpcHandler):
 class SchemaRpcHandler(mano_dts.AbstractRpcHandler):
     """RPC handler to generate the schema for the packages.
     """
-    def __init__(self, log, dts, loop, project, proxy):
+    def __init__(self, log, dts, loop, proxy):
         """
         Args:
             proxy: Any impl of .proxy.AbstractPackageManagerProxy
         """
-        super().__init__(log, dts, loop, project)
+        super().__init__(log, dts, loop)
         self.proxy = proxy
 
     @property

@@ -78,9 +78,10 @@ class SDNAccountConfigCallbacks(object):
 class SDNAccountConfigSubscriber(object):
     XPATH = "C,/rw-sdn:sdn/rw-sdn:account"
 
-    def __init__(self, dts, log, rwlog_hdl, sdn_callbacks, acctstore):
+    def __init__(self, dts, log, project, rwlog_hdl, sdn_callbacks, acctstore):
         self._dts = dts
         self._log = log
+        self._project = project
         self._rwlog_hdl = rwlog_hdl
         self._reg = None
 
@@ -205,8 +206,9 @@ class SDNAccountConfigSubscriber(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
+        xpath = self._project.add_project(SDNAccountConfigSubscriber.XPATH)
         self._log.debug("Registering for SDN Account config using xpath: %s",
-                        SDNAccountConfigSubscriber.XPATH,
+                        xpath,
                         )
 
         acg_handler = rift.tasklets.AppConfGroup.Handler(
@@ -215,7 +217,7 @@ class SDNAccountConfigSubscriber(object):
 
         with self._dts.appconf_group_create(acg_handler) as acg:
             self._reg = acg.register(
-                    xpath=SDNAccountConfigSubscriber.XPATH,
+                    xpath=xpath,
                     flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
                     on_prepare=on_prepare,
                     )

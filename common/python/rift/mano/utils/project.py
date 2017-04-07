@@ -651,12 +651,14 @@ class ProjectHandler(object):
         except Exception as e:
             self._log.exception("Project {} create for {} failed: {}".
                                 format(name, self._get_tasklet_name(), e))
+            raise e
 
         try:
             yield from self._get_project(name).register()
         except Exception as e:
             self._log.exception("Project {} register for tasklet {} failed: {}".
                                 format(name, self._get_tasklet_name(), e))
+            raise e
 
     @asyncio.coroutine
     def on_delete_prepare(self, name):

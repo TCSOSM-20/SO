@@ -36,7 +36,7 @@ rift_add_vala(
     rw_log_yang-1.0 rw_base_yang-1.0 rwcal_yang-1.0 rwsdnal_yang-1.0 rw_manifest_yang-1.0 protobuf_c-1.0 ietf_netconf_yang-1.0
     ietf_network_yang-1.0 ietf_network_topology_yang-1.0
     ietf_l2_topology_yang-1.0 rw_topology_yang-1.0
-    rw_log-1.0 rw_project_yang-1.0
+    rw_log-1.0 rw_project_yang-1.0 rw_user_yang-1.0
   VAPI_DIRS 
     ${RIFT_SUBMODULE_BINARY_ROOT}/models/plugins/yang
     ${RIFT_SUBMODULE_BINARY_ROOT}/rwcal/plugins/yang

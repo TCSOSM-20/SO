@@ -40,7 +40,7 @@ from rift.mano.utils.project import (
 from . import rpc
 from .proxy import filesystem
 from . import publisher as pkg_publisher
-from . import subscriber 
+from . import subscriber
 
 class PackageManagerProject(ManoProject):
 
@@ -51,22 +51,26 @@ class PackageManagerProject(ManoProject):
 
         args = [self.log, self.dts, self.loop, self]
         self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
-        self.copy_publisher = pkg_publisher.CopyStatusPublisher(*args + [self.tasklet.tasklet_info])
+        self.copy_publisher = pkg_publisher.CopyStatusPublisher(*args)
 
-        # create catalog subscribers 
+        # create catalog subscribers
         self.vnfd_catalog_sub = subscriber.VnfdStatusSubscriber(*args)
         self.nsd_catalog_sub = subscriber.NsdStatusSubscriber(*args)
-        
+
         args.append(proxy)
         self.copy_rpc = rpc.PackageCopyOperationsRpcHandler(*(args + [self.copy_publisher]))
 
     @asyncio.coroutine
     def register (self):
-        yield from self.vnfd_catalog_sub.register()
-        yield from self.nsd_catalog_sub.register()
-        yield from self.copy_rpc.register()
-        yield from self.copy_publisher.register()
-        yield from self.job_handler.register()
+        try:
+            yield from self.vnfd_catalog_sub.register()
+            yield from self.nsd_catalog_sub.register()
+            yield from self.copy_rpc.register()
+            yield from self.copy_publisher.register()
+            yield from self.job_handler.register()
+        except Exception as e:
+            self.log.exception("Exception registering project {}: {}".
+                               format(self.name, e))
 
     def deregister (self):
         yield from self.job_handler.deregister()
@@ -135,7 +139,6 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
         yield from self.delete_rpc.register()
 
         self.log.debug("creating project handler")
-        self.project_handler = ProjectHandler(self, PackageManagerProject)
         self.project_handler.register()
 
     @asyncio.coroutine

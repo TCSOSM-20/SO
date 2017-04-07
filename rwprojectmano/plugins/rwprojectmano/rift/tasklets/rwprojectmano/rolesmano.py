@@ -60,6 +60,7 @@ class ProjectConfigSubscriber(object):
 
         self.users = {}
         self.pub = RoleConfigPublisher(project)
+        self.proj_roles = [role['mano-role'] for role in MANO_PROJECT_ROLES]
 
     def get_xpath(self):
         return "C,/{}[name='{}']/project-config/user".format(NS_PROJECT, self.project_name)
@@ -200,6 +201,17 @@ class ProjectConfigSubscriber(object):
                 else:
                     self._log.debug("User {}: on_prepare add request".
                                     format(user.key))
+
+                for role in msg.mano_role:
+                    if role.role not in self.proj_roles:
+                        errmsg = "Invalid MANO role {} for user {}". \
+                                 format(role.role, user.key)
+                        self._log.error(errmsg)
+                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
+                                                   self.get_xpath(),
+                                                   errmsg)
+                        xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                        return
 
             elif action == rwdts.QueryAction.DELETE:
                 # Check if the user got deleted

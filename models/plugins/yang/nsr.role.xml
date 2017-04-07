@@ -19,6 +19,7 @@
       <permissions>read execute</permissions>
       <path>/rw-project:project/nsr:ns-instance-config</path>
       <path>/rw-project:project/nsr:ns-instance-opdata</path>
+      <path>/rw-project:project/nsr:key-pair</path>
     </authorize>
   </role-definition>
 
@@ -29,6 +30,7 @@
       <permissions>create read update delete execute</permissions>
       <path>/rw-project:project/nsr:ns-instance-config</path>
       <path>/rw-project:project/nsr:ns-instance-opdata</path>
+      <path>/rw-project:project/nsr:key-pair</path>
       <path>/nsr:exec-scale-out</path>
       <path>/nsr:exec-scale-in</path>
       <path>/nsr:exec-ns-service-primitive</path>

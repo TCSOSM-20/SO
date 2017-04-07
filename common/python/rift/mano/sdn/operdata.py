@@ -29,10 +29,11 @@ class SDNAccountNotFound(Exception):
 
 
 class SDNAccountDtsOperdataHandler(object):
-    def __init__(self, dts, log, loop):
+    def __init__(self, dts, log, loop, project):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
 
         self.sdn_accounts = {}
         self._oper = None
@@ -63,9 +64,10 @@ class SDNAccountDtsOperdataHandler(object):
 
     def _register_show_status(self):
         def get_xpath(sdn_name=None):
-            return "D,/rw-sdn:sdn/account{}/connection-status".format(
-                    "[name='%s']" % sdn_name if sdn_name is not None else ''
-                    )
+            return self._project.add_project("D,/rw-sdn:sdn/account{}/connection-status".
+                                             format(
+                                                 "[name='%s']" % sdn_name
+                                                 if sdn_name is not None else ''))
 
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):

@@ -34,16 +34,16 @@ if sys.version_info < (3, 4, 4):
 
 class CopyStatusPublisher(mano_dts.DtsHandler, url_downloader.DownloaderProtocol): 
 
-    def __init__(self, log, dts, loop, tasklet_info):
-        super().__init__(log, dts, loop) 
-        self.tasks = {} 
-        self.tasklet_info = tasklet_info
+    def __init__(self, log, dts, loop, project):
+        super().__init__(log, dts, loop, project)
+        self.tasks = {}
+        self.tasklet_info = project.tasklet.tasklet_info
 
     def xpath(self, transaction_id=None):
-        return ("D,/rw-pkg-mgmt:copy-jobs/rw-pkg-mgmt:job" +
+        return self.project.add_project("D,/rw-pkg-mgmt:copy-jobs/rw-pkg-mgmt:job" +
             ("[transaction-id='{}']".format(transaction_id) if transaction_id else ""))
         pass
-    
+
     @asyncio.coroutine
     def register(self):
         self.reg = yield from self.dts.register(xpath=self.xpath(),

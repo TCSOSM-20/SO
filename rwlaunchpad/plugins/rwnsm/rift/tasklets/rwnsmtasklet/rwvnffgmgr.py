@@ -19,7 +19,7 @@ import asyncio
 
 from gi.repository import (
     RwDts as rwdts,
-    RwsdnYang,
+    RwsdnalYang,
     RwTypes,
     ProtobufC,
 )
@@ -85,7 +85,7 @@ class VnffgMgr(object):
         if (account.name in self._account):
             self._log.error("SDN Account is already set")
         else:
-            sdn_account           = RwsdnYang.SDNAccount()
+            sdn_account           = RwsdnalYang.SDNAccount()
             sdn_account.from_dict(account.as_dict())
             sdn_account.name = account.name
             self._account[account.name] = sdn_account
@@ -108,7 +108,7 @@ class VnffgMgr(object):
 
     def get_sdn_account(self, name):
         """
-        Creates an object for class RwsdnYang.SdnAccount()
+        Creates an object for class RwsdnalYang.SdnAccount()
         """
         if (name in self._account):
             return self._account[name]
@@ -178,7 +178,7 @@ class VnffgMgr(object):
         sdn_plugin = self.get_sdn_plugin(sdn_acct_name)
 
         for rsp in vnffgr.rsp:
-            vnffg = RwsdnYang.VNFFGChain()
+            vnffg = RwsdnalYang.VNFFGChain()
             vnffg.name = rsp.name
             vnffg.classifier_name = rsp.classifier_name
 
@@ -236,7 +236,7 @@ class VnffgMgr(object):
             else:
                 self._log.error("No RSP wiht name %s found; Skipping classifier %s creation",classifier.rsp_id_ref,classifier.name)
                 continue
-            vnffgcl = RwsdnYang.VNFFGClassifier()
+            vnffgcl = RwsdnalYang.VNFFGClassifier()
             vnffgcl.name = classifier.name
             vnffgcl.rsp_name = cl_rsp_name
             vnffgcl.port_id = vnffgr_cl[0].port_id

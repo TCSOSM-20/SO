@@ -18,10 +18,10 @@
  *
  */
 
-module rwsdn
+module rwsdnal
 {
-  namespace "http://riftio.com/ns/riftware-1.0/rwsdn";
-  prefix "rwsdn";
+  namespace "http://riftio.com/ns/riftware-1.0/rwsdnal";
+  prefix "rwsdnal";
 
   import rw-base {
     prefix rwbase;

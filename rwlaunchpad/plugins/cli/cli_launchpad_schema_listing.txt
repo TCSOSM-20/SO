@@ -44,7 +44,7 @@ rw-project-nsd
 rw-project-vnfd
 rw-resource-mgr
 rw-restportforward
-rwsdn
+rwsdnal
 rw-sdn
 rwshell-mgmt
 rw-sorch

@@ -15,7 +15,6 @@
 #   limitations under the License.
 #
 
-import contextlib
 import logging
 import os
 import subprocess
@@ -32,8 +31,6 @@ import rift.rwcal.openstack as openstack_drv
 import rw_status
 import rift.cal.rwcal_status as rwcal_status
 import rwlogger
-import neutronclient.common.exceptions as NeutronException
-import keystoneclient.exceptions as KeystoneExceptions
 
 
 from gi.repository import (
@@ -44,9 +41,9 @@ from gi.repository import (
 
 PREPARE_VM_CMD = "prepare_vm.py --auth_url {auth_url} --username {username} --password {password} --tenant_name {tenant_name} --region {region} --user_domain {user_domain} --project_domain {project_domain} --mgmt_network {mgmt_network} --server_id {server_id} --port_metadata "
 
-rwstatus_exception_map = { IndexError: RwTypes.RwStatus.NOTFOUND,
-                           KeyError: RwTypes.RwStatus.NOTFOUND,
-                           NotImplementedError: RwTypes.RwStatus.NOT_IMPLEMENTED,}
+rwstatus_exception_map = {IndexError: RwTypes.RwStatus.NOTFOUND,
+                          KeyError: RwTypes.RwStatus.NOTFOUND,
+                          NotImplementedError: RwTypes.RwStatus.NOT_IMPLEMENTED, }
 
 rwstatus = rw_status.rwstatus_from_exc_map(rwstatus_exception_map)
 rwcalstatus = rwcal_status.rwcalstatus_from_exc_map(rwstatus_exception_map)
@@ -75,9 +72,6 @@ class RwcalAccountDriver(object):
         self.log = logger
         try:
             self._driver = openstack_drv.OpenstackDriver(logger = self.log, **kwargs)
-        except (KeystoneExceptions.Unauthorized, KeystoneExceptions.AuthorizationFailure,
-                NeutronException.NotFound) as e:
-            raise
         except Exception as e:
             self.log.error("RwcalOpenstackPlugin: OpenstackDriver init failed. Exception: %s" %(str(e)))
             raise
@@ -154,34 +148,11 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             Validation Code and Details String
         """
         status = RwcalYang.CloudConnectionStatus()
-        drv = self._use_driver(account) 
         try:
+            drv = self._use_driver(account) 
             drv.validate_account_creds()
-        except KeystoneExceptions.Unauthorized as e:
-            self.log.error("Invalid credentials given for VIM account %s", account.name)
-            status.status = "failure"
-            status.details = "Invalid Credentials: %s" % str(e)
-
-        except KeystoneExceptions.AuthorizationFailure as e:
-            self.log.error("Bad authentication URL given for VIM account %s. Given auth url: %s",
-                           account.name, account.openstack.auth_url)
-            status.status = "failure"
-            status.details = "Invalid auth url: %s" % str(e)
-
-        except NeutronException.NotFound as e:
-            self.log.error("Given management network %s could not be found for VIM account %s",
-                           account.openstack.mgmt_network,
-                           account.name)
-            status.status = "failure"
-            status.details = "mgmt network does not exist: %s" % str(e)
-
-        except openstack_drv.ValidationError as e:
-            self.log.error("RwcalOpenstackPlugin: OpenstackDriver credential validation failed. Exception: %s", str(e))
-            status.status = "failure"
-            status.details = "Invalid Credentials: %s" % str(e)
-
         except Exception as e:
-            msg = "RwcalOpenstackPlugin: OpenstackDriver connection failed. Exception: %s" %(str(e))
+            msg = "RwcalOpenstackPlugin: Exception: %s" %(str(e))
             self.log.error(msg)
             status.status = "failure"
             status.details = msg
@@ -400,11 +371,8 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             kwargs['image_id']  = vminfo.image_id
 
         ### If floating_ip is required and we don't have one, better fail before any further allocation
-        pool_name = None
         floating_ip = False
         if vminfo.has_field('allocate_public_address') and vminfo.allocate_public_address:
-            if account.openstack.has_field('floating_ip_pool'):
-                pool_name = account.openstack.floating_ip_pool
             floating_ip = True
 
         if vminfo.has_field('cloud_init') and vminfo.cloud_init.has_field('userdata'):
@@ -441,7 +409,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             kwargs['availability_zone'] = None
 
         if vminfo.has_field('server_group'):
-            kwargs['scheduler_hints'] = {'group': vminfo.server_group }
+            kwargs['scheduler_hints'] = {'group': vminfo.server_group}
         else:
             kwargs['scheduler_hints'] = None
 
@@ -540,10 +508,10 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             if key in vm.user_tags.fields:
                 setattr(vm.user_tags, key, value)
         if 'OS-EXT-SRV-ATTR:host' in vm_info:
-            if vm_info['OS-EXT-SRV-ATTR:host'] != None:
+            if vm_info['OS-EXT-SRV-ATTR:host'] is not None:
                 vm.host_name = vm_info['OS-EXT-SRV-ATTR:host']
         if 'OS-EXT-AZ:availability_zone' in vm_info:
-            if vm_info['OS-EXT-AZ:availability_zone'] != None:
+            if vm_info['OS-EXT-AZ:availability_zone'] is not None:
                 vm.availability_zone = vm_info['OS-EXT-AZ:availability_zone']
         return vm
 
@@ -680,7 +648,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         network                  = RwcalYang.NetworkInfoItem()
         network.network_name     = network_info['name']
         network.network_id       = network_info['id']
-        if ('provider:network_type' in network_info) and (network_info['provider:network_type'] != None):
+        if ('provider:network_type' in network_info) and (network_info['provider:network_type'] is not None):
             network.provider_network.overlay_type = network_info['provider:network_type'].upper()
         if ('provider:segmentation_id' in network_info) and (network_info['provider:segmentation_id']):
             network.provider_network.segmentation_id = network_info['provider:segmentation_id']
@@ -1068,7 +1036,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                 cmd += (" --vol_metadata {}").format(tmp_file.name)
             
         exec_path = 'python3 ' + os.path.dirname(openstack_drv.__file__)
-        exec_cmd = exec_path+'/'+cmd
+        exec_cmd = exec_path + '/' + cmd
         self.log.info("Running command: %s" %(exec_cmd))
         subprocess.call(exec_cmd, shell=True)
 

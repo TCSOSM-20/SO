@@ -60,6 +60,7 @@ rift_add_yang_target(
     rwprojectmano_yang_gen
   DEPENDS
     rwcloud_yang
+    rwsdn_yang
     rwconfig_agent_yang
     rwprojectmano_yang
   ASSOCIATED_FILES

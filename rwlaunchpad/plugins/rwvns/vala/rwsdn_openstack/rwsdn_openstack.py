@@ -15,14 +15,12 @@
 #   limitations under the License.
 #
 
-import contextlib
 import logging
 
 import gi
 gi.require_version('RwSdn', '1.0')
-gi.require_version('RwCal', '1.0')
-gi.require_version('RwcalYang', '1.0')
 
+import rift.rwcal.openstack as openstack_drv
 from rift.rwcal.openstack import session as sess_drv
 from rift.rwcal.openstack import keystone as ks_drv
 from rift.rwcal.openstack import neutron as nt_drv
@@ -39,15 +37,13 @@ import keystoneclient.exceptions as KeystoneExceptions
 
 from gi.repository import (
     GObject,
-    RwCal,
-    RwSdn, # Vala package
-    RwsdnYang,
-    RwTypes,
-    RwcalYang)
+    RwSdn,  # Vala package
+    RwsdnalYang,
+    RwTypes)
 
-rwstatus_exception_map = { IndexError: RwTypes.RwStatus.NOTFOUND,
+rwstatus_exception_map = {IndexError: RwTypes.RwStatus.NOTFOUND,
                            KeyError: RwTypes.RwStatus.NOTFOUND,
-                           NotImplementedError: RwTypes.RwStatus.NOT_IMPLEMENTED,}
+                           NotImplementedError: RwTypes.RwStatus.NOT_IMPLEMENTED, }
 
 rwstatus = rw_status.rwstatus_from_exc_map(rwstatus_exception_map)
 rwcalstatus = rwcal_status.rwcalstatus_from_exc_map(rwstatus_exception_map)
@@ -94,6 +90,7 @@ class OpenstackL2PortChainingDriver(object):
                      project_domain_name = kwargs['project_domain'] if 'project_domain' in kwargs else None,
                      user_domain_name    = kwargs['user_domain'] if 'user_domain' in kwargs else None,)
 
+        self.auth_url = kwargs['auth_url']
         cert_validate = kwargs['cert_validate'] if 'cert_validate' in kwargs else False
         region = kwargs['region_name'] if 'region_name' in kwargs else False
 
@@ -115,17 +112,43 @@ class OpenstackL2PortChainingDriver(object):
                                                         logger = self.log)
 
     def validate_account_creds(self):
+        status = RwsdnalYang.SdnConnectionStatus()
         try:
             self.sess_drv.invalidate_auth_token()
             self.sess_drv.auth_token
+        except KeystoneExceptions.Unauthorized as e:
+            self.log.error("Invalid credentials given for SDN account ")
+            status.status = "failure"
+            status.details = "Invalid Credentials: %s" % str(e)
+  
         except KeystoneExceptions.AuthorizationFailure as e:
-            self.log.error("Unable to authenticate or validate the existing credentials. Exception: %s", str(e))
-            raise ValidationError("Invalid Credentials: "+ str(e))
+            self.log.error("Bad authentication URL given for SDN account. Given auth url: %s",
+                                   self.auth_url)
+            status.status = "failure"
+            status.details = "Invalid auth url: %s" % str(e)
+  
+        except NeutronException.NotFound as e:
+            status.status = "failure"
+            status.details = "Neutron exception  %s" % str(e)
+  
+        except openstack_drv.ValidationError as e:
+            self.log.error("RwcalOpenstackPlugin: OpenstackDriver credential validation failed. Exception: %s", str(e))
+            status.status = "failure"
+            status.details = "Invalid Credentials: %s" % str(e)
+  
         except Exception as e:
-            self.log.error("Could not connect to Openstack. Exception: %s", str(e))
-            raise ValidationError("Connection Error: "+ str(e))
+            msg = "RwsdnOpenstackPlugin: OpenstackDriver connection failed. Exception: %s" %(str(e))
+            self.log.error(msg)
+            status.status = "failure"
+            status.details = msg
+  
+        else:
+            status.status = "success"
+            status.details = "Connection was successful"
+  
+        return status 
 
-    def delete_port_chain(self,port_chain_id):
+    def delete_port_chain(self, port_chain_id):
         "Delete port chain"
         try:
             result = self.portchain_drv.get_port_chain(port_chain_id)
@@ -144,15 +167,15 @@ class OpenstackL2PortChainingDriver(object):
                 port_pairs.extend(port_pair_group["port_pair_group"]["port_pairs"])
                 self.portchain_drv.delete_port_pair_group(port_pair_group_id)
 
-            self.log.debug("Port pairs during delete is %s",port_pairs)
+            self.log.debug("Port pairs during delete is %s", port_pairs)
 
             for port_pair_id in port_pairs:
                 self.portchain_drv.delete_port_pair(port_pair_id)
                 pass
         except Exception as e:
-            self.log.error("Error while delete port chain with id %s, exception %s", port_chain_id,str(e))
+            self.log.error("Error while delete port chain with id %s, exception %s", port_chain_id, str(e))
 
-    def update_port_chain(self,port_chain_id,flow_classifier_list):
+    def update_port_chain(self, port_chain_id, flow_classifier_list):
         result = self.portchain_drv.get_port_chain(port_chain_id)
         result.raise_for_status()
         port_chain = result.json()['port_chain']
@@ -160,20 +183,20 @@ class OpenstackL2PortChainingDriver(object):
         if port_chain and port_chain['flow_classifiers']:
            new_flow_classifier_list.extend(port_chain['flow_classifiers'])
         new_flow_classifier_list.extend(flow_classifier_list)
-        port_chain_id = self.portchain_drv.update_port_chain(port_chain['id'],flow_classifiers=new_flow_classifier_list)
+        port_chain_id = self.portchain_drv.update_port_chain(port_chain['id'], flow_classifiers=new_flow_classifier_list)
         return port_chain_id
 
-    def create_flow_classifer(self,classifier_name,classifier_dict):
+    def create_flow_classifer(self, classifier_name, classifier_dict):
         "Create flow classifier"
-        flow_classifier_id = self.portchain_drv.create_flow_classifier(classifier_name,classifier_dict)
+        flow_classifier_id = self.portchain_drv.create_flow_classifier(classifier_name, classifier_dict)
         return flow_classifier_id
 
-    def delete_flow_classifier(self,classifier_id):
+    def delete_flow_classifier(self, classifier_id):
         "Create flow classifier"
         try:
             self.portchain_drv.delete_flow_classifier(classifier_id)
         except Exception as e:
-            self.log.error("Error while deleting flow classifier with id %s, exception %s", classifier_id,str(e))
+            self.log.error("Error while deleting flow classifier with id %s, exception %s", classifier_id, str(e))
 
     def get_port_chain_list(self):
         result = self.portchain_drv.get_port_chain_list()
@@ -204,6 +227,7 @@ class RwsdnAccountDriver(object):
     
 class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
     instance_num = 1
+
     def __init__(self):
         GObject.Object.__init__(self)
         self.log = logging.getLogger('rwsdn.openstack.%s' % SdnOpenstackPlugin.instance_num)
@@ -255,9 +279,9 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
         Returns:
             Validation Code and Details String
         """
-        status = RwsdnYang.SdnConnectionStatus()
-        drv = self._use_driver(account)
+        status = RwsdnalYang.SdnConnectionStatus()
         try:
+            drv = self._use_driver(account)
             drv.validate_account_creds()
 
         except openstack_drv.ValidationError as e:
@@ -278,14 +302,14 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
         return status
 
     @rwstatus(ret_on_failure=[""])
-    def do_create_vnffg_chain(self, account,vnffg):
+    def do_create_vnffg_chain(self, account, vnffg):
         """
         Creates Service Function chain in ODL
 
         @param account - a SDN account
 
         """
-        self.log.debug('Received Create VNFFG chain for account {}, chain {}'.format(account,vnffg))
+        self.log.debug('Received Create VNFFG chain for account {}, chain {}'.format(account, vnffg))
         drv = self._use_driver(account)
         port_list = list()
         vnf_chain_list = sorted(vnffg.vnf_chain_path, key = lambda x: x.order)
@@ -293,16 +317,16 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
         for path in vnf_chain_list:
             if prev_vm_id and path.vnfr_ids[0].vdu_list[0].vm_id == prev_vm_id:
                 prev_entry = port_list.pop()
-                port_list.append((prev_entry[0],path.vnfr_ids[0].vdu_list[0].port_id))
+                port_list.append((prev_entry[0], path.vnfr_ids[0].vdu_list[0].port_id))
                 prev_vm_id = None
             else:
                 prev_vm_id = path.vnfr_ids[0].vdu_list[0].vm_id
-                port_list.append((path.vnfr_ids[0].vdu_list[0].port_id,path.vnfr_ids[0].vdu_list[0].port_id))
-        vnffg_id = drv.create_port_chain(vnffg.name,port_list)
+                port_list.append((path.vnfr_ids[0].vdu_list[0].port_id, path.vnfr_ids[0].vdu_list[0].port_id))
+        vnffg_id = drv.create_port_chain(vnffg.name, port_list)
         return vnffg_id
 
     @rwstatus
-    def do_terminate_vnffg_chain(self, account,vnffg_id):
+    def do_terminate_vnffg_chain(self, account, vnffg_id):
         """
         Terminate Service Function chain in ODL
 
@@ -319,8 +343,8 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
 
            @param account - a SDN account
         """
-        self.log.debug('Received Create VNFFG classifier for account {}, classifier {}'.format(account,vnffg_classifier))
-        protocol_map = {1:'ICMP',6:'TCP',17:'UDP'}
+        self.log.debug('Received Create VNFFG classifier for account {}, classifier {}'.format(account, vnffg_classifier))
+        protocol_map = {1: 'ICMP', 6: 'TCP', 17: 'UDP'}
         flow_classifier_list = list()
         drv =  self._use_driver(account)
         for rule in vnffg_classifier.match_attributes:
@@ -328,7 +352,7 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
             flow_dict = {} 
             for field, value in rule.as_dict().items():
                  if field == 'ip_proto':
-                     flow_dict['protocol'] = protocol_map.get(value,None)
+                     flow_dict['protocol'] = protocol_map.get(value, None)
                  elif field == 'source_ip_address':
                      flow_dict['source_ip_prefix'] = value
                  elif field == 'destination_ip_address':
@@ -343,7 +367,7 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
                     flow_dict['logical_source_port'] = vnffg_classifier.port_id 
             flow_classifier_id = drv.create_flow_classifer(classifier_name, flow_dict)
             flow_classifier_list.append(flow_classifier_id)
-        drv.update_port_chain(vnffg_classifier.rsp_id,flow_classifier_list)
+        drv.update_port_chain(vnffg_classifier.rsp_id, flow_classifier_list)
         return flow_classifier_list
 
     @rwstatus(ret_on_failure=[None])
@@ -366,7 +390,7 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
            @param account - a SDN account
         """
         self.log.debug('Received get VNFFG rendered path for account %s ', account)
-        vnffg_rsps = RwsdnYang.VNFFGRenderedPaths() 
+        vnffg_rsps = RwsdnalYang.VNFFGRenderedPaths() 
         drv = self._use_driver(account)
         port_chain_list = drv.get_port_chain_list()
         for port_chain in port_chain_list:

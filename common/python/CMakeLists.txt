@@ -38,6 +38,16 @@ rift_python_install_tree(
 
 rift_python_install_tree(
   FILES
+    rift/mano/sdn/__init__.py
+    rift/mano/sdn/accounts.py
+    rift/mano/sdn/config.py
+    rift/mano/sdn/operdata.py
+  COMPONENT ${PKG_LONG_NAME}
+  PYTHON3_ONLY
+  )
+
+rift_python_install_tree(
+  FILES
     rift/mano/config_agent/operdata.py
     rift/mano/config_agent/__init__.py
     rift/mano/config_agent/config.py

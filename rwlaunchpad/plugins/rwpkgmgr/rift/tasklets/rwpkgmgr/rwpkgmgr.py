@@ -47,22 +47,31 @@ class PackageManagerProject(ManoProject):
     def __init__(self, name, tasklet, **kw):
         super(PackageManagerProject, self).__init__(tasklet.log, name)
         self.update(tasklet)
+        proxy = kw["proxy"]
 
         args = [self.log, self.dts, self.loop, self]
         self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
+        self.copy_publisher = pkg_publisher.CopyStatusPublisher(*args + [self.tasklet.tasklet_info])
+
         # create catalog subscribers 
         self.vnfd_catalog_sub = subscriber.VnfdStatusSubscriber(*args)
         self.nsd_catalog_sub = subscriber.NsdStatusSubscriber(*args)
-
+        
+        args.append(proxy)
+        self.copy_rpc = rpc.PackageCopyOperationsRpcHandler(*(args + [self.copy_publisher]))
 
     @asyncio.coroutine
     def register (self):
         yield from self.vnfd_catalog_sub.register()
         yield from self.nsd_catalog_sub.register()
+        yield from self.copy_rpc.register()
+        yield from self.copy_publisher.register()
         yield from self.job_handler.register()
 
     def deregister (self):
         yield from self.job_handler.deregister()
+        yield from self.copy_rpc.deregister()
+        yield from self.copy_publisher.deregister()
         yield from self.vnfd_catalog_sub.deregister()
         yield from self.nsd_catalog_sub.deregister()
 
@@ -82,27 +91,35 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
             self.log.exception(e)
 
     def start(self):
-        super().start()
 
         self.log.debug("Registering with dts")
 
-        self.dts = rift.tasklets.DTS(
+        try:
+            super().start()
+            self.dts = rift.tasklets.DTS(
                 self.tasklet_info,
                 RwPkgMgmtYang.get_schema(),
                 self.loop,
                 self.on_dts_state_change
                 )
 
-        proxy = filesystem.FileSystemProxy(self.loop, self.log)
+            proxy = filesystem.FileSystemProxy(self.loop, self.log)
+            args = [self.log, self.dts, self.loop]
 
-        args = [self.log, self.dts, self.loop]
-        args.append(proxy)
-        self.endpoint_rpc = rpc.EndpointDiscoveryRpcHandler(*args)
-        self.schema_rpc = rpc.SchemaRpcHandler(*args)
-        self.delete_rpc = rpc.PackageDeleteOperationsRpcHandler(*args)
+            args.append(proxy)
+            self.endpoint_rpc = rpc.EndpointDiscoveryRpcHandler(*args)
+            self.schema_rpc = rpc.SchemaRpcHandler(*args)
+            self.delete_rpc = rpc.PackageDeleteOperationsRpcHandler(*args)
 
-        args.append(self)
-        self.pkg_op = rpc.PackageOperationsRpcHandler(*args)
+            args.append(self)
+            self.pkg_op = rpc.PackageOperationsRpcHandler(*args)
+
+            self.project_handler = ProjectHandler(self, PackageManagerProject,
+                                                  proxy=proxy,)
+        except Exception as e:
+            self.log.exception("Exception caught rwpkgmgr start: %s", str(e))
+        else:
+            self.log.debug("rwpkgmgr started successfully!")
 
     def stop(self):
         try:

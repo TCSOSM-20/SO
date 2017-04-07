@@ -109,62 +109,6 @@ module rwcal
 
   uses connection-status;
 
-  typedef sdn-account-type {
-    description "SDN account type";
-    type enumeration {
-      enum odl;
-      enum mock;
-      enum sdnsim;
-    }
-  }
-
-  grouping sdn-provider-auth {
-    leaf account-type {
-      type sdn-account-type;
-    }
-
-    choice provider-specific-info {
-      container odl {
-        leaf username {
-          type string {
-            length "1..255";
-          }
-        }
-
-        leaf password {
-          type string {
-            length "1..32";
-          }
-        }
-
-        leaf url {
-          type string {
-            length "1..255";
-          }
-        }
-      }
-      container mock {
-        leaf username {
-          type string;
-        }
-        leaf plugin-name {
-          type string;
-          default "rwsdn_mock";
-        }
-      }
-
-      container sdnsim {
-        leaf username {
-          type string;
-        }
-        leaf plugin-name {
-          type string;
-          default "rwsdn_sim";
-        }
-      }
-    }
-  }
-
   grouping provider-auth {
     leaf account-type {
       type manotypes:cloud-account-type;

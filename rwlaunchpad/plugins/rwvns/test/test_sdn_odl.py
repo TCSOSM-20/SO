@@ -1,6 +1,6 @@
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -27,23 +27,34 @@ from gi.repository import RwsdnalYang
 from gi.repository.RwTypes import RwStatus
 
 
-logger = logging.getLogger('sdnsim')
+logger = logging.getLogger('sdnodl')
+
+odl_info = {
+    'username'      : 'admin',
+    'password'      : 'admin',
+    'url'           : 'http://10.66.4.27:8181',
+}
+
 
 def get_sdn_account():
     """
     Creates an object for class RwsdnalYang.SdnAccount()
     """
     account                 = RwsdnalYang.SDNAccount()
-    account.account_type    = "sdnsim"
-    account.sdnsim.username   = "rift"
-    account.sdnsim.plugin_name = "rwsdn_sim"
+    account.name            = "grunt27"
+    account.account_type    = "odl"
+    account.odl.plugin_name = "rwsdn_odl"
+    account.odl.username    = odl_info['username']
+    account.odl.password    = odl_info['password']
+    account.odl.url       = odl_info['url']
+
     return account
 
 def get_sdn_plugin():
     """
     Loads rw.sdn plugin via libpeas
     """
-    plugin = rw_peas.PeasPlugin('rwsdn_sim', 'RwSdn-1.0')
+    plugin = rw_peas.PeasPlugin('rwsdn_odl', 'RwSdn-1.0')
     engine, info, extension = plugin()
 
     # Get the RwLogger context
@@ -54,36 +65,46 @@ def get_sdn_plugin():
         rc = sdn.init(rwloggerctx)
         assert rc == RwStatus.SUCCESS
     except:
-        logger.error("ERROR:SDN sim plugin instantiation failed. Aborting tests")
+        logger.error("ERROR:SDN ODL plugin instantiation failed. Aborting tests")
     else:
-        logger.info("SDN sim plugin successfully instantiated")
+        logger.info("SDN ODL plugin successfully instantiated")
     return sdn
 
 
 
-class SdnSimTest(unittest.TestCase):
+class SdnOdlTest(unittest.TestCase):
     def setUp(self):
         """
           Initialize test plugins
         """
         self._acct = get_sdn_account()
-        logger.info("SDN-Sim-Test: setUp")
+        logger.info("SDN-Odl-Test: setUp")
         self.sdn   = get_sdn_plugin()
-        logger.info("SDN-Sim-Test: setUpEND")
+        logger.info("SDN-Odl-Test: setUpEND")
 
     def tearDown(self):
-        logger.info("SDN-Sim-Test: Done with tests")
+        logger.info("SDN-Odl-Test: Done with tests")
 
-    def test_get_network_list(self):
+    def test_validate_sdn_creds(self):
         """
            First test case
         """
-        rc, nwtop = self.sdn.get_network_list(self._acct)
-        self.assertEqual(rc, RwStatus.SUCCESS) 
-        logger.debug("SDN-Sim-Test: Retrieved network attributes ")
-        for nw in nwtop.network:
-           logger.debug("...Network id %s", nw.network_id)
-           logger.debug("...Network name %s", nw.l2_network_attributes.name)
+        logger.debug("SDN-Odl-Test: Starting validate creds ")
+        rc, status = self.sdn.validate_sdn_creds(self._acct)
+        logger.debug("SDN-Odl-Test: SDN return code %s resp %s", rc, status)
+        self.assertEqual(rc, RwStatus.SUCCESS)
+        logger.info("SDN-Odl-Test: Passed validate creds")
+
+    def test_get_network_list(self):
+        """
+           Get-network-list test case
+        """
+        logger.debug("SDN-Odl-Test: Getting network list ")
+        rc, status = self.sdn.get_network_list(self._acct)
+        logger.debug("SDN-Odl-Test: SDN return code %s resp %s", rc, status)
+        self.assertEqual(rc, RwStatus.SUCCESS)
+        logger.info("SDN-Odl-Test: Passed get network list")
+
 
 
 if __name__ == "__main__":

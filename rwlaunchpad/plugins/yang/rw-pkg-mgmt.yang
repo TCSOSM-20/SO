@@ -196,6 +196,14 @@ module rw-pkg-mgmt
     }
   }
 
+  grouping copy-task-status {
+    leaf status {
+      description "The status of the copy task";
+      type task-status;
+      default QUEUED;
+    }
+  }
+
   augment "/rw-project:project" {
     container download-jobs {
       rwpb:msg-new DownloadJobs;
@@ -220,6 +228,24 @@ module rw-pkg-mgmt
         uses download-task-status;
       }
     }
+
+    container copy-jobs {
+      rwpb:msg-new CopyJobs;
+      description "Copy jobs";
+      config false;
+
+      list job {
+        rwpb:msg-new CopyJob;
+        key "transaction-id";
+
+        leaf transaction-id {
+          description "Unique UUID";
+          type string;
+        }
+
+        uses copy-task-status;
+      }
+    }
   }
 
   rpc get-package-endpoint {
@@ -235,6 +261,30 @@ module rw-pkg-mgmt
         description "Endpoint that contains all the package-related data";
         type string;
       }
+    }
+  }
+
+  rpc package-copy {
+    description "Copies the package specified in input and returns the copied package id";
+
+    input {
+      uses package-identifer;
+
+      leaf package-name {
+        description "Name of destination package";
+        type string;
+      }
+
+      uses manotypes:rpc-project-name;
+    }
+
+    output {
+     leaf transaction-id {
+        description "Valid ID to track the status of the task";
+        type string;
+      }
+
+     uses package-identifer;
     }
   }
 

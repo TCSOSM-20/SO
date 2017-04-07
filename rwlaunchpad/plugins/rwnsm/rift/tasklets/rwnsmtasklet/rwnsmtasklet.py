@@ -51,7 +51,7 @@ from gi.repository import (
     VnfrYang,
     RwVnfrYang,
     RwNsmYang,
-    RwsdnYang,
+    RwsdnalYang,
     RwDts as rwdts,
     RwTypes,
     ProtobufC,
@@ -395,7 +395,7 @@ class VnffgRecord(object):
                     vnfr = yield from self._nsr.fetch_vnfr(nsr_vnfr.xpath)
                     self._log.debug("Received VNFR is %s", vnfr)
 
-                sff =  RwsdnYang.VNFFGSff()
+                sff =  RwsdnalYang.VNFFGSff()
                 sff_list[nsr_vnfr.vnfd.id] = sff
                 sff.name = nsr_vnfr.name
                 sff.function_type = nsr_vnfr.vnfd.service_function_chain
@@ -2041,7 +2041,7 @@ class NetworkServiceRecord(object):
                    (member_vnfd.member_vnf_index_ref == str(const_vnfd.member_vnf_index)):
                     group_info = self.resolve_placement_group_cloud_construct(group)
                     if group_info is None:
-                        self._log.error("Could not resolve cloud-construct for placement group: %s", group.name)
+                        self._log.info("Could not resolve cloud-construct for placement group: %s", group.name)
                         ### raise PlacementGroupError("Could not resolve cloud-construct for placement group: {}".format(group.name))
                     else:
                         self._log.info("Successfully resolved cloud construct for placement group: %s for VNF: %s (Member Index: %s)",

@@ -16,8 +16,6 @@
 #
 
 import asyncio
-import logging
-import os
 import sys
 
 import gi
@@ -25,10 +23,8 @@ gi.require_version('RwVnsYang', '1.0')
 gi.require_version('RwDts', '1.0')
 from gi.repository import (
     RwVnsYang,
-    RwSdnYang,
     RwDts as rwdts,
     RwTypes,
-    ProtobufC,
 )
 
 import rift.tasklets
@@ -36,6 +32,7 @@ from rift.mano.utils.project import (
     ManoProject,
     ProjectHandler,
 )
+import rift.mano.sdn
 
 from rift.vlmgr import (
     VlrDtsHandler,
@@ -47,18 +44,7 @@ from rift.topmgr import (
     NwtopStaticDtsHandler,
     NwtopDiscoveryDtsHandler,
     NwtopDataStore,
-    SdnAccountMgr,
 )
-
-
-class SdnInterfaceError(Exception):
-    """ SDN interface creation Error """
-    pass
-
-
-class SdnPluginError(Exception):
-    """ SDN plugin creation Error """
-    pass
 
 
 class VlRecordError(Exception):
@@ -70,218 +56,48 @@ class VlRecordNotFound(Exception):
     """ Vlr Record not found"""
     pass
 
-class SdnAccountError(Exception):
-    """ Error while creating/deleting/updating SDN Account"""
-    pass
 
-class SdnAccountNotFound(Exception):
-    pass
-
-class SDNAccountDtsOperdataHandler(object):
-    def __init__(self, dts, log, loop, parent):
-        self._dts = dts
+class SDNAccountHandlers(object):
+    def __init__(self, dts, log, log_hdl, acctstore, loop, project):
         self._log = log
+        self._log_hdl = log_hdl
+        self._dts = dts
         self._loop = loop
-        self._parent = parent
-        self._project = self._parent._project
-        self._regh = None
-        self._rpch = None
+        self._acctstore = acctstore
+        self._project = project
+  
+        self._log.debug("Creating SDN account config handler")
+        self.sdn_cfg_handler = rift.mano.sdn.SDNAccountConfigSubscriber(
+              self._dts, self._log, project, self._log_hdl,
+              rift.mano.sdn.SDNAccountConfigCallbacks(
+                  on_add_apply=self.on_sdn_account_added,
+                  on_delete_apply=self.on_sdn_account_deleted,
+              ),
+              self._acctstore
 
-    def _register_show_status(self):
-        def get_xpath(sdn_name=None):
-            return self._project.add_project("D,/rw-sdn:sdn/rw-sdn:account{}" \
-                "/rw-sdn:connection-status".format(
-                    "[name='%s']" % sdn_name if sdn_name is not None else ''
-                   ))
-
-        @asyncio.coroutine
-        def on_prepare(xact_info, action, ks_path, msg):
-            path_entry = RwSdnYang.SDNAccountConfig.schema().keyspec_to_entry(ks_path)
-            sdn_account_name = path_entry.key00.name
-            self._log.debug("Got show sdn connection status request: %s", ks_path.create_string())
-
-            try:
-                saved_accounts = self._parent._acctmgr.get_saved_sdn_accounts(sdn_account_name)
-                for account in saved_accounts:
-                    sdn_acct = RwSdnYang.SDNAccountConfig()
-                    sdn_acct.from_dict(account.as_dict())
-
-                    self._log.debug("Responding to sdn connection status request: %s", sdn_acct.connection_status)
-                    xact_info.respond_xpath(
-                            rwdts.XactRspCode.MORE,
-                            xpath=get_xpath(account.name),
-                            msg=sdn_acct.connection_status,
-                            )
-            except KeyError as e:
-                self._log.warning(str(e))
-                xact_info.respond_xpath(rwdts.XactRspCode.NA)
-                return
-
-            xact_info.respond_xpath(rwdts.XactRspCode.ACK)
-
-        self._regh = yield from self._dts.register(
-            xpath=get_xpath(),
-            handler=rift.tasklets.DTS.RegistrationHandler(
-                on_prepare=on_prepare),
-            flags=rwdts.Flag.PUBLISHER,
         )
-
-    def _register_validate_rpc(self):
-        def get_xpath():
-            return "/rw-sdn:update-sdn-status"
-
-        @asyncio.coroutine
-        def on_prepare(xact_info, action, ks_path, msg):
-
-            if not self._project.rpc_check(msg, xact_info=xact_info):
-                return
-
-            if not msg.has_field("sdn_account"):
-                raise SdnAccountNotFound("SDN account name not provided")
-
-            sdn_account_name = msg.sdn_account
-            account = self._parent._acctmgr.get_sdn_account(sdn_account_name)
-            if account is None:
-                self._log.warning("SDN account %s does not exist", sdn_account_name)
-                xact_info.respond_xpath(rwdts.XactRspCode.NA)
-                return
-
-            self._parent._acctmgr.start_validate_credentials(self._loop, sdn_account_name)
-
-            xact_info.respond_xpath(rwdts.XactRspCode.ACK)
-
-        self._rpch = yield from self._dts.register(
-            xpath=get_xpath(),
-            handler=rift.tasklets.DTS.RegistrationHandler(
-                on_prepare=on_prepare
-            ),
-            flags=rwdts.Flag.PUBLISHER,
+  
+        self._log.debug("Creating SDN account opdata handler")
+        self.sdn_operdata_handler = rift.mano.sdn.SDNAccountDtsOperdataHandler(
+              self._dts, self._log, self._loop, project,
         )
-
+  
+    def on_sdn_account_deleted(self, account_name):
+        self._log.debug("SDN account deleted")
+        self.sdn_operdata_handler.delete_sdn_account(account_name)
+  
+    def on_sdn_account_added(self, account):
+        self._log.debug("SDN account added")
+        self.sdn_operdata_handler.add_sdn_account(account)
+  
     @asyncio.coroutine
     def register(self):
-        yield from self._register_show_status()
-        yield from self._register_validate_rpc()
+        self.sdn_cfg_handler.register()
+        yield from self.sdn_operdata_handler.register()
 
     def deregister(self):
-        self._log.debug("De-register SDN opdata handler for project {}".
-                        format(self._project.name))
-        if self._regh:
-            self._regh.deregister()
-            self._regh = None
-
-        if self._rpch:
-            self._rpch.deregister()
-            self._rpch = None
-
-
-class SDNAccountDtsHandler(object):
-    XPATH = "C,/rw-sdn:sdn/rw-sdn:account"
-
-    def __init__(self, dts, log, parent):
-        self._dts = dts
-        self._log = log
-        self._parent = parent
-        self._project = parent._project
-
-        self._sdn_account = {}
-        self._regh = None
-
-    @property
-    def _xpath(self):
-        return self._project.add_project(SDNAccountDtsHandler.XPATH)
-
-    def _set_sdn_account(self, account):
-        self._log.info("Setting sdn account: {}".format(account))
-        if account.name in self._sdn_account:
-            self._log.error("SDN Account with name %s already exists. Ignoring config", account.name);
-        self._sdn_account[account.name]  = account
-        self._parent._acctmgr.set_sdn_account(account)
-
-    def _del_sdn_account(self, account_name):
-        self._log.info("Deleting sdn account: {}".format(account_name))
-        del self._sdn_account[account_name]
-
-        self._parent._acctmgr.del_sdn_account(account_name)
-
-    def _update_sdn_account(self, account):
-        self._log.info("Updating sdn account: {}".format(account))
-        # No need to update locally saved sdn_account's updated fields, as they
-        # are not used anywhere. Call the parent's update callback.
-        self._parent._acctmgr.update_sdn_account(account)
-
-    @asyncio.coroutine
-    def register(self):
-        def apply_config(dts, acg, xact, action, _):
-            self._log.debug("Got sdn account apply config (xact: %s) (action: %s)", xact, action)
-            if action == rwdts.AppconfAction.INSTALL and xact.id is None:
-                self._log.debug("No xact handle.  Skipping apply config")
-                return RwTypes.RwStatus.SUCCESS
-
-            return RwTypes.RwStatus.SUCCESS
-
-        @asyncio.coroutine
-        def on_prepare(dts, acg, xact, xact_info, ks_path, msg, scratch):
-            """ Prepare callback from DTS for SDN Account config """
-
-            self._log.info("SDN Cloud account config received: %s", msg)
-
-            fref = ProtobufC.FieldReference.alloc()
-            fref.goto_whole_message(msg.to_pbcm())
-
-            if fref.is_field_deleted():
-                # Delete the sdn account record
-                self._del_sdn_account(msg.name)
-            else:
-                # If the account already exists, then this is an update.
-                if msg.name in self._sdn_account:
-                    self._log.debug("SDN account already exists. Invoking on_prepare update request")
-                    if msg.has_field("account_type"):
-                        errmsg = "Cannot update SDN account's account-type."
-                        self._log.error(errmsg)
-                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
-                                                   self._xpath,
-                                                   errmsg)
-                        raise SdnAccountError(errmsg)
-
-                    # Update the sdn account record
-                    self._update_sdn_account(msg)
-                else:
-                    self._log.debug("SDN account does not already exist. Invoking on_prepare add request")
-                    if not msg.has_field('account_type'):
-                        errmsg = "New SDN account must contain account-type field."
-                        self._log.error(errmsg)
-                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
-                                                   self._xpath,
-                                                   errmsg)
-                        raise SdnAccountError(errmsg)
-
-                    # Set the sdn account record
-                    self._set_sdn_account(msg)
-
-            xact_info.respond_xpath(rwdts.XactRspCode.ACK)
-
-
-        self._log.debug("Registering for Sdn Account config using xpath: {}".
-                        format(self._xpath))
-
-        acg_handler = rift.tasklets.AppConfGroup.Handler(
-                        on_apply=apply_config,
-                        )
-
-        with self._dts.appconf_group_create(acg_handler) as acg:
-            self._regh = acg.register(
-                xpath=self._xpath,
-                flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY,
-                on_prepare=on_prepare
-            )
-
-    def deregister(self):
-        self._log.debug("De-register VLR handler for project {}".
-                        format(self._project.name))
-        if self._regh:
-            self._regh.deregister()
-            self._regh = None
+        self.sdn_cfg_handler.deregister()
+        self.sdn_operdata_handler.deregister()
 
 
 class VnsManager(object):
@@ -292,17 +108,15 @@ class VnsManager(object):
         self._log_hdl = log_hdl
         self._loop = loop
         self._project = project
-
+        self._acctstore = {}
         self._vlr_handler = VlrDtsHandler(dts, log, loop, self)
         self._vld_handler = VldDtsHandler(dts, log, loop, self)
-        self._sdn_handler = SDNAccountDtsHandler(dts,log,self)
-        self._sdn_opdata_handler = SDNAccountDtsOperdataHandler(dts,log, loop, self)
-        self._acctmgr = SdnAccountMgr(self._log, self._log_hdl, self._loop, self._project)
+        self._sdn_handlers = SDNAccountHandlers(dts, log, log_hdl, self._acctstore, loop, project)
         self._nwtopdata_store = NwtopDataStore(log)
-        self._nwtopdiscovery_handler = NwtopDiscoveryDtsHandler(dts, log, loop, self._project,
-                                                                self._acctmgr, self._nwtopdata_store)
-        self._nwtopstatic_handler = NwtopStaticDtsHandler(dts, log, loop, self._project,
-                                                          self._acctmgr, self._nwtopdata_store)
+        self._nwtopdiscovery_handler = NwtopDiscoveryDtsHandler(dts, log, loop, project,
+                                                                self._acctstore, self._nwtopdata_store)
+        self._nwtopstatic_handler = NwtopStaticDtsHandler(dts, log, loop, project,
+                                                          self._acctstore, self._nwtopdata_store)
         self._vlrs = {}
 
     @asyncio.coroutine
@@ -318,11 +132,10 @@ class VnsManager(object):
         yield from self._vld_handler.register()
 
     @asyncio.coroutine
-    def register_sdn_handler(self):
-        """ Register vlr DTS handler """
-        self._log.debug("Registering  SDN Account config handler")
-        yield from self._sdn_handler.register()
-        yield from self._sdn_opdata_handler.register()
+    def register_sdn_handlers(self):
+        """ Register SDN DTS handlers """
+        self._log.debug("Registering  SDN Account handlers")
+        yield from self._sdn_handlers.register()
 
     @asyncio.coroutine
     def register_nwtopstatic_handler(self):
@@ -339,11 +152,10 @@ class VnsManager(object):
     @asyncio.coroutine
     def register(self):
         """ Register all static DTS handlers"""
-        yield from self.register_sdn_handler()
+        yield from self.register_sdn_handlers()
         yield from self.register_vlr_handler()
         yield from self.register_vld_handler()
         yield from self.register_nwtopstatic_handler()
-        # Not used for now
         yield from self.register_nwtopdiscovery_handler()
 
     def deregister(self):
@@ -351,8 +163,7 @@ class VnsManager(object):
         self._nwtopstatic_handler.deregister()
         self._vld_handler.deregister()
         self._vlr_handler.deregister()
-        self._sdn_opdata_handler.deregister()
-        self._sdn_handler.deregister()
+        self._sdn_handlers.deregister()
 
     def create_vlr(self, msg):
         """ Create VLR """

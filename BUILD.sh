@@ -210,6 +210,8 @@ if [[ $PLATFORM == ub16 ]]; then
 	     rw.core.mano-mano_yang_ylib-1.0 \
 	     rw.core.mano-common-1.0 \
 	     rw.core.mano-rwsdn_yang_ylib-1.0 \
+	     rw.core.mano-rwsdnal_yang_ylib-1.0 \
+	     rw.core.mano-rwsdn-1.0 \
 	     rw.core.mano-mano-types_yang_ylib-1.0 \
 	     rw.core.mano-rwcal-cloudsim-1.0 \
 	     rw.core.mano-rwcal-1.0 \

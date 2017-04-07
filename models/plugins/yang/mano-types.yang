@@ -109,13 +109,13 @@ module mano-types
     }
 
     leaf parameter-pool {
-      description "NSD Parameter pool name to use for this paramter";
+      description "NSD parameter pool name to use for this parameter";
       type string;
     }
 
     leaf read-only {
       description
-        "The value should be greyed out by the UI.
+        "The value should be dimmed by the UI.
         Only applies to parameters with default values.";
       type boolean;
     }
@@ -159,9 +159,9 @@ module mano-types
     leaf image {
       description
             "Image name for the software image.
-             If the image name is found within the VNF packaage it will
-             be uploaded to all cloud accounts during onboarding process.
-             Otherwise, the image must be added to the cloud account with
+             If the image name is found within the VNF package it will
+             be uploaded to all VIM accounts during onboarding process.
+             Otherwise, the image must be added to the VIM account with
              the same name as entered here.
             ";
       type string;
@@ -203,6 +203,7 @@ module mano-types
       }
 
       leaf value {
+        description "Value of the configuration primitive.";
         type string;
       }
     }
@@ -212,10 +213,10 @@ module mano-types
     container vnf-configuration {
       rwpb:msg-new VnfConfiguration;
       description
-          "Information regarding the VNF configuration 
-           is captured here. Note that if the NS contains
-           multiple instances of the same VNF, each instance
-           of the VNF may have different configuration";
+          "Information about the VNF configuration. Note: 
+           If the NS contains multiple instances of the
+           same VNF, each instance could have a different
+           configuration.";
 
       choice config-method {
         description
@@ -235,7 +236,7 @@ module mano-types
 
             leaf protocol {
               description
-                  "Protocol to use for netconf (e.g. ssh)";
+                  "Protocol to use for NETCONF such as ssh";
               type enumeration {
                 enum None;
                 enum ssh;
@@ -244,7 +245,7 @@ module mano-types
 
             leaf port {
               description
-                  "Port for the netconf server.";
+                  "Port for the NETCONF server.";
               type inet:port-number;
             }
           }
@@ -266,7 +267,8 @@ module mano-types
           description
               "Use custom script for configuring the VNF.
                This script is executed in the context of 
-               Orchestrator.";
+               Orchestrator (The same system and environment
+               as the Launchpad).";
           container script {
             leaf script-type {
               description
@@ -301,7 +303,7 @@ module mano-types
 
         leaf username {
           description 
-              "username for configuration.";
+              "User name for configuration.";
           type string;
         }
 
@@ -314,14 +316,14 @@ module mano-types
 
       container config-attributes {
         description
-            "Miscelaneous input parameters to be considered
+            "Miscellaneous input parameters to be considered
              while processing the NSD to apply configuration";
 
         leaf config-priority {
           description
-              "Configuration priority - order of confgiration
-               to be applied to each VNF in this NS,
-               low number gets precedence over high number";
+              "Configuration priority - order of configuration
+               to be applied to each VNF in this NS ,A low
+               number takes precedence over a high number";
           type uint64;
         }
 
@@ -411,7 +413,7 @@ module mano-types
 
   typedef api-type {
     description
-      "Type of API to fetch monitoring params";
+      "Type of API to fetch monitoring parameters";
 
     type enumeration {
       enum HTTP;
@@ -425,8 +427,8 @@ module mano-types
       "The method to extract a value from a JSON response
 
        NAMEKEY - Use the name as the key for a non-nested value.
-       JSONPATH - Use jsonpath-rw implemenation to extract a value.
-       OBJECTPATH - Use objectpath implemenation to extract a value.";
+       JSONPATH - Use jsonpath-rw implementation to extract a value.
+       OBJECTPATH - Use objectpath implementation to extract a value.";
       type enumeration {
         enum NAMEKEY;
         enum JSONPATH;
@@ -450,7 +452,7 @@ module mano-types
         VPORT: Virtual Port
         // VNIC_ADDR: Virtual NIC Address
         // PNIC_ADDR: Physical NIC Address
-        // PPORT: Phsical Port.";
+        // PPORT: Physical Port.";
 
     type enumeration {
       enum VPORT;
@@ -656,7 +658,7 @@ module mano-types
     container vm-flavor {
       leaf vcpu-count {
         description
-            "Number of vcpus for the VM.";
+            "Number of VCPUs for the VM.";
         type uint16;
       }
 
@@ -803,13 +805,13 @@ module mano-types
 
       
       leaf om-cpu-model-string {
-        description "Openmano CPU model string";
+        description "OpenMANO CPU model string";
         type string;
       }
 
       list om-cpu-feature {
         key "feature";
-        description "List of openmano CPU features";
+        description "List of OpenMANO CPU features";
         leaf feature {
           description "CPU feature";
           type string;
@@ -831,12 +833,12 @@ module mano-types
             "Memory page allocation size. If a VM requires
              hugepages, it should choose LARGE or SIZE_2MB
              or SIZE_1GB. If the VM prefers hugepages it
-             should chose PREFER_LARGE.
+             should choose PREFER_LARGE.
              LARGE        : Require hugepages (either 2MB or 1GB)
              SMALL        : Doesn't require hugepages
              SIZE_2MB     : Requires 2MB hugepages
              SIZE_1GB     : Requires 1GB hugepages
-             PREFER_LARGE : Application perfers hugepages";
+             PREFER_LARGE : Application prefers hugepages";
         type enumeration {
           enum LARGE;
           enum SMALL;
@@ -913,20 +915,21 @@ module mano-types
         case numa-aware {
           container numa-node-policy {
             description
-                "This policy defines numa topology of the
+                "This policy defines NUMA topology of the
                  guest. Specifically identifies if the guest
-                 should be run on a host with one numa
-                 node or multiple numa nodes. As an example
-                 a guest may want 8 vcpus and 4 GB of
-                 memory. But may want the vcpus and memory
-                 distributed across multiple numa nodes.
-                 The NUMA node 1 may run with 6 vcpus and
-                 3GB, and NUMA node 2 may run with 2 vcpus
-                 and 1GB.";
+                 should be run on a host with one NUMA
+                 node or multiple NUMA nodes. As an example
+                 a guest might need 8 VCPUs and 4 GB of
+                 memory. However, it might need the VCPUs
+                 and memory distributed across multiple
+                 NUMA nodes. In this scenario, NUMA node
+                 1 could run with 6 VCPUs and 3GB, and
+                 NUMA node 2 could run with 2 VCPUs and
+                 1GB.";
 
             leaf node-cnt {
               description
-                  "The number of numa nodes to expose to the VM.";
+                  "The number of NUMA nodes to expose to the VM.";
               type uint16;
             }
 
@@ -938,7 +941,7 @@ module mano-types
                                strictly from the memory attached
                                to the NUMA node.
                    PREFERRED : The memory should be allocated
-                               perferentially from the memory
+                               preferentially from the memory
                                attached to the NUMA node";
               type enumeration {
                 enum STRICT;
@@ -958,12 +961,12 @@ module mano-types
               list vcpu {
                 key "id";
                 description
-                    "List of vcpus to allocate on
-                     this numa node.";
+                    "List of VCPUs to allocate on
+                     this NUMA node.";
                 leaf id {
                   type uint64;
-                  description "List of vcpus ids to allocate on
-                               this numa node";
+                  description "List of VCPUs ids to allocate on
+                               this NUMA node";
                 }
               }
 
@@ -976,7 +979,7 @@ module mano-types
 
               choice om-numa-type {
                 description
-                    "Openmano Numa type selection";
+                    "OpenMANO Numa type selection";
 
                 case cores {
                   leaf num-cores {
@@ -992,7 +995,7 @@ module mano-types
 
                     list paired-thread-ids {
                       description
-                          "List of thread pairs to use in case of paired-thread numa";
+                          "List of thread pairs to use in case of paired-thread NUMA";
                       max-elements 16;
                       key thread-a;
 
@@ -1025,14 +1028,19 @@ module mano-types
       description "Container for the provider network.";
       leaf physical-network {
         description
-            "Name of the phsyical network on which the provider
+            "Name of the physical network on which the provider
              network is built.";
         type string;
       }
 
       leaf overlay-type {
         description
-            "Type of the overlay network.";
+            "Type of the overlay network.
+             LOCAL - Provider network implemented in a single compute node
+             FLAT - Provider network shared by all tenants 
+             VLAN - Provider network implemented using 802.1Q tagging
+             VXLAN - Provider networks implemented using RFC 7348
+             GRE - Provider networks implemented using GRE tunnels";
         type enumeration {
           enum LOCAL;
           enum FLAT;
@@ -1043,7 +1051,7 @@ module mano-types
       }
       leaf segmentation_id {
         description
-            "Segmentation ID";
+            "ID of segregated virtual networks";
             type uint32;
       }
     }
@@ -1089,8 +1097,8 @@ module mano-types
 
       leaf method {
         description
-          "This is the method to be performed at the uri.
-           GET by default for action";
+          "Method that the URI should perform.
+           Deafult action is GET.";
 
         type manotypes:http-method;
         default "GET";
@@ -1113,7 +1121,7 @@ module mano-types
 
     list monitoring-param {
       description
-          "List of monitoring parameters at the NS level";
+          "List of monitoring parameters at the network service level";
       key id;
       leaf id {
         type string;
@@ -1178,16 +1186,18 @@ module mano-types
       }
 
       leaf group-tag {
-        description "A simple tag to group monitoring parameters";
+        description "A tag to group monitoring parameters";
         type string;
       }
 
 
       leaf widget-type {
+        description "Defines the UI Display variant of measured counters.";
         type manotypes:widget-type;
       }
 
       leaf units {
+        description "Measured Counter Units (e.g., Packets, Kbps, Mbps, etc.)";
         type string;
       }
   }
@@ -1206,7 +1216,7 @@ module mano-types
         }
         leaf max-value {
           description
-              "Maxium value for the parameter";
+              "Maximum value for the parameter";
           type uint64;
         }
       }
@@ -1265,7 +1275,7 @@ module mano-types
       }
 
       leaf group-tag {
-        description "A simple tag to group control parameters";
+        description "A tag to group control parameters";
         type string;
       }
 
@@ -1277,7 +1287,7 @@ module mano-types
 
       leaf max-value {
         description
-            "Maxium value for the parameter";
+            "Maximum value for the parameter";
         type uint64;
       }
 
@@ -1303,15 +1313,15 @@ module mano-types
 
       leaf url {
         description
-          "This is the URL where to perform the operation";
+          "This is the URL where the operation should be performed.";
 
         type inet:uri;
       }
 
       leaf method {
         description
-          "This is the method to be performed at the uri.
-           POST by default for action";
+          "Method that the URI should perform.
+           Default Action is POST";
 
         type manotypes:http-method;
         default "POST";
@@ -1347,7 +1357,7 @@ module mano-types
       }
 
       leaf group-tag {
-        description "A simple tag to group monitoring parameter";
+        description "A tag to group monitoring parameter";
         type string;
       }
 
@@ -1377,7 +1387,7 @@ module mano-types
   }
 
   grouping input-parameter {
-    description "";
+    description "List of input parameters that can be specified when instantiating a network service.";
 
     list input-parameter {
       description
@@ -1388,7 +1398,7 @@ module mano-types
 
       leaf xpath {
         description
-          "A an xpath that specfies which element in a descriptor is to be
+          "An xpath that specfies which element in a descriptor is to be
           modified.";
         type string;
       }
@@ -1421,7 +1431,7 @@ module mano-types
       }
 
       leaf default-value {
-        description " A default value for this input parameter";
+        description "/nsd:nsd-catalog/nsd:nsd/nsd:vendor";
         type string;
       }
     }
@@ -1627,7 +1637,7 @@ module mano-types
   }
 
   typedef alarm-severity-type {
-    description "An indication of the importance or ugency of the alarm";
+    description "An indication of the importance or urgency of the alarm";
     type enumeration {
       enum LOW;
       enum MODERATE;
@@ -1646,8 +1656,8 @@ module mano-types
 
   typedef alarm-statistic-type {
     description
-        "The type of statistic to used to measure a metric to determine
-        threshold crossing for an alarm.";
+        "Statistic type to use to determine threshold crossing
+         for an alarm.";
     type enumeration {
       enum AVERAGE;
       enum MINIMUM;
@@ -1659,9 +1669,9 @@ module mano-types
 
   typedef alarm-operation-type {
     description
-        "The relational operator used to define whether an alarm should be
-        triggered when, say, the metric statistic goes above or below a
-        specified value.";
+        "The relational operator used to define whether an alarm
+        should be triggered in certain scenarios, such as if the
+        metric statistic goes above or below a specified value.";
     type enumeration {
       enum GE; // greater than or equal
       enum LE; // less than or equal
@@ -1674,8 +1684,7 @@ module mano-types
   grouping alarm {
     leaf alarm-id {
       description
-          "This field is reserved for the identifier assigned by the cloud
-          provider";
+          "This field is reserved for the identifier assigned by the VIM provider";
 
       type string;
     }
@@ -1686,7 +1695,7 @@ module mano-types
     }
 
     leaf description {
-      description "A string containing a description of this alarm";
+      description "A description of this alarm";
       type string;
     }
 
@@ -1738,7 +1747,7 @@ module mano-types
     }
 
     leaf severity {
-      description "A measure of the important or urgency of the alarm";
+      description "A measure of the importance or urgency of the alarm";
       type alarm-severity-type;
     }
 
@@ -1754,9 +1763,9 @@ module mano-types
 
     leaf operation {
       description
-          "The relational operator that defines whether the alarm should be
-          triggered when the metric statistic is, say, above or below the
-          specified threshold value.";
+          "The relational operator used to define whether an alarm should be
+           triggered in certain scenarios, such as if the metric statistic 
+           goes above or below a specified value.";
       type alarm-operation-type;
     }
 
@@ -1779,17 +1788,14 @@ module mano-types
 
     leaf evaluations {
       description
-          "This is the number of samples of the metric statistic used to
-          evaluate threshold crossing. Each sample or evaluation is equal to
-          the metric statistic obtained for a given period. This can be used
-          to mitigate spikes in the metric that may skew the statistic of
-          interest.";
+          "Defines the length of time (seconds) in which metric data are
+           collected in order to evaluate the chosen statistic.";
       type uint32;
     }
   }
 
   typedef cloud-account-type {
-    description "cloud account type";
+    description "VIM account type";
     type enumeration {
       enum aws;
       enum cloudsim;
@@ -1808,9 +1814,13 @@ module mano-types
       key "metadata-key";
       
       leaf metadata-key {
+        description
+            "Name of the additional information attached to the host-aggregate";
         type string;
       }
       leaf metadata-value {
+        description
+            "Value of the corresponding metadata-key";
         type string;
       }
     }

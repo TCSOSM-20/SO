@@ -22,8 +22,20 @@
 ##
 
 rift_add_yang_target(
+  TARGET rwsdn_yang
+  YANG_FILES rw-sdn.yang
+  COMPONENT ${PKG_LONG_NAME}
+  LIBRARIES
+    rwsdnal_yang_gen
+  DEPENDS
+    rwsdnal_yang
+  ASSOCIATED_FILES
+    rw-sdn.role.xml
+)
+
+rift_add_yang_target(
   TARGET rwcloud_yang
-  YANG_FILES rw-cloud.yang rw-sdn.yang
+  YANG_FILES rw-cloud.yang 
   COMPONENT ${PKG_LONG_NAME}
   LIBRARIES
     rwsdn_yang_gen
@@ -32,12 +44,9 @@ rift_add_yang_target(
     mano-types_yang_gen
   DEPENDS
     rwcal_yang
-    rwsdn_yang
-    rwprojectmano_yang
-    mano-types_yang
+    rwsdnal_yang
   ASSOCIATED_FILES
     rw-cloud.role.xml
-    rw-sdn.role.xml
 )
 
 rift_add_yang_target(

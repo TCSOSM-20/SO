@@ -99,7 +99,7 @@ module vlr
         }
 
         leaf short-name {
-          description "Short name for VLR for UI";
+          description "Short name to appear as label in the UI";
           type string;
         }
 

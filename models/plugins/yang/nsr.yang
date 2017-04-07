@@ -101,6 +101,64 @@ module nsr
     }
   }
 
+  grouping cloud-config {
+    description "List of cloud config parameters";
+
+    list ssh-authorized-key {
+      key "key-pair-ref";
+
+      description "List of authorized ssh keys as part of cloud-config";
+
+      leaf key-pair-ref {
+        description "A reference to the key pair entry in the global key pair table";
+        type leafref {
+          path "/nsr:key-pair/nsr:name";
+        }
+      }
+    }
+    list user {
+      key "name";
+
+      description "List of users to be added through cloud-config";
+      leaf name {
+        description "Name of the user ";
+        type string;
+      }
+      leaf user-info {
+        description "The user name's real name";
+        type string;
+      }
+      list ssh-authorized-key {
+        key "key-pair-ref";
+
+        description "Used to configure the list of public keys to be injected as part 
+                        of ns instantiation";
+
+        leaf key-pair-ref {
+          description "A reference to the key pair entry in the global key pair table";
+          type leafref {
+            path "/nsr:key-pair/nsr:name";
+          }
+        }
+      }
+    }
+  }
+
+  list key-pair {
+    key "name";
+    description "Used to configure the list of public keys to be injected as part
+                 of ns instantiation";
+    leaf name {
+      description "Name of this key pair";
+      type string;
+    }
+
+    leaf key {
+      description "Key associated with this key pair";
+      type string;
+    }
+  }
+
   augment "/rw-project:project" {
     list key-pair {
       key "name";
@@ -237,7 +295,7 @@ module nsr
           NOTE: An issue with confd is preventing the
           use of xpath. Seems to be an issue with leafref
           to leafref, whose target is in a different module.
-          Once that is resovled this will switched to use
+          Once that is resolved this will switched to use
           leafref";
         type yang:uuid;
       }
@@ -254,46 +312,7 @@ module nsr
       uses manotypes:placement-group-input;
     }
 
-    list ssh-authorized-key {
-      key "key-pair-ref";
-
-      description "List of authorized ssh keys as part of cloud-config";
-
-      leaf key-pair-ref {
-        description "A reference to the key pair entry in the global key pair table";
-        type leafref {
-          path "../../../../key-pair/name";
-        }
-      }
-    }
-    list user {
-      key "name";
-
-      description "List of users to be added through cloud-config";
-      leaf name {
-        description "Name of the user ";
-        type string;
-      }
-
-      leaf user-info {
-        description "The user name's real name";
-        type string;
-      }
-
-      list ssh-authorized-key {
-        key "key-pair-ref";
-
-        description "Used to configure the list of public keys to be injected as part
-                        of ns instantiation";
-
-        leaf key-pair-ref {
-          description "A reference to the key pair entry in the global key pair table";
-          type leafref {
-            path "../../../../../key-pair/name";
-          }
-        }
-      }
-    }
+    uses cloud-config;
   }
 
   grouping vnffgr {
@@ -422,7 +441,7 @@ module nsr
             description
                 "Type of Service Function.
                 NOTE: This needs to map with Service Function Type in ODL to
-                support VNFFG. Service Function Type is manadatory param in ODL
+                support VNFFG. Service Function Type is mandatory param in ODL
                 SFC. This is temporarily set to string for ease of use";
             type string;
           }
@@ -869,7 +888,7 @@ module nsr
 
            list vnf-primitive-group {
               description
-                  "List of service primitives grouped by VNF.";
+                 "Reference to member-vnf within constituent-vnfds";
 
               key "member-vnf-index-ref";
               leaf member-vnf-index-ref {
@@ -917,7 +936,7 @@ module nsr
 
            leaf user-defined-script {
              description
-                 "A user defined script.";
+               "A user defined script.";
              type string;
            }
         }
@@ -1207,7 +1226,7 @@ module nsr
                NOTE: An issue with confd is preventing the
                use of xpath. Seems to be an issue with leafref
                to leafref, whose target is in a different module.
-               Once that is resovled this will switched to use
+               Once that is resolved this will switched to use
                leafref";
 
           type string;
@@ -1569,5 +1588,4 @@ module nsr
       }
     }
   }
-
 }

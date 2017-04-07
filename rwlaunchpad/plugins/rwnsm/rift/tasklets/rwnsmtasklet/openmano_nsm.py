@@ -225,7 +225,6 @@ class OpenmanoVnfr(object):
 
         self._created = True
 
-    @asyncio.coroutine
     def delete(self):
         if not self._created:
             return
@@ -235,11 +234,7 @@ class OpenmanoVnfr(object):
             self._log.warning("Openmano vnf id not set.  Cannot delete.")
             return
 
-        yield from self._loop.run_in_executor(
-                None,
-                self._cli_api.vnf_delete,
-                self._vnf_id,
-                )
+        self._cli_api.vnf_delete(self._vnf_id)
 
 
 class OpenmanoNSRecordState(Enum):
@@ -260,6 +255,7 @@ class OpenmanoNSRecordState(Enum):
 
 class OpenmanoNsr(object):
     TIMEOUT_SECS = 300
+    INSTANCE_TERMINATE_TIMEOUT = 60
 
     def __init__(self, dts, log, loop, publisher, cli_api, http_api, nsd_msg, nsr_config_msg,key_pairs):
         self._dts = dts
@@ -446,23 +442,20 @@ class OpenmanoNsr(object):
         yield from vnfr.create()
         self._vnfrs.append(vnfr)
 
-    @asyncio.coroutine
     def delete(self):
         if not self._created:
             self._log.debug("NSD wasn't created.  Skipping delete.")
             return
 
         self._log.debug("Deleting openmano nsr")
-
-        yield from self._loop.run_in_executor(
-               None,
-               self._cli_api.ns_delete,
-               self._nsd_uuid,
-               )
+        self._cli_api.ns_delete(self._nsd_uuid)
 
         self._log.debug("Deleting openmano vnfrs")
+        deleted_vnf_id_list = []
         for vnfr in self._vnfrs:
-            yield from vnfr.delete()
+            if vnfr.vnfr.vnfd.id not in deleted_vnf_id_list:
+                vnfr.delete()
+                deleted_vnf_id_list.append(vnfr.vnfr.vnfd.id)
 
 
     @asyncio.coroutine
@@ -678,7 +671,6 @@ class OpenmanoNsr(object):
                         yield from self._publisher.publish_vnfr(None, vnfr_msg)
                         active_vnfs.append(vnfr)
 
-
                 except Exception as e:
                     vnfr_msg.operational_status = "failed"
                     self._state = OpenmanoNSRecordState.FAILED
@@ -725,26 +717,22 @@ class OpenmanoNsr(object):
                 self.instance_monitor_task(), loop=self._loop
                 )
 
-    @asyncio.coroutine
     def terminate(self):
-
-        for _,handler in  self._vdur_console_handler.items():
-            handler._regh.deregister()
-
         if self._nsr_uuid is None:
-            self._log.warning("Cannot terminate an un-instantiated nsr")
-            return
+            start_time = time.time()
+            while ((time.time() - start_time) < OpenmanoNsr.INSTANCE_TERMINATE_TIMEOUT) and (self._nsr_uuid is None):
+                time.sleep(5)
+                self._log.warning("Waiting for nsr to get instatiated")
+            if self._nsr_uuid is None:
+                self._log.warning("Cannot terminate an un-instantiated nsr")
+                return
 
         if self._monitor_task is not None:
             self._monitor_task.cancel()
             self._monitor_task = None
 
         self._log.debug("Terminating openmano nsr")
-        yield from self._loop.run_in_executor(
-               None,
-               self._cli_api.ns_terminate,
-               self._nsr_uuid,
-               )
+        self._cli_api.ns_terminate(self._nsr_uuid)
 
     @asyncio.coroutine
     def create_vlr(self,vlr):
@@ -914,8 +902,14 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         nsr_id = nsr.id
         openmano_nsr = self._openmano_nsrs[nsr_id]
 
-        yield from openmano_nsr.terminate()
-        yield from openmano_nsr.delete()
+        for _,handler in openmano_nsr._vdur_console_handler.items():
+            handler._regh.deregister()
+
+        yield from self._loop.run_in_executor(
+               None,
+               self.terminate,
+               openmano_nsr,
+               )
 
         with self._dts.transaction() as xact:
             for vnfr in openmano_nsr.vnfrs:
@@ -923,6 +917,10 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                 yield from self._publisher.unpublish_vnfr(xact, vnfr.vnfr.vnfr_msg)
 
         del self._openmano_nsrs[nsr_id]
+
+    def terminate(self, openmano_nsr):
+        openmano_nsr.terminate()
+        openmano_nsr.delete()
 
     @asyncio.coroutine
     def terminate_vnf(self, vnfr):

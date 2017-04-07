@@ -28,16 +28,16 @@ module rw-sdn
     prefix "rwpb";
   }
 
-  import mano-types {
-    prefix "manotypes";
-  }
-
   import rw-project {
     prefix "rw-project";
   }
 
-  import rwsdn {
-    prefix "rwsdn";
+  import rwsdnal {
+    prefix "rwsdnal";
+  }
+
+  import mano-types {
+    prefix "manotypes";
   }
 
   revision 2017-02-08 {
@@ -50,17 +50,18 @@ module rw-sdn
       "Initial revision.";
   }
 
-  augment "/rw-project:project" {
-    container sdn {
+augment "/rw-project:project" {
+  container sdn {
+      rwpb:msg-new SDNAccountConfig;
       list account {
-        rwpb:msg-new SDNAccountConfig;
+        rwpb:msg-new SDNAccount;
         key "name";
         leaf name {
-          type string;
+	  type string;
         }
 
-        uses rwsdn:sdn-provider-auth;
-        uses rwsdn:connection-status;
+        uses rwsdnal:sdn-provider-auth;
+        uses rwsdnal:connection-status;
       }
     }
   }

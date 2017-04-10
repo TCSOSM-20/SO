@@ -197,11 +197,11 @@ class RiftCAConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                         vnfr_data_dict['connection_point'].append(cp_dict)
 
                 vnfr_data_dict['vdur'] = []
-                vdu_data = [(vdu['name'], vdu['management_ip'], vdu['vm_management_ip'], vdu['id'])
+                vdu_data = [(vdu['name'], vdu['management_ip'], vdu['vm_management_ip'], vdu['id'], vdu['vdu_id_ref'])
                         for vdu in vnfr.vnfr['vdur']]
 
                 for data in vdu_data:
-                    data = dict(zip(['name', 'management_ip', 'vm_management_ip', 'id'] , data))
+                    data = dict(zip(['name', 'management_ip', 'vm_management_ip', 'id', 'vdu_id_ref'] , data))
                     vnfr_data_dict['vdur'].append(data)
 
                 vnfr_data_map[vnfr.member_vnf_index] = vnfr_data_dict
@@ -235,7 +235,7 @@ class RiftCAConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         data["init_config"] = init_data
         data["vnfr_index_map"] = vnfr_index_map
         data["vnfr_data_map"] = vnfr_data_map
-
+        
         tmp_file = None
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(yaml.dump(data, default_flow_style=True)

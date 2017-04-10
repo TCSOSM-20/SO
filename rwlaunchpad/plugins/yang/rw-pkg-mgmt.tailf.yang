@@ -39,6 +39,10 @@ module rw-pkg-mgmt-annotation
      tailf:actionpoint rw_actionpoint;
   }
 
+  tailf:annotate "/rw-pkg-mgmt:package-copy" {
+     tailf:actionpoint rw_actionpoint;
+  }
+
   tailf:annotate "/rw-pkg-mgmt:get-package-schema" {
      tailf:actionpoint rw_actionpoint;
   }

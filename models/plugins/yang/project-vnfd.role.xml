@@ -4,6 +4,7 @@
     <role>rw-project-mano:project-vnfd-role</role>
     <key-set>
       <name>project-name</name>
+      <path>/rw-project:project/rw-project:name</path>
     </key-set>
   </key-definition>
 

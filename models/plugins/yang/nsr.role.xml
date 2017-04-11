@@ -4,6 +4,7 @@
     <role>rw-project-mano:nsr-role</role>
     <key-set>
       <name>project-name</name>
+      <path>/rw-project:project/rw-project:name</path>
       <path>/nsr:exec-scale-out/nsr:project-name</path>
       <path>/nsr:exec-scale-in/nsr:project-name</path>
       <path>/nsr:exec-ns-service-primitive/nsr:project-name</path>

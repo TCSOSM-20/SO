@@ -35,7 +35,6 @@ from gi.repository import (
 
 import rift.tasklets
 from rift.tasklets.rwproject.project import (
-    StateMachine,
     User,
     UserState,
     RoleKeys,
@@ -87,7 +86,7 @@ class ProjectConfigSubscriber(object):
 
     def update_user(self, cfg):
         user = User().pb(cfg)
-        self._log.debug("Update user {} for project {}".
+        self._log.error("Update user {} for project {}".
                         format(user.key, self.project_name))
         cfg_roles = {}
         for cfg_role in cfg.mano_role:
@@ -260,6 +259,18 @@ class ProjectConfigSubscriber(object):
 
         self.pub.deregister()
 
+class RoleState(Enum):
+    """Role states"""
+    NONE = 0
+    NEW = 1
+    INIT_DONE = 2
+    ACTIVE = 3
+    UPDATE = 4
+    UPDATE_DONE = 5
+    ERROR = 6
+    DELETE = 7
+    DELETE_DONE = 8
+
 
 class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
 
@@ -284,6 +295,21 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
             "/rw-rbac-internal:user" + \
             "[rw-rbac-internal:user-name='{}']".format(user_key[1]) + \
             "[rw-rbac-internal:user-domain='{}']".format(user_key[0])
+
+    @classmethod
+    def yang_state_str(cls, state):
+        """ Return the state as a yang enum string """
+        state_to_str_map = {RoleState.NONE: "none",
+                            RoleState.NEW: "new",
+                            RoleState.INIT_DONE: "init-done",
+                            RoleState.ACTIVE: "active",
+                            RoleState.UPDATE: "update",
+                            RoleState.UPDATE_DONE: "update-done",
+                            RoleState.ERROR: "error",
+                            RoleState.DELETE: "delete",
+                            RoleState.DELETE_DONE: "delete_done",
+                            }
+        return state_to_str_map[state]
 
     def create_project_roles(self):
         for name in self.proj_roles:
@@ -333,7 +359,7 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
         pbUser = pbRole.create_user()
         pbUser.user_name = user.user_name
         pbUser.user_domain = user.user_domain
-        pbUser.state_machine.state = user.state.name
+        pbUser.state_machine.state = user.state
 
         pbRole.user.append(pbUser)
 
@@ -356,9 +382,9 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
             update = False
 
         if update:
-            user.state = StateMachine.new
+            user.state = RoleConfigPublisher.yang_state_str(RoleState.UPDATE)
         else:
-            user.state = StateMachine.new
+            user.state = RoleConfigPublisher.yang_state_str(RoleState.NEW)
 
         xpath = self.role_xpath(role_key)
         self.log.debug("update role: {} user: {} ".format(role_key, user_key))
@@ -375,7 +401,7 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
         except KeyError:
             return
 
-        user.state = StateMachine.delete
+        user.state = RoleConfigPublisher.yang_state_str(RoleState.DELETE)
         xpath = self.role_xpath(role_key)
         self.log.error("deleting role: {} user: {} ".format(role_key, user_key))
 

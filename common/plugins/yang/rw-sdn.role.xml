@@ -4,6 +4,7 @@
     <role>rw-project-mano:rw-sdn-role</role>
     <key-set>
       <name>project-name</name>
+      <path>/rw-project:project/rw-project:name</path>
       <path>/rw-sdn:update-sdn-status/rw-sdn:project-name</path>
     </key-set>
   </key-definition>

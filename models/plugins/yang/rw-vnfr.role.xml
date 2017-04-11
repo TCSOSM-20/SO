@@ -4,7 +4,8 @@
     <role>rw-project-mano:rw-vnfr-role</role>
     <key-set>
       <name>project-name</name>
-    </key-set>
+      <path>/rw-project:project/rw-project:name</path>
+   </key-set>
   </key-definition>
 
   <role-definition>

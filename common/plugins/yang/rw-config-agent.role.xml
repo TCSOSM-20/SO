@@ -4,6 +4,7 @@
     <role>rw-project-mano:rw-config-agent-role</role>
     <key-set>
       <name>project-name</name>
+      <path>/rw-project:project/rw-project:name</path>
       <path>/rw-config-agent:update-cfg-agent-status/rw-config-agent:project-name</path>
     </key-set>
   </key-definition>
@@ -18,7 +19,7 @@
   </role-definition>
 
   <role-definition>
-    <role>rw-project-mano:lcm-admin</role>
+    <role>rw-project-mano:account-admin</role>
     <keys-role>rw-project-mano:rw-config-agent-role</keys-role>
     <authorize>
       <permissions>create read update delete execute</permissions>

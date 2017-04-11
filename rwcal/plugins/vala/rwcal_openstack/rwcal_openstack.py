@@ -904,8 +904,13 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             drv.neutron_subnet_create(**kwargs)
         except Exception as e:
             self.log.error("Encountered exceptions during network creation. Exception: %s", str(e))
-            raise
-
+            # This is to delete the network if neutron_subnet_create fails after creation of network
+            # Note:- Any subnet created will be implicitly deleted. 
+            try:
+                drv.neutron_network_delete(network_id)
+            except Exception as delete_exception:
+                self.log.debug("Exception while deleting the network after failure of neutron_subnet_create or make_subnet_args: %s", str(delete_exception))
+            raise e
         return network_id
 
 

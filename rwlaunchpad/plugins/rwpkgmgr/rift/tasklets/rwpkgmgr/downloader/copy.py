@@ -123,6 +123,8 @@ class PackageFileCopier:
         Copy directory tree to destination descriptor folder.  
 
         """
+        self.copy_progress()
+
         store = self.proxy._get_store(self.package_type)
         src_path = store._get_package_dir(self.src_package_id)
         self.src_package = store.get_package(self.src_package_id) 

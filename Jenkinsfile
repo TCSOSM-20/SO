@@ -1,5 +1,7 @@
 pipeline {
-	agent any
+	agent {
+		label "pipeline"
+	}
 	stages {
 		stage("Build") {
 			agent {
@@ -11,6 +13,7 @@ pipeline {
 			}
 		}
 		stage("Repo Component") {
+			agent any
 			steps {
 				unstash "deb-files"
 				sh '''

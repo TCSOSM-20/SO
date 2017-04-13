@@ -337,7 +337,6 @@ def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids,rift_vnfd_id=
     topology["nodes"] = {}
     tst_index = []
     openmano_vnfd_id = openmano_vnfd_ids.get(rift_vnfd_id,None)
-    logger.debug("CONSTVNF %s", rift_nsd.constituent_vnfds)
     for rvnfd_id in rift_nsd.constituent_vnfds:
         if rvnfd_id.vnfd_id_ref == rift_vnfd_id:
             topology["nodes"][rift_vnfd_id+'__'+str(rvnfd_id.member_vnf_index)] = {

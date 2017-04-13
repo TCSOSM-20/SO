@@ -34,7 +34,7 @@ from gi.repository import (
     RwYang,
     RwVnfdYang,
     RwNsdYang,
-)
+    )
 
 import rift.package.store
 import rift.package.cloud_init
@@ -72,6 +72,10 @@ class RiftNSD(object):
     @property
     def constituent_vnfds(self):
         return self._nsd.constituent_vnfd
+
+    @property
+    def scaling_group_descriptor(self):
+        return self._nsd.scaling_group_descriptor
 
     @property
     def vlds(self):
@@ -230,7 +234,8 @@ def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids, rift_vnfd_id=None
     openmano = {}
     openmano["name"] = rift_nsd.name
     if rift_vnfd_id is not None:
-        openmano["name"] += "scale1"
+        for scaling_groups in rift_nsd.scaling_group_descriptor:
+            openmano["name"] += scaling_groups.name
     openmano["description"] = rift_nsd.description
     topology = {}
     openmano["topology"] = topology
@@ -247,12 +252,12 @@ def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids, rift_vnfd_id=None
             topology["nodes"][rift_vnfd.name + "__" + str(member_idx)] = {
                 "type": "VNF",
                 "vnf_id": openmano_vnfd_id
-            }
+                }
         else:
             topology["nodes"][rift_vnfd.name + "__" + str(member_idx)] = {
                 "type": "VNF",
                 "VNF model": rift_vnfd.name
-            }
+                }
 
     for vld in rift_nsd.vlds:
         # Openmano has both bridge_net and dataplane_net models for network types
@@ -272,14 +277,14 @@ def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids, rift_vnfd_id=None
         if True:
             if vld.name not in topology["nodes"]:
                 topology["nodes"][vld.name] = {
-                    "type": "external_network",
-                    "model": vld.name,
-                }
+                        "type": "external_network",
+                        "model": vld.name,
+                        }
 
             # Add the external network to the list of connection points
             topology["connections"][vld.name]["nodes"].append(
-                {vld.name: "0"}
-            )
+                    {vld.name: "0"}
+                    )
         elif vld.provider_network.has_field("physical_network"):
             # Add the external datacenter network to the topology
             # node list if it isn't already added
@@ -290,14 +295,14 @@ def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids, rift_vnfd_id=None
 
             if ext_net_name not in topology["nodes"]:
                 topology["nodes"][ext_net_name] = {
-                    "type": "external_network",
-                    "model": ext_net_name_with_seg,
-                }
+                        "type": "external_network",
+                        "model": ext_net_name_with_seg,
+                        }
 
             # Add the external network to the list of connection points
             topology["connections"][vld.name]["nodes"].append(
-                {ext_net_name: "0"}
-            )
+                    {ext_net_name: "0"}
+                    )
 
 
         for vnfd_cp in vld.vnfd_connection_point_ref:
@@ -317,39 +322,55 @@ def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids, rift_vnfd_id=None
             )
     return openmano
 
-def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, rift_vnfd_id):
+def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids,rift_vnfd_id=None):
 
     if rift_vnfd_id not in rift_vnfds:
-        print ("IDS", rift_vnfds)
-        raise VNFNotFoundError("VNF id %s not provided" % rift_vnfd_id)
+            raise VNFNotFoundError("VNF id %s not provided" % rift_vnfd_id)
 
     openmano_vnfd_nsd = {}
-    openmano_vnfd_nsd["name"] = rift_vnfd_id+'-'+'scaling_group'
+    for groups in rift_nsd.scaling_group_descriptor:
+        openmano_vnfd_nsd["name"] = rift_vnfd_id+'__'+'scaling_group'+'__'+groups.name
     openmano_vnfd_nsd["description"] = "Scaling Group"
     topology = {}
     openmano_vnfd_nsd["topology"] = topology
-
-    topology["nodes"] = {}
-    openmano_vnfd_nsd["topology"] = topology
     topology["connections"] = {}
     topology["nodes"] = {}
-    topology["nodes"] = {
-        "type": "VNF",
-        "vnf_id": rift_vnfd_id
-    }
+    tst_index = []
+    openmano_vnfd_id = openmano_vnfd_ids.get(rift_vnfd_id,None)
+    logger.debug("CONSTVNF %s", rift_nsd.constituent_vnfds)
+    for rvnfd_id in rift_nsd.constituent_vnfds:
+        if rvnfd_id.vnfd_id_ref == rift_vnfd_id:
+            topology["nodes"][rift_vnfd_id+'__'+str(rvnfd_id.member_vnf_index)] = {
+                "type": "VNF",
+                "vnf_id": openmano_vnfd_id
+            }
 
     for vld in rift_nsd.vlds:
 
         # Create a connections entry for each external VLD
         topology["connections"][vld.name] = {}
         topology["connections"][vld.name]["nodes"] = []
+        if True:
+            if vld.name not in topology["nodes"]:
+                topology["nodes"][vld.name] = {
+                        "type": "external_network",
+                        "model": vld.name,
+                        }
+            topology["connections"][vld.name]["nodes"].append(
+                    {vld.name: "0"}
+                    )
+
+            
 
     for vnfd_cp in vld.vnfd_connection_point_ref:
-        if not rit_vnfd_id in vnfd_cp.vnfd_id_ref:
+        if not rift_vnfd_id in vnfd_cp.vnfd_id_ref:
             continue
         if rift_vnfd_id in vnfd_cp.vnfd_id_ref:
+
             # Get the RIFT VNF for this external VLD connection point
             vnfd = rift_vnfds[vnfd_cp.vnfd_id_ref]
+            
+
             # For each VNF in this connection, use the same interface name
             topology["connections"][vld.name]["type"] = "link"
             # Vnf ref is the vnf name with the member_vnf_idx appended
@@ -362,6 +383,7 @@ def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, rift_vnfd_id):
             )
     return openmano_vnfd_nsd
 
+
 def cloud_init(rift_vnfd_id, vdu):
     """ Populate cloud_init with script from
          either the inline contents or from the file provided
@@ -373,7 +395,7 @@ def cloud_init(rift_vnfd_id, vdu):
         logger.debug("cloud_init script provided inline %s", vdu.cloud_init)
         cloud_init_msg = vdu.cloud_init
     elif vdu.cloud_init_file is not None:
-        # Get cloud-init script contents from the file provided in the cloud_init_file param
+	# Get cloud-init script contents from the file provided in the cloud_init_file param
         logger.debug("cloud_init script provided in file %s", vdu.cloud_init_file)
         filename = vdu.cloud_init_file
         vnfd_package_store.refresh()
@@ -402,9 +424,9 @@ def config_file_init(rift_vnfd_id, vdu, cfg_file):
     stored_package = vnfd_package_store.get_package(rift_vnfd_id)
     cloud_init_extractor = rift.package.cloud_init.PackageCloudInitExtractor(logger)
     try:
-        cfg_file_msg = cloud_init_extractor.read_script(stored_package, filename)
+            cfg_file_msg = cloud_init_extractor.read_script(stored_package, filename)
     except rift.package.cloud_init.CloudInitExtractionError as e:
-        raise ValueError(e)
+            raise ValueError(e)
 
     logger.debug("Current config file msg is {}".format(cfg_file_msg))
     return cfg_file_msg
@@ -476,7 +498,7 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
             "VNFC": vdu.name,
             "local_iface_name": ext_if.name,
             "description": "%s iface on VDU %s" % (ext_if.name, vdu.name),
-        }
+            }
 
         vnf["external-connections"].append(connection)
 
@@ -487,7 +509,7 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
             "description": vld.description,
             "type": "bridge",
             "elements": [],
-        }
+            }
 
         # Add the specific VDU connection points
         for int_cp in vld.internal_connection_point:
@@ -495,7 +517,7 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
             connection["elements"].append({
                 "VNFC": vdu.name,
                 "local_iface_name": int_if.name,
-            })
+                })
         if "internal-connections" not in vnf:
             vnf["internal-connections"] = []
 
@@ -508,7 +530,7 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
             "name": vdu.name,
             "description": vdu.name,
             "bridge-ifaces": [],
-        }
+            }
 
         if vdu.vm_flavor.has_field("storage_gb") and vdu.vm_flavor.storage_gb:
             vnfc["disk"] = vdu.vm_flavor.storage_gb
@@ -527,9 +549,9 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                 dedicated_int = True
         if vdu.guest_epa.has_field("numa_node_policy") or dedicated_int:
             vnfc["numas"] = [{
-                "memory": max(int(vdu.vm_flavor.memory_mb/1024), 1),
-                "interfaces":[],
-            }]
+                           "memory": max(int(vdu.vm_flavor.memory_mb/1024), 1),
+                           "interfaces":[],
+                           }]
             numa_node_policy = vdu.guest_epa.numa_node_policy
             if numa_node_policy.has_field("node"):
                 numa_node = numa_node_policy.node[0]
@@ -540,9 +562,9 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                     if len(numa_node.paired_threads.paired_thread_ids) > 0:
                         vnfc["numas"][0]["paired-threads-id"] = []
                         for pair in numa_node.paired_threads.paired_thread_ids:
-                            vnfc["numas"][0]["paired-threads-id"].append(
-                                [pair.thread_a, pair.thread_b]
-                            )
+                             vnfc["numas"][0]["paired-threads-id"].append(
+                                     [pair.thread_a, pair.thread_b]
+                                     )
 
             else:
                 if vdu.vm_flavor.has_field("vcpu_count"):
@@ -577,7 +599,7 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
         if vdu.has_field("volumes"):
             vnfc["devices"] = []
             # Sort volumes as device-list is implictly ordered by Openmano
-            newvollist = sorted(vdu.volumes, key=lambda k: k.name)
+            newvollist = sorted(vdu.volumes, key=lambda k: k.name) 
             for iter_num, volume in enumerate(newvollist):
                 if iter_num == 0:
                     # Convert the first volume to vnfc.image
@@ -592,7 +614,7 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                     device = {}
                     device["type"] = volume.device_type
                     device["image"] = volume.image
-                    vnfc["devices"].append(device)
+                    vnfc["devices"].append(device)   
 
         vnfc_boot_data_init = False
         if vdu.has_field("cloud_init") or vdu.has_field("cloud_init_file"):
@@ -614,14 +636,14 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                     cfg_source = config_file_init(rift_vnfd.id, vdu, custom_config_file.source)
                     om_cfgfile_list.append({"dest":custom_config_file.dest, "content": cfg_source})
                 vnfc['boot-data']['config-files'] = om_cfgfile_list
-
+ 
 
         vnf["VNFC"].append(vnfc)
 
         for int_if in list(vdu.internal_interface) + list(vdu.external_interface):
             intf = {
                 "name": int_if.name,
-            }
+                }
             if int_if.virtual_interface.has_field("vpci"):
                 intf["vpci"] = int_if.virtual_interface.vpci
 
@@ -676,14 +698,14 @@ def parse_args(argv=sys.argv[1:]):
         '-o', '--outdir',
         default='-',
         help="Directory to output converted descriptors. Default is stdout",
-    )
+        )
 
     parser.add_argument(
         '-n', '--nsd-file-hdl',
         metavar="nsd_file",
         type=argparse.FileType('r'),
         help="Rift NSD Descriptor File",
-    )
+        )
 
     parser.add_argument(
         '-v', '--vnfd-file-hdls',
@@ -691,7 +713,7 @@ def parse_args(argv=sys.argv[1:]):
         action='append',
         type=argparse.FileType('r'),
         help="Rift VNFD Descriptor File",
-    )
+        )
 
     args = parser.parse_args(argv)
 
@@ -726,7 +748,6 @@ def write_yaml_to_file(name, outdir, desc_dict):
 def main(argv=sys.argv[1:]):
     args = parse_args(argv)
     nsd = None
-    rift_vnfd_id = 'test_vnfd'
     openmano_vnfr_ids = dict()
     vnf_dict = None
     if args.vnfd_file_hdls is not None:

@@ -115,21 +115,3 @@ class NsmPluginBase(object):
     def terminate_vl(self, vlr):
         """Terminate the Virtual Link Record"""
         pass
-
-    @abc.abstractmethod
-    @asyncio.coroutine
-    def create_scale_group_instance(self, group_name, vnfrs):
-        """Create Scale Group Instance"""
-        pass
-
-    @abc.abstractmethod
-    @asyncio.coroutine
-    def instantiate_instance(self, group_name, vnfrs):
-        """Create Instance"""
-        pass
-
-    @abc.abstractmethod
-    @asyncio.coroutine
-    def create_vnfs():
-        """Create VNF"""
-        pass

@@ -276,8 +276,8 @@ class VnfdPublisher(object):
             url = "{}://127.0.0.1:8008/api/config/project/{}/vnfd-catalog/vnfd/{}"
 
             model = RwYang.Model.create_libncx()
-            model.load_module("rw-vnfd")
-            model.load_module("vnfd")
+            model.load_module("rw-project-vnfd")
+            model.load_module("project-vnfd")
 
             data = vnfd.to_json(model)
 

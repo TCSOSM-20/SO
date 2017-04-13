@@ -2296,13 +2296,14 @@ class VnfrDtsHandler(object):
 
                 yield from vnfr.instantiate(None, restart_mode=True)
 
+            self._log.debug("Got on_event in vnfm: {}".format(xact_event))
+
             if xact_event == rwdts.MemberEvent.INSTALL:
                 curr_cfg = self.regh.elements
                 for cfg in curr_cfg:
                     vnfr = self.vnfm.create_vnfr(cfg)
+                    self._log.debug("Creating VNFR {}".format(vnfr.vnfr_id))
                     self._loop.create_task(instantiate_realloc_vnfr(vnfr))
-
-            self._log.debug("Got on_event in vnfm")
 
             return rwdts.MemberRspCode.ACTION_OK
 
@@ -2314,12 +2315,8 @@ class VnfrDtsHandler(object):
                 xact_info, action, msg
                 )
 
-            if action == rwdts.QueryAction.CREATE:
-                if not msg.has_field("vnfd"):
-                    err = "Vnfd not provided"
-                    self._log.error(err)
-                    raise VnfRecordError(err)
-
+            @asyncio.coroutine
+            def create_vnf():
                 vnfr = self.vnfm.create_vnfr(msg)
                 try:
                     # RIFT-9105: Unable to add a READ query under an existing transaction
@@ -2330,6 +2327,14 @@ class VnfrDtsHandler(object):
                     self._log.error("Error while instantiating vnfr:%s", vnfr.vnfr_id)
                     vnfr.set_state(VirtualNetworkFunctionRecordState.FAILED)
                     yield from vnfr.publish(None)
+
+            if action == rwdts.QueryAction.CREATE:
+                if not msg.has_field("vnfd"):
+                    err = "Vnfd not provided"
+                    self._log.error(err)
+                    raise VnfRecordError(err)
+                yield from create_vnf()
+
             elif action == rwdts.QueryAction.DELETE:
                 schema = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
@@ -2355,6 +2360,14 @@ class VnfrDtsHandler(object):
                 vnfr = None
                 try:
                     vnfr = self._vnfm.get_vnfr(path_entry.key00.id)
+
+                except VnfRecordError as e:
+                    self._log.debug("Did not find VNFR {}".format(path_entry.key00.id))
+                    # Could be a restart of LP
+                    yield from create_vnf()
+                    xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+                    return
+
                 except Exception as e:
                     self._log.debug("No vnfr found with id %s", path_entry.key00.id)
                     xact_info.respond_xpath(rwdts.XactRspCode.NA)

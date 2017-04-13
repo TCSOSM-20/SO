@@ -1045,8 +1045,7 @@ class VirtualNetworkFunctionRecord(object):
                 # But not sure whats the use of this variable?
                 self.vnfr_msg.config_status = status_to_string(status)
             except Exception as e:
-                self._log.error("Exception=%s", str(e))
-                pass
+                self._log.exception("Exception=%s", str(e))
 
             self._log.debug("Updated VNFR {} status to {}".format(self.name, status))
 
@@ -1115,6 +1114,8 @@ class VirtualNetworkFunctionRecord(object):
             self._log.debug("Connection point [%s] added, vnf id=%s vnfd id=%s",
                             cpr, self.vnfr_msg.id, self.vnfr_msg.vnfd.id)
 
+        self._log.debug("VNFR {} restart mode {}".
+                        format(self.vnfr_msg.id, self.restart_mode))
         if not self.restart_mode:
             yield from self._dts.query_create(self.xpath,
                                               0,   # this is sub
@@ -1125,7 +1126,7 @@ class VirtualNetworkFunctionRecord(object):
                                               self.vnfr_msg)
 
         self._log.info("Created VNF with xpath %s and vnfr %s",
-                       self.xpath, self.vnfr_msg)
+                        self.xpath, self.vnfr_msg)
 
     @asyncio.coroutine
     def update_state(self, vnfr_msg):
@@ -1507,6 +1508,7 @@ class NetworkServiceRecord(object):
     @asyncio.coroutine
     def create(self, config_xact):
         """ Create this network service"""
+        self._log.debug("Create NS {} for {}".format(self.name, self._project.name))
         # Create virtual links  for all the external vnf
         # connection points in this NS
         yield from self.create_vls()
@@ -2957,19 +2959,21 @@ class VnfdDtsHandler(object):
             self._log.debug("Got NSM VNFD apply (xact: %s) (action: %s)(scr: %s)",
                             xact, action, scratch)
 
+            is_recovery = xact.xact is None and action == rwdts.AppconfAction.INSTALL
+
             if self._regh:
                 # Create/Update a VNFD record
                 for cfg in self._regh.get_xact_elements(xact):
                     # Only interested in those VNFD cfgs whose ID was received in prepare callback
-                    if cfg.id in scratch.get('vnfds', []):
+                    if cfg.id in scratch.get('vnfds', []) or is_recovery:
                         self._nsm.update_vnfd(cfg)
 
-                        for cfg in self._regh.elements:
-                            if cfg.id in scratch.get('deleted_vnfds', []):
-                                yield from self._nsm.delete_vnfd(cfg.id)
+                for cfg in self._regh.elements:
+                    if cfg.id in scratch.get('deleted_vnfds', []):
+                        yield from self._nsm.delete_vnfd(cfg.id)
 
             else:
-                self._log.error("Reg handle none for {} in project {}".
+                self._log.debug("Reg handle none for {} in project {}".
                                 format(self.__class__, self._project))
 
             scratch.pop('vnfds', None)
@@ -2979,7 +2983,7 @@ class VnfdDtsHandler(object):
         def on_prepare(dts, acg, xact, xact_info, ks_path, msg, scratch):
             """ on prepare callback """
             self._log.debug("Got on prepare for VNFD (path: %s) (action: %s) (msg: %s)",
-                            ks_path.to_xpath(RwNsmYang.get_schema()), xact_info.query_action, msg)
+                            ks_path.to_xpath(NsdYang.get_schema()), xact_info.query_action, msg)
 
             fref = ProtobufC.FieldReference.alloc()
             fref.goto_whole_message(msg.to_pbcm())
@@ -3344,8 +3348,8 @@ class NsrDtsHandler(object):
                     self._log.error(err)
                     raise NetworkServiceRecordError(err)
 
-                self._log.debug("Creating NetworkServiceRecord %s  from nsr config  %s",
-                               msg.id, msg.as_dict())
+                self._log.debug("Creating NSR {} with restart mode {} from nsr config  {}".
+                                format(msg.id, restart_mode, msg.as_dict()))
                 nsr = self.nsm.create_nsr(msg, key_pairs=key_pairs, restart_mode=restart_mode)
                 return nsr
 
@@ -3377,10 +3381,7 @@ class NsrDtsHandler(object):
                     self._log.exception("NS instantiation: {}".format(e))
                     raise e
 
-            self._log.debug("Got nsr apply (xact: %s) (action: %s)(scr: %s)",
-                            xact, action, scratch)
-
-            if action == rwdts.AppconfAction.INSTALL and xact.id is None:
+            if action == rwdts.AppconfAction.INSTALL and xact.xact is None:
                 key_pairs = []
                 if self._key_pair_regh:
                     for element in self._key_pair_regh.elements:
@@ -3391,11 +3392,15 @@ class NsrDtsHandler(object):
 
                 if self._nsr_regh:
                     for element in self._nsr_regh.elements:
+                        self._log.error("Create NSR {} for project {} on restart".
+                                        format(element.name, self._project.name))
                         nsr = handle_create_nsr(element, key_pairs, restart_mode=True)
                         self._loop.create_task(begin_instantiation(nsr))
                 else:
                     self._log.error("Reg handle none for NSR in project {}".
                                     format(self._project))
+
+                return RwTypes.RwStatus.SUCCESS
 
 
             (added_msgs, deleted_msgs, updated_msgs) = get_add_delete_update_cfgs(self._nsr_regh,

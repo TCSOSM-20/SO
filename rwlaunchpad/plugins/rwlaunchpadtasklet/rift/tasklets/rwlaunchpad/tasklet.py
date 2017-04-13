@@ -113,10 +113,16 @@ class NsdCatalogDtsHandler(CatalogDtsHandler):
     def register(self):
         def apply_config(dts, acg, xact, action, _):
             if xact.xact is None:
-                # When RIFT first comes up, an INSTALL is called with the current config
-                # Since confd doesn't actally persist data this never has any data so
-                # skip this for now.
-                self.log.debug("No xact handle.  Skipping apply config")
+                if action == rwdts.AppconfAction.INSTALL:
+                    if self.reg:
+                        for element in self.reg.elements:
+                            self.log.debug("Add NSD on restart: {}".format(element.id))
+                            self.add_nsd(element)
+                    else:
+                        self.log.error("DTS handle is null for project {}".
+                                       format(self.project.name))
+                else:
+                    self.log.debug("No xact handle.  Skipping apply config")
                 return
 
             add_cfgs, delete_cfgs, update_cfgs = get_add_delete_update_cfgs(
@@ -498,7 +504,6 @@ class LaunchpadTasklet(rift.tasklets.Tasklet):
                 )
 
             self.log.debug("Registering project handler")
-            print("PJ: Registering project handler")
             self.project_handler = ProjectHandler(self, LaunchpadProject,
                                                   app=self.app)
             self.project_handler.register()

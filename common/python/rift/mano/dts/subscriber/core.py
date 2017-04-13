@@ -163,8 +163,16 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
 
         def on_apply(dts, acg, xact, action, scratch):
             """Apply the  configuration"""
-            is_recovery = xact.xact is None and action == rwdts.AppconfAction.INSTALL
-
+            if xact.xact is None:
+                if action == rwdts.AppconfAction.INSTALL:
+                    try:
+                        for cfg in self.reg.elements:
+                            if self.callback:
+                                self.callback(cfg, rwdts.QueryAction.CREATE)
+                    except Exception as e:
+                        self._log.exception("Adding config {} during restart failed: {}".
+                                            format(cfg, e))
+                return
 
             add_cfgs, delete_cfgs, update_cfgs = get_add_delete_update_cfgs(
                     dts_member_reg=self.reg,

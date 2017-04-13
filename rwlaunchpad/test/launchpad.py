@@ -455,7 +455,7 @@ class Demo(rift.vcs.demo.Demo):
             rift.vcs.uAgentTasklet(),
             rift.vcs.IdentityManagerTasklet(),
             rift.vcs.ProjectManagerTasklet(),
-            ProjectMgrManoTasklet(),
+            # ProjectMgrManoTasklet(),
             rift.vcs.Launchpad(),
             ]
 
@@ -484,7 +484,7 @@ class Demo(rift.vcs.demo.Demo):
               AutoscalerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               PackageManagerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
               StagingManagerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              #ProjectMgrManoTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
+              ProjectMgrManoTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
             ]
 
         if not mgmt_ip_list or len(mgmt_ip_list) == 0:

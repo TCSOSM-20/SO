@@ -86,7 +86,7 @@ class ProjectConfigSubscriber(object):
 
     def update_user(self, cfg):
         user = User().pb(cfg)
-        self._log.error("Update user {} for project {}".
+        self._log.debug("Update user {} for project {}".
                         format(user.key, self.project_name))
         cfg_roles = {}
         for cfg_role in cfg.mano_role:
@@ -148,8 +148,9 @@ class ProjectConfigSubscriber(object):
                 if action == rwdts.AppconfAction.INSTALL:
                     curr_cfg = self._reg.elements
                     for cfg in curr_cfg:
-                        self._log.debug("Project being re-added after restart.")
-                        self.add_user(cfg)
+                        self._log.info("Project {} user being re-added after restart: {}.".
+                                       format(self.project_name, cfg.as_dict()))
+                        self.update_user(cfg)
                 else:
                     # When RIFT first comes up, an INSTALL is called with the current config
                     # Since confd doesn't actally persist data this never has any data so
@@ -319,8 +320,8 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
             self.create_project_role(role)
 
     def create_project_role(self, role):
-        self.log.error("Create project role for {}: {}".
-                       format(self.project_name, role.role))
+        self.log.info("Create project role for {}: {}".
+                      format(self.project_name, role.role))
         xpath = self.role_xpath(role.key)
         pb_role = self.pb_role(role)
         self._regh.update_element(xpath, pb_role)
@@ -333,8 +334,8 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
             self.delete_project_role(role)
 
     def delete_project_role(self, role):
-        self.log.error("Delete project role for {}: {}".
-                       format(self.project_name, role.role))
+        self.log.info("Delete project role for {}: {}".
+                      format(self.project_name, role.role))
         xpath = self.role_xpath(role.key)
         self._regh.delete_element(xpath)
 

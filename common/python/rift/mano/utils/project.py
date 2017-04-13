@@ -422,13 +422,13 @@ class ProjectDtsHandler(object):
         return self._dts
 
     def add_project(self, name):
-        self.log.info("Adding project: {}".format(name))
+        self._log.info("Adding project: {}".format(name))
 
         if name not in self.projects:
             self._callbacks.on_add_apply(name)
             self.projects.append(name)
         else:
-            self.log.error("Project already present: {}".
+            self._log.error("Project already present: {}".
                            format(name))
 
     def delete_project(self, name):
@@ -437,7 +437,7 @@ class ProjectDtsHandler(object):
             self._callbacks.on_delete_apply(name)
             self.projects.remove(name)
         else:
-            self.log.error("Unrecognized project: {}".
+            self._log.error("Unrecognized project: {}".
                            format(name))
 
     def update_project(self, name):
@@ -474,12 +474,11 @@ class ProjectDtsHandler(object):
                 if action == rwdts.AppconfAction.INSTALL:
                     curr_cfg = self._reg.elements
                     for cfg in curr_cfg:
-                        self._log.debug("Project being re-added after restart.")
-                        self.add_project(cfg.name_ref)
+                        self._log.error("NOT IMPLEMENTED: Project being re-added after restart: {}".
+                                        format(cfg))
+                        # self.add_project(cfg.name)
+                        raise NotImplementedError("Tasklet restart not supported")
                 else:
-                    # When RIFT first comes up, an INSTALL is called with the current config
-                    # Since confd doesn't actally persist data this never has any data so
-                    # skip this for now.
                     self._log.debug("No xact handle.  Skipping apply config")
 
                 return
@@ -636,6 +635,18 @@ class ProjectHandler(object):
                                 format(name, self._get_tasklet_name(), e))
 
     def on_project_added(self, name):
+        if name not in self._tasklet.projects:
+            # Restart case, directly calling apply
+            try:
+                self._tasklet.projects[name] = \
+                                self._class(name, self._tasklet, **(self._kw))
+                self._loop.create_task(self._get_project(name).register())
+
+            except Exception as e:
+                self._log.exception("Project {} create for {} failed: {}".
+                                    format(name, self._get_tasklet_name(), e))
+                raise e
+
         self._log.debug("Project {} added to tasklet {}".
                         format(name, self._get_tasklet_name()))
         self._get_project(name)._apply = True

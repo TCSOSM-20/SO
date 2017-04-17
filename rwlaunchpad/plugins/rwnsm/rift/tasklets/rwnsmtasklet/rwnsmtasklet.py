@@ -2856,7 +2856,9 @@ class NsdDtsHandler(object):
                         self._nsm.update_nsd(cfg)
 
             else:
-                self._log.error("No reg handle for {} for project {}".
+                # This can happen if we do the deregister
+                # during project delete before this is called
+                self._log.debug("No reg handle for {} for project {}".
                                 format(self.__class__, self._project.name))
 
             scratch.pop('nsds', None)
@@ -2905,9 +2907,10 @@ class NsdDtsHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
+        xpath = self._project.add_project(NsdDtsHandler.XPATH)
         self._log.debug(
             "Registering for NSD config using xpath: %s",
-            NsdDtsHandler.XPATH,
+            xpath,
             )
 
         acg_hdl = rift.tasklets.AppConfGroup.Handler(on_apply=on_apply)
@@ -2915,7 +2918,7 @@ class NsdDtsHandler(object):
             # Need a list in scratch to store NSDs to create/update later
             # acg._scratch['nsds'] = list()
             self._regh = acg.register(
-                xpath=self._project.add_project(NsdDtsHandler.XPATH),
+                xpath=xpath,
                 flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
                 on_prepare=on_prepare)
 
@@ -2982,8 +2985,9 @@ class VnfdDtsHandler(object):
         @asyncio.coroutine
         def on_prepare(dts, acg, xact, xact_info, ks_path, msg, scratch):
             """ on prepare callback """
+            xpath = ks_path.to_xpath(NsdYang.get_schema())
             self._log.debug("Got on prepare for VNFD (path: %s) (action: %s) (msg: %s)",
-                            ks_path.to_xpath(NsdYang.get_schema()), xact_info.query_action, msg)
+                            xpath, xact_info.query_action, msg)
 
             fref = ProtobufC.FieldReference.alloc()
             fref.goto_whole_message(msg.to_pbcm())
@@ -2998,7 +3002,13 @@ class VnfdDtsHandler(object):
                 vnfds = scratch.setdefault('vnfds', [])
                 vnfds.append(msg.id)
 
-            xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+            try:
+                xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+            except rift.tasklets.dts.ResponseError as e:
+                self._log.error(
+                    "VnfdDtsHandler in project {} with path {} for action {} failed: {}".
+                    format(self._project, xpath, xact_info.query_action, e))
+
 
         xpath = self._project.add_project(VnfdDtsHandler.XPATH)
         self._log.debug(
@@ -3805,7 +3815,7 @@ class NsManager(object):
         self._conf_url = "https://{ip}:{port}/api/config". \
                        format(ip=self._ip,
                               port=self._rport)
-        
+
         self._nsrs = {}
         self._nsds = {}
         self._vnfds = {}

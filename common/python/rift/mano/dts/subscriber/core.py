@@ -114,8 +114,11 @@ class AbstractOpdataSubscriber(SubscriberDtsHandler):
             except Exception as e:
                 self.log.exception(e)
 
-            finally:
+            try:
                 xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+            except rift.tasklets.dts.ResponseError as e:
+                self._log.error("Reg handle is None during action {} for {}: {}".
+                                format(action, self.__class__, e))
 
         reg_event = asyncio.Event(loop=self.loop)
 
@@ -166,9 +169,15 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
             if xact.xact is None:
                 if action == rwdts.AppconfAction.INSTALL:
                     try:
-                        for cfg in self.reg.elements:
-                            if self.callback:
-                                self.callback(cfg, rwdts.QueryAction.CREATE)
+                        if self.reg:
+                            for cfg in self.reg.elements:
+                                if self.callback:
+                                    self.callback(cfg, rwdts.QueryAction.CREATE)
+
+                        else:
+                            self._log.error("Reg handle is None during action {} for {}".
+                                            format(action, self.__class__))
+
                     except Exception as e:
                         self._log.exception("Adding config {} during restart failed: {}".
                                             format(cfg, e))
@@ -193,7 +202,12 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
             """ on prepare callback """
             self._log.debug("Subscriber DTS prepare for project %s: %s",
                             self.project, xact_info.query_action)
-            xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+            try:
+                xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+            except rift.tasklets.dts.ResponseError as e:
+                self._log.error(
+                    "Subscriber DTS prepare for project {}, action {} in class {} failed: {}".
+                    format(self.project, xact_info.query_action, self.__class__, e))
 
         acg_hdl = rift.tasklets.AppConfGroup.Handler(on_apply=on_apply)
         with self.dts.appconf_group_create(handler=acg_hdl) as acg:

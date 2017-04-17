@@ -2061,8 +2061,9 @@ class VnfdDtsHandler(object):
         @asyncio.coroutine
         def on_prepare(dts, acg, xact, xact_info, ks_path, msg, scratch):
             """ on prepare callback """
+            xpath = ks_path.to_xpath(RwVnfmYang.get_schema())
             self._log.debug("Got on prepare for VNFD (path: %s) (action: %s) (msg: %s)",
-                            ks_path.to_xpath(RwVnfmYang.get_schema()),
+                            xpath,
                             xact_info.query_action, msg)
             fref = ProtobufC.FieldReference.alloc()
             fref.goto_whole_message(msg.to_pbcm())
@@ -2078,7 +2079,12 @@ class VnfdDtsHandler(object):
                 # Delete a VNFD record
                 yield from self._vnfm.delete_vnfd(msg.id)
 
-            xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+            try:
+                xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+            except rift.tasklets.dts.ResponseError as e:
+                self._log.error(
+                    "VnfdDtsHandler in project {} with path {} for action {} failed: {}".
+                    format(self._vnfm._project, xpath, xact_info.query_action, e))
 
         xpath = self._vnfm._project.add_project(VnfdDtsHandler.XPATH)
         self._log.debug("Registering for VNFD config using xpath: {}".

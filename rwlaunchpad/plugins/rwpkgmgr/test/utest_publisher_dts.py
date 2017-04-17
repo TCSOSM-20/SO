@@ -169,14 +169,16 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         # Here, we are assuming that there is no HTTP server at 10.1.2.3
         url = "http://10.1.2.3/common/unittests/plantuml.jar"
         url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
+        self.log.debug("Downloader url: {}".format(url_downloader))
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
+        self.log.debug("Download id: {}".format(download_id))
         assert download_id is not None
-       
+
         # Waiting for 10 secs to be sure all reconnect attempts have been exhausted
         yield from asyncio.sleep(10, loop=self.loop)
-        xpath = "/download-jobs/job[download-id='{}']".format(
-            download_id)
+        xpath = self.project.add_project("/download-jobs/job[download-id='{}']".
+                                         format(download_id))
         result = yield from self.read_xpath(xpath)
         self.log.debug("Test result before complete check - %s", result)
         assert result.status == "FAILED"

@@ -367,25 +367,19 @@ class RoleConfigPublisher(rift.tasklets.DtsConfigPublisher):
         return pbRole
 
     def add_update_role(self, role_key, user_key):
-        update = True
         try:
             role = self.roles[role_key]
         except KeyError:
             role = RoleKeysUsers(role_key)
             self.roles[role_key] = role
-            update = False
 
         try:
             user = role.user(user_key)
         except KeyError:
             user = UserState(user_key)
             role.add_user(user)
-            update = False
 
-        if update:
-            user.state = RoleConfigPublisher.yang_state_str(RoleState.UPDATE)
-        else:
-            user.state = RoleConfigPublisher.yang_state_str(RoleState.NEW)
+        user.state = RoleConfigPublisher.yang_state_str(RoleState.NEW)
 
         xpath = self.role_xpath(role_key)
         self.log.debug("update role: {} user: {} ".format(role_key, user_key))

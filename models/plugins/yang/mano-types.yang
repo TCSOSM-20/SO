@@ -227,7 +227,7 @@ module mano-types
 
             leaf protocol {
               description
-                  "Protocol to use for NETCONF such as ssh";
+                  "Protocol to use for NETCONF, such as ssh";
               type enumeration {
                 enum None;
                 enum ssh;
@@ -313,7 +313,7 @@ module mano-types
         leaf config-priority {
           description
               "Configuration priority - order of configuration
-               to be applied to each VNF in this NS ,A low
+               to be applied to each VNF in this NS. A low
                number takes precedence over a high number";
           type uint64;
         }
@@ -1252,14 +1252,17 @@ module mano-types
       key id;
 
       leaf id {
+        description "Identifier for control parameter";
         type string;
       }
 
       leaf name {
+        description "Name of a control parameter";
         type string;
       }
 
       leaf description {
+        description "A description of the control parameter";
         type string;
       }
 

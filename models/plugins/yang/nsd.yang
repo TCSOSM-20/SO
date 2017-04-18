@@ -106,7 +106,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-              "A reference to a vnfd";
+              "A reference to a VNFD";
           type leafref {
             path "../../../constituent-vnfd" +
                  "[member-vnf-index = current()/../member-vnf-index-ref]" +
@@ -160,7 +160,7 @@ module nsd
         key "member-vnf-index-ref";
 
         leaf member-vnf-index-ref {
-          description "member VNF index of this member VNF";
+          description "Member VNF index of this member VNF";
           type leafref {
             path "../../../constituent-vnfd/member-vnf-index";
           }
@@ -190,7 +190,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-             "A reference to a vnfd. This is a leafref";
+             "A reference to a VNFD. This is a leafref";
 
           type leafref {
             path "../../../constituent-vnfd" +
@@ -257,7 +257,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-              "A reference to a vnfd. This is a leafref";
+              "A reference to a VNFD. This is a leafref";
 
           type leafref {
              path "../../../constituent-vnfd" +

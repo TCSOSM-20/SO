@@ -266,10 +266,17 @@ class ComputeUtils(object):
         kwargs = dict()
         if vdu_params.has_field('volumes'):
             kwargs['block_device_mapping_v2'] = list()
+            bootvol_list = list()
+            othervol_list = list()
             # Ignore top-level image
             kwargs['image_id']  = ""
             for volume in vdu_params.volumes:
-                kwargs['block_device_mapping_v2'].append(self.make_vdu_volume_args(volume, vdu_params))
+                if 'boot_priority' in volume:
+                    bootvol_list.append(self.make_vdu_volume_args(volume, vdu_params))
+                else:
+                    othervol_list.append(self.make_vdu_volume_args(volume, vdu_params))
+            # Sort block_device_mapping_v2 list by boot index, Openstack does not seem to respecting order by boot index
+            kwargs['block_device_mapping_v2'] = sorted(bootvol_list, key=lambda k: k['boot_index']) + othervol_list
         return kwargs
 
     def make_vdu_network_args(self, vdu_params):

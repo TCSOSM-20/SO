@@ -2082,7 +2082,7 @@ class VnfdDtsHandler(object):
             try:
                 xact_info.respond_xpath(rwdts.XactRspCode.ACK)
             except rift.tasklets.dts.ResponseError as e:
-                self._log.error(
+                self._log.warning(
                     "VnfdDtsHandler in project {} with path {} for action {} failed: {}".
                     format(self._vnfm._project, xpath, xact_info.query_action, e))
 
@@ -2157,8 +2157,9 @@ class VnfrConsoleOperdataDtsHandler(object):
     @property
     def vnfr_vdu_console_xpath(self):
         """ path for resource-mgr"""
-        return self._project.add_project("D,/rw-vnfr:vnfr-console/rw-vnfr:vnfr[rw-vnfr:id='{}']" +
-                                         "/rw-vnfr:vdur[vnfr:id='{}']".format(self._vnfr_id,self._vdur_id))
+        return self._project.add_project(
+            "D,/rw-vnfr:vnfr-console/rw-vnfr:vnfr[rw-vnfr:id='{}']".format(self._vnfr_id) +
+            "/rw-vnfr:vdur[vnfr:id='{}']".format(self._vdur_id))
 
     def __init__(self, dts, log, loop, vnfm, vnfr_id, vdur_id, vdu_id):
         self._dts = dts

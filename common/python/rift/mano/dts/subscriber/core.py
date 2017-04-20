@@ -117,8 +117,8 @@ class AbstractOpdataSubscriber(SubscriberDtsHandler):
             try:
                 xact_info.respond_xpath(rwdts.XactRspCode.ACK)
             except rift.tasklets.dts.ResponseError as e:
-                self._log.error("Reg handle is None during action {} for {}: {}".
-                                format(action, self.__class__, e))
+                self._log.warning("Reg handle is None during action {} for {}: {}".
+                                  format(action, self.__class__, e))
 
         reg_event = asyncio.Event(loop=self.loop)
 
@@ -205,7 +205,7 @@ class AbstractConfigSubscriber(SubscriberDtsHandler):
             try:
                 xact_info.respond_xpath(rwdts.XactRspCode.ACK)
             except rift.tasklets.dts.ResponseError as e:
-                self._log.error(
+                self._log.warning(
                     "Subscriber DTS prepare for project {}, action {} in class {} failed: {}".
                     format(self.project, xact_info.query_action, self.__class__, e))
 

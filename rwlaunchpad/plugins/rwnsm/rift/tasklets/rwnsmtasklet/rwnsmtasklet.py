@@ -3005,7 +3005,7 @@ class VnfdDtsHandler(object):
             try:
                 xact_info.respond_xpath(rwdts.XactRspCode.ACK)
             except rift.tasklets.dts.ResponseError as e:
-                self._log.error(
+                self._log.warning(
                     "VnfdDtsHandler in project {} with path {} for action {} failed: {}".
                     format(self._project, xpath, xact_info.query_action, e))
 

@@ -189,8 +189,13 @@ class ProjectDtsHandler(object):
                 else:
                     self._log.debug("Project {}: Invoking on_prepare add request".
                                     format(name))
-                    yield from self._callbacks.on_add_prepare(name, msg)
-
+                    rc, err_msg = yield from self._callbacks.on_add_prepare(name, msg)
+                    if rc is False:
+                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
+                                                   ProjectDtsHandler.XPATH,
+                                                   err_msg)
+                        xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                        return
 
             elif action == rwdts.QueryAction.DELETE:
                 # Check if the entire project got deleted
@@ -239,6 +244,8 @@ class ProjectHandler(object):
         self._loop = tasklet.loop
         self._class = project_class
 
+        self.mano_roles = [role['mano-role'] for role in MANO_PROJECT_ROLES]
+
         self._log.debug("Creating project config handler")
         self.project_cfg_handler = ProjectDtsHandler(
             self._dts, self._log,
@@ -281,7 +288,6 @@ class ProjectHandler(object):
 
     def on_project_added(self, name, cfg):
         if name not in self._tasklet.projects:
-            # Restart case, directly calling apply
             try:
                 self._tasklet.projects[name] = \
                                 self._class(name, self._tasklet)
@@ -301,21 +307,29 @@ class ProjectHandler(object):
         self._log.debug("Project {} to be added to {}".
                         format(name, self._get_tasklet_name()))
 
-        try:
-            self._tasklet.projects[name] = \
-                    self._class(name, self._tasklet)
-        except Exception as e:
-            self._log.exception("Project {} create for {} failed: {}".
-                                format(name, self._get_tasklet_name(), e))
+        if name in self._tasklet.projects:
+            err_msg = ("Project already exists: {}".
+                       format(name))
+            self._log.error(err_msg)
+            return False, err_msg
 
+        # Validate mano-roles, if present
         try:
-            yield from self._get_project(name).register()
-        except Exception as e:
-            self._log.exception("Project {} register for tasklet {} failed: {}".
-                                format(name, self._get_tasklet_name(), e))
+            cfg = msg.project_config
+            users = cfg.user
+            for user in users:
+                for role in user.mano_role:
+                    if role.role not in self.mano_roles:
+                        err_msg = ("Invalid role {} for user {} in project {}".
+                               format(role.role, user.user_name, name))
+                        self._log.error(err_msg)
+                        return False, err_msg
 
-        self._log.debug("Project {} added to {}".
-                        format(name, self._get_tasklet_name()))
+        except AttributeError as e:
+            # If the user or mano role is not present, ignore
+            self._log.debug("Project {}: {}".format(name, e))
+
+        return True, ""
 
     @asyncio.coroutine
     def on_delete_prepare(self, name):

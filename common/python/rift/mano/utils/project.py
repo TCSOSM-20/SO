@@ -636,7 +636,6 @@ class ProjectHandler(object):
 
     def on_project_added(self, name):
         if name not in self._tasklet.projects:
-            # Restart case, directly calling apply
             try:
                 self._tasklet.projects[name] = \
                                 self._class(name, self._tasklet, **(self._kw))
@@ -655,21 +654,9 @@ class ProjectHandler(object):
     def on_add_prepare(self, name):
         self._log.debug("Project {} to be added to {}".
                         format(name, self._get_tasklet_name()))
-
-        try:
-            self._tasklet.projects[name] = \
-                    self._class(name, self._tasklet, **(self._kw))
-        except Exception as e:
-            self._log.exception("Project {} create for {} failed: {}".
-                                format(name, self._get_tasklet_name(), e))
-            raise e
-
-        try:
-            yield from self._get_project(name).register()
-        except Exception as e:
-            self._log.exception("Project {} register for tasklet {} failed: {}".
-                                format(name, self._get_tasklet_name(), e))
-            raise e
+        if name in self._tasklet.projects:
+            self._log.error("Project {} already exists for {}".
+                            format(name, self._get_tasklet_name()))
 
     @asyncio.coroutine
     def on_delete_prepare(self, name):

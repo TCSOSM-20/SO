@@ -148,7 +148,7 @@ class ProjectConfigSubscriber(object):
                 if action == rwdts.AppconfAction.INSTALL:
                     curr_cfg = self._reg.elements
                     for cfg in curr_cfg:
-                        self._log.info("Project {} user being re-added after restart: {}.".
+                        self._log.info("Project {} user being restored: {}.".
                                        format(self.project_name, cfg.as_dict()))
                         self.update_user(cfg)
                 else:

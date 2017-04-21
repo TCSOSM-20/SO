@@ -114,10 +114,10 @@ fi
 
 if [[ $PLATFORM == ub16 ]]; then
     PLATFORM_REPOSITORY=${1:-OSM}
-    PLATFORM_VERSION=${2:-4.4.0.0.57702}
+    PLATFORM_VERSION=${2:-4.4.2.0.60195}
 elif [[ $PLATFORM == fc20 ]]; then
     PLATFORM_REPOSITORY=${1:-OSM}  # change to OSM when published
-    PLATFORM_VERSION=${2:-4.3.1.0.53705}
+    PLATFORM_VERSION=${2:-4.4.2.0.60195}
 else
     echo "Internal error: unknown platform $PLATFORM"
     exit 1

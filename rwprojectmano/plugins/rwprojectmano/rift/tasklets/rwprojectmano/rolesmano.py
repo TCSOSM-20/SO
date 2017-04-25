@@ -26,11 +26,13 @@ from enum import Enum
 import gi
 gi.require_version('RwDts', '1.0')
 gi.require_version('RwRbacInternalYang', '1.0')
+gi.require_version('RwProjectManoYang', '1.0')
 from gi.repository import (
     RwDts as rwdts,
     ProtobufC,
     RwTypes,
     RwRbacInternalYang,
+    RwProjectManoYang,
 )
 
 import rift.tasklets
@@ -223,6 +225,14 @@ class ProjectConfigSubscriber(object):
                     else:
                         self._log.warning("Delete on unknown user: {}".
                                           format(user.key))
+
+                try:
+                    xact_info.respond_xpath(rwdts.XactRspCode.ACK)
+                except rift.tasklets.dts.ResponseError as e:
+                    xpath = ks_path.to_xpath(RwProjectManoYang.get_schema())
+                    self._log.debug("Exception sending response for {}: {}".
+                                    format(xpath, e))
+                return
 
             else:
                 self._log.error("Action (%s) NOT SUPPORTED", action)

@@ -305,12 +305,6 @@ else
     exit 1
 fi
 
-# install some base files used to create VNFs
-test -d /usr/rift/images || mkdir /usr/rift/images
-for file in Fedora-x86_64-20-20131211.1-sda-ping.qcow2 Fedora-x86_64-20-20131211.1-sda-pong.qcow2 Fedora-x86_64-20-20131211.1-sda.qcow2; do
-    test -f /usr/rift/images/$file || curl -o /usr/rift/images/$file http://repo.riftio.com/releases/open.riftio.com/4.3.1/$file 
-done
-
 # If you are re-building SO, you just need to run
 # these two steps
 if ! $installSO; then

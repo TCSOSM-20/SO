@@ -74,6 +74,10 @@ class RiftNSD(object):
         return self._nsd.constituent_vnfd
 
     @property
+    def scaling_group_descriptor(self):
+        return self._nsd.scaling_group_descriptor
+
+    @property
     def vlds(self):
         return self._nsd.vld
 
@@ -221,13 +225,17 @@ def convert_vnfd_name(vnfd_name, member_idx):
     return vnfd_name + "__" + str(member_idx)
 
 
-def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids):
-    for vnfd_id in rift_nsd.vnfd_ids:
-        if vnfd_id not in rift_vnfds:
-            raise VNFNotFoundError("VNF id %s not provided" % vnfd_id)
+def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids, rift_vnfd_id=None):
+    if rift_vnfd_id is None:
+        for vnfd_id in rift_nsd.vnfd_ids:
+            if vnfd_id not in rift_vnfds:
+                raise VNFNotFoundError("VNF id %s not provided" % vnfd_id)
 
     openmano = {}
     openmano["name"] = rift_nsd.name
+    if rift_vnfd_id is not None:
+        for scaling_groups in rift_nsd.scaling_group_descriptor:
+            openmano["name"] += scaling_groups.name
     openmano["description"] = rift_nsd.description
     topology = {}
     openmano["topology"] = topology
@@ -235,6 +243,8 @@ def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids):
     topology["nodes"] = {}
     for vnfd in rift_nsd.constituent_vnfds:
         vnfd_id = vnfd.vnfd_id_ref
+        if rift_vnfd_id is not None and rift_vnfd_id != vnfd_id:
+            continue
         rift_vnfd = rift_vnfds[vnfd_id]
         member_idx = vnfd.member_vnf_index
         openmano_vnfd_id = openmano_vnfd_ids.get(vnfd_id,None)
@@ -310,8 +320,68 @@ def rift2openmano_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids):
                     vnf_ref: vnfd_cp.vnfd_connection_point_ref
                 }
             )
-
     return openmano
+
+def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids,rift_vnfd_id=None):
+
+    if rift_vnfd_id not in rift_vnfds:
+            raise VNFNotFoundError("VNF id %s not provided" % rift_vnfd_id)
+
+    openmano_vnfd_nsd = {}
+    for groups in rift_nsd.scaling_group_descriptor:
+        openmano_vnfd_nsd["name"] = rift_vnfd_id+'__'+'scaling_group'+'__'+groups.name
+    openmano_vnfd_nsd["description"] = "Scaling Group"
+    topology = {}
+    openmano_vnfd_nsd["topology"] = topology
+    topology["connections"] = {}
+    topology["nodes"] = {}
+    tst_index = []
+    openmano_vnfd_id = openmano_vnfd_ids.get(rift_vnfd_id,None)
+    for rvnfd_id in rift_nsd.constituent_vnfds:
+        if rvnfd_id.vnfd_id_ref == rift_vnfd_id:
+            topology["nodes"][rift_vnfd_id+'__'+str(rvnfd_id.member_vnf_index)] = {
+                "type": "VNF",
+                "vnf_id": openmano_vnfd_id
+            }
+
+    for vld in rift_nsd.vlds:
+
+        # Create a connections entry for each external VLD
+        topology["connections"][vld.name] = {}
+        topology["connections"][vld.name]["nodes"] = []
+        if True:
+            if vld.name not in topology["nodes"]:
+                topology["nodes"][vld.name] = {
+                        "type": "external_network",
+                        "model": vld.name,
+                        }
+            topology["connections"][vld.name]["nodes"].append(
+                    {vld.name: "0"}
+                    )
+
+            
+
+    for vnfd_cp in vld.vnfd_connection_point_ref:
+        if not rift_vnfd_id in vnfd_cp.vnfd_id_ref:
+            continue
+        if rift_vnfd_id in vnfd_cp.vnfd_id_ref:
+
+            # Get the RIFT VNF for this external VLD connection point
+            vnfd = rift_vnfds[vnfd_cp.vnfd_id_ref]
+            
+
+            # For each VNF in this connection, use the same interface name
+            topology["connections"][vld.name]["type"] = "link"
+            # Vnf ref is the vnf name with the member_vnf_idx appended
+            member_idx = vnfd_cp.member_vnf_index_ref
+            vnf_ref = rift_vnfd_id + "__" + str(member_idx)
+            topology["connections"][vld.name]["nodes"].append(
+                {
+                    vnf_ref: vnfd_cp.vnfd_connection_point_ref
+                }
+            )
+    return openmano_vnfd_nsd
+
 
 def cloud_init(rift_vnfd_id, vdu):
     """ Populate cloud_init with script from
@@ -677,7 +747,6 @@ def write_yaml_to_file(name, outdir, desc_dict):
 
 def main(argv=sys.argv[1:]):
     args = parse_args(argv)
-
     nsd = None
     openmano_vnfr_ids = dict()
     vnf_dict = None
@@ -691,9 +760,9 @@ def main(argv=sys.argv[1:]):
         nsd = create_nsd_from_file(args.nsd_file_hdl)
 
     openmano_nsd = rift2openmano_nsd(nsd, vnf_dict, openmano_vnfr_ids)
-
+    vnfd_nsd = rift2openmano_vnfd_nsd(nsd, vnf_dict, openmano_vnfr_ids)
     write_yaml_to_file(openmano_nsd["name"], args.outdir, openmano_nsd)
-
+    write_yaml_to_file(vnfd_nsd["name"], args.outdir, vnfd_nsd)
     for vnf in vnf_dict.values():
         openmano_vnf = rift2openmano_vnfd(vnf, nsd)
         write_yaml_to_file(openmano_vnf["vnf"]["name"], args.outdir, openmano_vnf)

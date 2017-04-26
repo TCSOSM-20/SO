@@ -1701,7 +1701,6 @@ class NetworkServiceRecord(object):
                     vnfr = yield from self.create_vnf_record(vnfd_msg, const_vnfd_msg, cloud_account_name, om_datacenter_name, group_name, index)
                     scale_instance.add_vnfr(vnfr)
                     vnfrs.append(vnfr)
-
             return vnfrs
 
         @asyncio.coroutine
@@ -1722,7 +1721,8 @@ class NetworkServiceRecord(object):
                                     format(group.name, index))
                     scale_instance.operational_status = "failed"
                 else:
-                    yield from self.instantiate_vnfs(vnfrs)
+                    yield from self.instantiate_vnfs(vnfrs, scaleout=True)
+
 
             except Exception as e:
                 self._log.exception("Failed to begin instantiatiation of vnfs for scale group {}: {}".
@@ -2026,11 +2026,10 @@ class NetworkServiceRecord(object):
         # Fetch the VNFD associated with this VNF
         placement_groups = self.get_placement_groups(vnfd_msg, const_vnfd)
         self._log.info("Cloud Account for VNF %d is %s",const_vnfd.member_vnf_index,cloud_account_name)
-        self._log.info("Launching VNF: %s (Member Index: %s) in NSD plancement Groups: %s, restart mode self.restart_mode %s",
+        self._log.info("Launching VNF: %s (Member Index: %s) in NSD plancement Groups: %s",
                        vnfd_msg.name,
                        const_vnfd.member_vnf_index,
-                       [ group.name for group in placement_groups],
-                       self.restart_mode)
+                       [ group.name for group in placement_groups])
         vnfr = yield from VirtualNetworkFunctionRecord.create_record(self._dts,
                                             self._log,
                                             self._loop,
@@ -2095,14 +2094,14 @@ class NetworkServiceRecord(object):
         return vnfr
 
     @asyncio.coroutine
-    def instantiate_vnfs(self, vnfrs):
+    def instantiate_vnfs(self, vnfrs, scaleout=False):
         """
         This function instantiates VNFs for every VNF in this Network Service
         """
         self._log.debug("Instantiating %u VNFs in NS %s", len(vnfrs), self.id)
         for vnf in vnfrs:
             self._log.debug("Instantiating VNF: %s in NS %s", vnf, self.id)
-            yield from self.nsm_plugin.instantiate_vnf(self, vnf)
+            yield from self.nsm_plugin.instantiate_vnf(self, vnf,scaleout)
 
     @asyncio.coroutine
     def instantiate_vnffgs(self):
@@ -2351,9 +2350,12 @@ class NetworkServiceRecord(object):
 
         def on_instantiate_done(fut):
             # If the do_instantiate fails, then publish NSR with failed result
-            if fut.exception() is not None:
-                self._log.error("NSR instantiation failed for NSR id %s: %s", self.id, str(fut.exception()))
-                self._loop.create_task(self.instantiation_failed(failed_reason=str(fut.exception())))
+            e = fut.exception()
+            if e is not None:
+                import traceback, sys
+                print(traceback.format_exception(None,e, e.__traceback__), file=sys.stderr, flush=True)
+                self._log.error("NSR instantiation failed for NSR id %s: %s", self.id, str(e))
+                self._loop.create_task(self.instantiation_failed(failed_reason=str(e)))
 
         instantiate_task = self._loop.create_task(do_instantiate())
         instantiate_task.add_done_callback(on_instantiate_done)
@@ -3382,6 +3384,8 @@ class NsrDtsHandler(object):
                             raise NsrVlUpdateError("NS config NSD should have atleast 1 VLD defined")
 
                     if msg.has_field("scaling_group"):
+                        self._log.debug("ScaleMsg %s", msg)
+                        self._log.debug("NSSCALINGSTATE %s", nsr.state)
                         if nsr.state != NetworkServiceRecordState.RUNNING:
                             raise ScalingOperationError("Unable to perform scaling action when NS is not in running state")
 
@@ -3863,15 +3867,15 @@ class NsManager(object):
 
     def create_nsr(self, nsr_msg, key_pairs=None,restart_mode=False):
         """ Create an NSR instance """
+        self._log.debug("NSRMSG %s", nsr_msg)
         if nsr_msg.id in self._nsrs:
             msg = "NSR id %s already exists" % nsr_msg.id
             self._log.error(msg)
             raise NetworkServiceRecordError(msg)
 
-        self._log.info("Create NetworkServiceRecord nsr id %s from nsd_id %s, restart mode %s",
+        self._log.info("Create NetworkServiceRecord nsr id %s from nsd_id %s",
                        nsr_msg.id,
-                       nsr_msg.nsd.id,
-                       restart_mode)
+                       nsr_msg.nsd.id)
 
         nsm_plugin = self._ro_plugin_selector.ro_plugin
         sdn_account_name = self._cloud_account_handler.get_cloud_account_sdn_name(nsr_msg.cloud_account)

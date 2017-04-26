@@ -78,10 +78,14 @@ class FileSystemProxy(AbstractPackageManagerProxy):
 
         return self.SCHEMA[package_type]
 
-    def package_file_add(self, new_file, package_type, package_id, package_path):
+    def package_file_add(self, new_file, package_type, package_id, package_path, package_file_type):
         # Get the schema from thr package path
         # the first part will always be the vnfd/nsd name
         mode = 0o664
+
+        # for files other than README, create the package path from the asset type
+        package_path = package_file_type + "/" + package_path \
+            if package_file_type != "readme" else package_path
         components = package_path.split("/")
         if len(components) > 2:
             schema = components[1]
@@ -94,7 +98,7 @@ class FileSystemProxy(AbstractPackageManagerProxy):
 
         # Construct abs path of the destination obj
         path = store._get_package_dir(package_id)
-        dest_file = os.path.join(path, package_path)
+        dest_file = os.path.join(path, package.prefix, package_path)
 
         try:
             package.insert_file(new_file, dest_file, package_path, mode=mode)
@@ -104,10 +108,14 @@ class FileSystemProxy(AbstractPackageManagerProxy):
 
         return True
 
-    def package_file_delete(self, package_type, package_id, package_path):
+    def package_file_delete(self, package_type, package_id, package_path, package_file_type):
         package_type = package_type.lower()
         store = self._get_store(package_type)
         package = store.get_package(package_id)
+
+        # for files other than README, create the package path from the asset type
+        package_path = package_file_type + "/" + package_path \
+            if package_file_type != "readme" else package_path
 
         # package_path has to be relative, so strip off the starting slash if
         # provided incorrectly.
@@ -116,7 +124,7 @@ class FileSystemProxy(AbstractPackageManagerProxy):
 
         # Construct abs path of the destination obj
         path = store._get_package_dir(package_id)
-        dest_file = os.path.join(path, package_path)
+        dest_file = os.path.join(path, package.prefix, package_path)
 
         try:
             package.delete_file(dest_file, package_path)

@@ -101,7 +101,7 @@ def actionCreate(descriptor, msg):
         descriptor.log.debug("Skpping folder creation, {} already present".format(download_dir))
         return
     else: 
-        download_dir = os.path.join(download_dir, desc_name) 
+        # Folder structure is based on top-level package-id directory
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
             descriptor.log.debug("Created directory {}".format(download_dir))

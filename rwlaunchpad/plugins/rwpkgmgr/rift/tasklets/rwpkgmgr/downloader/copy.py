@@ -128,16 +128,14 @@ class PackageFileCopier:
         store = self.proxy._get_store(self.package_type)
         src_path = store._get_package_dir(self.src_package_id)
         self.src_package = store.get_package(self.src_package_id) 
-        src_desc_name = self.src_package.descriptor_name
-        src_copy_path = os.path.join(src_path, src_desc_name)
 
-        self.dest_copy_path = os.path.join(store.DEFAULT_ROOT_DIR, 
-                self.dest_package_id, 
-                self.dest_package_name)
+        self.dest_copy_path = os.path.join(
+                store.DEFAULT_ROOT_DIR, 
+                self.dest_package_id) 
         self.log.debug("Copying contents from {src} to {dest}".
-                format(src=src_copy_path, dest=self.dest_copy_path))
+                format(src=src_path, dest=self.dest_copy_path))
 
-        shutil.copytree(src_copy_path, self.dest_copy_path)
+        shutil.copytree(src_path, self.dest_copy_path)
 
     def _create_descriptor_file(self):
         """ Update descriptor file for the newly copied descriptor catalog.

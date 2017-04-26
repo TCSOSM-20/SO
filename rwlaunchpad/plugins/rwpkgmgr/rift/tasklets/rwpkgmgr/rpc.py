@@ -192,10 +192,13 @@ class PackageDeleteOperationsRpcHandler(mano_dts.AbstractRpcHandler):
         rpc_op = RPC_PACKAGE_DELETE_ENDPOINT.from_dict({"status": str(True)})
 
         try:
+            package_file_type = msg.vnfd_file_type.lower() \
+                    if msg.package_type == 'VNFD' else msg.nsd_file_type.lower()
             self.proxy.package_file_delete(
                 msg.package_type,
                 msg.package_id,
-                msg.package_path)
+                msg.package_path, 
+                package_file_type)
         except Exception as e:
             self.log.exception(e)
             rpc_op.status = str(False)

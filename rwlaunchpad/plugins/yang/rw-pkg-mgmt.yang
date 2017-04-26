@@ -76,6 +76,37 @@ module rw-pkg-mgmt
     }
   }
 
+  typedef package-file-type {
+    type enumeration {
+      enum ICONS;
+      enum CHARMS;
+      enum SCRIPTS;
+      enum IMAGES;
+      enum CLOUD_INIT;
+      enum README;
+    }
+  }
+
+  typedef vnfd-file-type {
+    type enumeration {
+      enum ICONS;
+      enum CHARMS;
+      enum SCRIPTS;
+      enum IMAGES;
+      enum CLOUD_INIT;
+      enum README;
+    }
+  }
+
+  typedef nsd-file-type {
+    type enumeration {
+      enum VNF_CONFIG;
+      enum NS_CONFIG;
+      enum ICONS;
+      enum SCRIPTS;
+    }
+  }
+
   typedef export-schema {
     type enumeration {
       enum RIFT;
@@ -364,6 +395,23 @@ module rw-pkg-mgmt
     input {
       uses package-file-identifer;
       uses external-url-data;
+
+      choice catalog-type {
+          mandatory true;
+          case VNFD {
+            leaf vnfd-file-type { 
+                description "Type of vnfd file being added to the package"; 
+                type vnfd-file-type; 
+            }
+          }
+          case NSD {
+            leaf nsd-file-type { 
+                description "Type of nsd file being added to the package"; 
+                type nsd-file-type; 
+            }
+          }
+      }
+      
     }
 
     output {
@@ -379,6 +427,21 @@ module rw-pkg-mgmt
 
     input {
       uses package-file-identifer;
+      choice catalog-type {
+          case VNFD {
+            leaf vnfd-file-type { 
+                description "Type of file being removed from the vnfd package"; 
+                type vnfd-file-type; 
+            }
+          }
+          case NSD {
+            leaf nsd-file-type { 
+                description "Type of file being removed from the nsd package"; 
+                type nsd-file-type; 
+            }
+          }
+      }
+      
     }
 
     output {

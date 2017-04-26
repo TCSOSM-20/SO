@@ -38,6 +38,8 @@ class PackageFileDownloader(downloader.UrlDownloader):
             rpc_input.package_id,
             rpc_input.package_path,
             rpc_input.package_type,
+            rpc_input.vnfd_file_type, 
+            rpc_input.nsd_file_type,
             auth=auth,
             proxy=proxy,
             file_obj=file_obj,
@@ -50,6 +52,8 @@ class PackageFileDownloader(downloader.UrlDownloader):
                  package_id,
                  package_path,
                  package_type,
+                 vnfd_file_type, 
+                 nsd_file_type,
                  proxy,
                  file_obj=None,
                  delete_on_fail=True,
@@ -67,6 +71,8 @@ class PackageFileDownloader(downloader.UrlDownloader):
         self.package_id = package_id
         self.package_type = package_type
         self.package_path = package_path
+        self.package_file_type = vnfd_file_type.lower() \
+                if package_type == 'VNFD' else nsd_file_type.lower()
         self.proxy = proxy
 
     def convert_to_yang(self):
@@ -106,7 +112,8 @@ class PackageFileDownloader(downloader.UrlDownloader):
                 self.meta.filepath,
                 self.package_type,
                 self.package_id,
-                self.package_path)
+                self.package_path, 
+                self.package_file_type)
 
         except Exception as e:
             self.log.exception(e)

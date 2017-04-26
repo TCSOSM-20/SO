@@ -606,16 +606,22 @@ class OnboardPackage(downloader.DownloaderProtocol):
                         OnboardError("Cloud-Init file reference in VNFD does not match with cloud-init file"))
 
     def validate_package(self, package):
-        checksum_validator = rift.package.package.PackageChecksumValidator(self.log)
+        validators = (
+                rift.package.package.PackageChecksumValidator(self.log),
+                rift.package.package.PackageConstructValidator(self.log),
+                )
 
-        try:
-            file_checksums = checksum_validator.validate(package)
-        except rift.package.package.PackageFileChecksumError as e:
-            raise MessageException(OnboardChecksumMismatch(e.filename)) from e
-        except rift.package.package.PackageValidationError as e:
-            raise MessageException(OnboardUnreadablePackage()) from e
+        # Run the validators for checksum and package construction for imported pkgs
+        for validator in validators:
+            try:
+                validator.validate(package)
 
-        return file_checksums
+            except rift.package.package.PackageFileChecksumError as e:
+                raise MessageException(OnboardChecksumMismatch(e.filename)) from e
+            except rift.package.package.PackageValidationError as e:
+                raise MessageException(OnboardUnreadablePackage()) from e
+
+        return validators[0].checksums
 
     def onboard_descriptors(self, package):
         descriptor_msg = package.descriptor_msg
@@ -705,6 +711,7 @@ class UploaderApplication(tornado.web.Application):
                     self,
                     store_map=self.package_store_map,
                     exporter=self.exporter,
+                    onboarder=self.onboarder, 
                     catalog_map=catalog_map
                     )
 

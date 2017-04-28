@@ -21,6 +21,8 @@ import os.path
 import stat
 import time
 import uuid
+import collections
+import json
 
 import tornado.web
 
@@ -82,12 +84,12 @@ class DescriptorPackageArchiveExporter(object):
     def __init__(self, log):
         self._log = log
 
-    def _create_archive_from_package(self, archive_hdl, package, open_fn):
+    def _create_archive_from_package(self, archive_hdl, package, open_fn, top_level_dir=None):
         orig_open = package.open
         try:
             package.open = open_fn
             archive = rift.package.archive.TarPackageArchive.from_package(
-                    self._log, package, archive_hdl
+                    self._log, package, archive_hdl, top_level_dir
                     )
             return archive
         finally:
@@ -154,7 +156,7 @@ class DescriptorPackageArchiveExporter(object):
 
             return open_fn(rel_path)
 
-        archive = self._create_archive_from_package(archive_hdl, package, open_wrapper)
+        archive = self._create_archive_from_package(archive_hdl, package, open_wrapper, new_desc_msg.name)
 
         return archive
 
@@ -195,7 +197,7 @@ class DescriptorPackageArchiveExporter(object):
 
 
 class ExportRpcHandler(mano_dts.AbstractRpcHandler):
-    def __init__(self, log, dts, loop, application, store_map, exporter, catalog_map):
+    def __init__(self, log, dts, loop, application, store_map, exporter, onboarder, catalog_map):
         """
         Args:
             application: UploaderApplication
@@ -208,6 +210,7 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
         self.application = application
         self.store_map = store_map
         self.exporter = exporter
+        self.onboarder = onboarder
         self.catalog_map = catalog_map
         self.log = log
 
@@ -256,15 +259,18 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
         # Get the format for exporting
         format_ = msg.export_format.lower()
 
-        filename = None
+        # Initial value of the exported filename 
+        self.filename = "{name}_{ver}".format(
+                name=desc_msg.name, 
+                ver=desc_msg.version)
 
         if grammar == 'tosca':
-            filename = "{}.zip".format(transaction_id)
             self.export_tosca(schema, format_, desc_type, desc_id, desc_msg, log, transaction_id)
+            filename = "{}.zip".format(self.filename)
             log.message(message.FilenameMessage(filename))
         else:
-            filename = "{}.tar.gz".format(transaction_id)
             self.export_rift(schema, format_, desc_type, desc_id, desc_msg, log, transaction_id)
+            filename = "{}.tar.gz".format(self.filename)
             log.message(message.FilenameMessage(filename))
 
         log.message(ExportSuccess())
@@ -279,8 +285,8 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
                     "nsd": convert.RwNsdSerializer,
                     },
                 "mano": {
-                    "vnfd": convert.VnfdSerializer,
-                    "nsd": convert.NsdSerializer,
+                    "vnfd": convert.RwVnfdSerializer,
+                    "nsd": convert.RwNsdSerializer,
                     }
                 }
 
@@ -314,11 +320,35 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
                     log, hdl
                     )
 
+        # Try to get the updated descriptor from the api endpoint so that we have 
+        # the updated descriptor file in the exported archive and the name of the archive 
+        # tar matches the name in the yaml descriptor file. Proceed with the current 
+        # file if there's an error
+        #
+        json_desc_msg = src_serializer.to_json_string(desc_msg)
+        desc_name, desc_version = desc_msg.name, desc_msg.version
+        try: 
+            d = collections.defaultdict(dict)
+            sub_dict = self.onboarder.get_updated_descriptor(desc_msg)
+            root_key, sub_key = "{0}:{0}-catalog".format(desc_type), "{0}:{0}".format(desc_type)
+            # root the dict under "vnfd:vnfd-catalog" 
+            d[root_key] = sub_dict
+            
+            json_desc_msg = json.dumps(d)
+            desc_name, desc_version = sub_dict[sub_key]['name'], sub_dict[sub_key]['version']
+
+        except Exception as e:
+            msg = "Exception {} raised - {}".format(e.__class__.__name__, str(e)) 
+            self.log.debug(msg)
+
+        # exported filename based on the updated descriptor name
+        self.filename = "{}_{}".format(desc_name, desc_version)
+
         self.exporter.export_package(
                 package=package,
                 export_dir=self.application.export_dir,
-                file_id=transaction_id,
-                json_desc_str=src_serializer.to_json_string(desc_msg),
+                file_id = self.filename,
+                json_desc_str=json_desc_msg,
                 dest_serializer=dest_serializer,
                 )
 

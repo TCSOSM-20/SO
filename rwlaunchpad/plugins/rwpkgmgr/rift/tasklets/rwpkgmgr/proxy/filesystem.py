@@ -83,9 +83,10 @@ class FileSystemProxy(AbstractPackageManagerProxy):
         # the first part will always be the vnfd/nsd name
         mode = 0o664
 
-        # for files other than README, create the package path from the asset type
+        # for files other than README, create the package path from the asset type, e.g. icons/icon1.png
+        # for README files, strip off any leading '/' 
         package_path = package_file_type + "/" + package_path \
-            if package_file_type != "readme" else package_path
+            if package_file_type != "readme" else package_path.strip('/')
         components = package_path.split("/")
         if len(components) > 2:
             schema = components[1]
@@ -106,6 +107,7 @@ class FileSystemProxy(AbstractPackageManagerProxy):
             self.log.exception(e)
             return False
 
+        self.log.debug("File insertion complete at {}".format(dest_file))
         return True
 
     def package_file_delete(self, package_type, package_id, package_path, package_file_type):

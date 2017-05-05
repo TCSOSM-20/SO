@@ -855,7 +855,7 @@ module nsr
             leaf member-vnf-index-ref {
               description
                  "Reference to member-vnf within constituent-vnfds";
-              type string;
+              type uint64;
             }
 
             leaf vnfd-id-ref {

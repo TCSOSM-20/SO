@@ -528,7 +528,6 @@ class OpenmanoNsr(object):
     def add_nsr(self, nsr, vnfr):
         self._nsrs[vnfr.id] = nsr
 
-    @asyncio.coroutine
     def delete(self):
         if not self._created:
             self._log.debug("NSD wasn't created.  Skipping delete.")

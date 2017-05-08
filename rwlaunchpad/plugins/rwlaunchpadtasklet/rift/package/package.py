@@ -613,7 +613,7 @@ class PackageChecksumValidator(object):
                 archive_checksums = checksums.ArchiveChecksums.from_file_desc(checksum_hdl)
         except (FileNotFoundError, PackageError) as e:
             self._log.warning("Could not open package checksum file.  Not validating checksums.")
-            return validated_file_checksums
+            return self.validated_file_checksums
 
         for pkg_file in package.files:
             if pkg_file == checksum_file:

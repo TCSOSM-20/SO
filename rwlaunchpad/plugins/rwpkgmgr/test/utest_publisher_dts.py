@@ -139,7 +139,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         proxy = mock.MagicMock()
 
         url = "http://boson.eng.riftio.com/common/unittests/plantuml.jar"
-        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
+        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", "SCRIPTS", "VNF_CONFIG", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
         assert download_id is not None
@@ -165,7 +165,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         # Here, we are assuming that there is no HTTP server at 10.1.2.3
         url = "http://10.1.2.3/common/unittests/plantuml.jar"
-        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
+        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", "SCRIPTS", "VNF_CONFIG", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
         assert download_id is not None
@@ -191,7 +191,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         proxy = mock.MagicMock()
         url = "http://boson.eng.riftio.com/common/unittests/Fedora-x86_64-20-20131211.1-sda-ping.qcow2"
-        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
+        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", "SCRIPTS", "VNF_CONFIG", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
         assert download_id is not None

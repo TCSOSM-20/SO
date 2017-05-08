@@ -1,6 +1,6 @@
 
 /*
- * 
+ *
  *   Copyright 2016 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -279,7 +279,7 @@ module nsd
       uses manotypes:provider-network;
 
       leaf mgmt-network {
-         description "Flag indicating whether this network is a VIM management network"; 
+         description "Flag indicating whether this network is a VIM management network";
          type boolean;
          default false;
       }
@@ -299,10 +299,11 @@ module nsd
         case vim-network-profile {
           leaf ip-profile-ref {
             description "Named reference to IP-profile object";
-            type string;
-          } 
+            type leafref {
+              path "../../ip-profiles/name";
+            }
+          }
         }
-
       }
     }
 
@@ -316,7 +317,7 @@ module nsd
       leaf member-vnf-index {
         description
           "Identifier/index for the VNFD. This separate id
-           is required so that multiple VNFs can be part of 
+           is required so that multiple VNFs can be part of
            single NS";
         type uint64;
       }
@@ -376,7 +377,7 @@ module nsd
 
         leaf scale-in-operation-type {
           description
-              "Operation to be applied to check between scaling criterias to 
+              "Operation to be applied to check between scaling criterias to
                check if the scale in threshold condition has been met.
                Defaults to AND";
           type scaling-criteria-operation;
@@ -385,7 +386,7 @@ module nsd
 
         leaf scale-out-operation-type {
           description
-              "Operation to be applied to check between scaling criterias to 
+              "Operation to be applied to check between scaling criterias to
                check if the scale out threshold condition has been met.
                Defaults to OR";
           type scaling-criteria-operation;
@@ -433,7 +434,7 @@ module nsd
           }
 
           leaf ns-monitoring-param-ref {
-            description 
+            description
                "Reference to the NS level monitoring parameter
                 that is aggregated";
             type leafref {
@@ -468,7 +469,7 @@ module nsd
         description
           "Minimum number of instances of the scaling group that
           are allowed in a single network service. These instances
-          are created by default when the network service is 
+          are created by default when the network service is
           instantiated.";
         type uint32;
         default 0;
@@ -477,7 +478,7 @@ module nsd
       leaf max-instance-count {
         description
           "Maximum number of instances of this scaling group that
-          are allowed in a single network service. The network 
+          are allowed in a single network service. The network
           service scaling fails when the number of service group
           instances exceeds the max-instance-count specified.";
         type uint32;
@@ -525,7 +526,7 @@ module nsd
           description
               "Identifier for the VNFD.";
           type leafref {
-            path "../../../constituent-vnfd" + 
+            path "../../../constituent-vnfd" +
                  "[member-vnf-index = current()/../member-vnf-index-ref]" +
                  "/vnfd-id-ref";
           }
@@ -806,8 +807,8 @@ module nsd
 
     list parameter-pool {
       description
-         "Pool of parameter values from which to choose during 
-         configuration.";  
+         "Pool of parameter values from which to choose during
+         configuration.";
       key "name";
 
       leaf name {
@@ -912,7 +913,7 @@ module nsd
         type string;
       }
     }
- 
+
     list initial-config-primitive {
       rwpb:msg-new NsdInitialConfigPrimitive;
       description

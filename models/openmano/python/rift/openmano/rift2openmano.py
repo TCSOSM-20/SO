@@ -488,6 +488,8 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
             raise ValueError("VDU Virtual Interface type {} not supported".format(rift_type))
 
     # Add all external connections
+    cp_to_port_security_map = {}
+
     for cp in rift_vnfd.cps:
         # Find the VDU and and external interface for this connection point
         vdu, ext_if = find_vdu_and_ext_if_by_cp_ref(cp.name)
@@ -499,6 +501,8 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
             "description": "%s iface on VDU %s" % (ext_if.name, vdu.name),
             }
 
+        if cp.has_field('port_security_enabled'):
+            cp_to_port_security_map[cp.name] = cp.port_security_enabled
         vnf["external-connections"].append(connection)
 
     # Add all internal networks
@@ -677,6 +681,9 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                         if bps/x[1] >= 1:
                             intf["bandwidth"] = "{} {}bps".format(math.ceil(bps/x[1]), x[0])
 
+        for bridge_iface in vnfc["bridge-ifaces"]:
+            if bridge_iface['name'] in cp_to_port_security_map:
+                bridge_iface['port-security'] = cp_to_port_security_map[bridge_iface['name']]
         # Sort bridge-ifaces-list TODO sort others
         newlist = sorted(vnfc["bridge-ifaces"], key=lambda k: k['name'])
         vnfc["bridge-ifaces"] = newlist

@@ -431,10 +431,21 @@ class DescriptorPackage(object):
         Raises:
             NotADirectoryError - dest_root_dir is not a directory
         """
+        def find_prefix():
+            """ Find comon prefix of all files in package. This prefix will be 
+            used to collapse directory structure during extraction to eliminate 
+            empty nested folders.
+            """
+            common_dir = set() 
+            for f in self.files: 
+                common_dir.add(os.path.dirname(f))
+            prefix = os.path.commonprefix(list(common_dir))
+            return prefix if prefix else None
+
         if not os.path.isdir(dest_root_dir):
             raise NotADirectoryError(dest_root_dir)
 
-        self.extract_dir(None, dest_root_dir, extract_images)
+        self.extract_dir(find_prefix(), dest_root_dir, extract_images)
 
     def open(self, rel_path):
         """ Open a file contained in the package in read-only, binary mode.

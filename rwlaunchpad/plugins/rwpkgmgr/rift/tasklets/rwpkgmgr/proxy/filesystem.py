@@ -22,6 +22,7 @@ import os
 
 import rift.package.store as store
 import rift.package.package
+import rift.package.icon as icon
 
 from .base import AbstractPackageManagerProxy
 
@@ -101,8 +102,15 @@ class FileSystemProxy(AbstractPackageManagerProxy):
         path = store._get_package_dir(package_id)
         dest_file = os.path.join(path, package.prefix, package_path)
 
+        # Insert (by copy) the file in the package location. For icons, 
+        # insert also in UI location for UI to pickup
         try:
             package.insert_file(new_file, dest_file, package_path, mode=mode)
+
+            if package_file_type == 'icons': 
+                icon_extract = icon.PackageIconExtractor(self.log) 
+                icon_extract.extract_icons(package)
+
         except rift.package.package.PackageAppendError as e:
             self.log.exception(e)
             return False

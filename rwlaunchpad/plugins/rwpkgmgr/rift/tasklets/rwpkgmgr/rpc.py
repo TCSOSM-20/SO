@@ -56,8 +56,9 @@ class EndpointDiscoveryRpcHandler(mano_dts.AbstractRpcHandler):
     def callback(self, ks_path, msg):
         """Forwards the request to proxy.
         """
+        
         url = yield from self.proxy.endpoint(
-                msg.package_type,
+                msg.package_type if msg.has_field('package_type') else "",
                 msg.package_id)
 
         rpc_op = RPC_PKG_ENDPOINT.from_dict({"endpoint": url})

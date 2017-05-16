@@ -615,9 +615,12 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                     # Add Openmano devices
                     device = {}
                     device["type"] = volume.device_type
-                    device["image name"] = volume.image
-                    if volume.has_field("image_checksum"):
-                        device["image checksum"] = volume.image_checksum
+                    if volume.has_field("size"):
+                        device["size"] = volume.size
+                    if volume.has_field("image"):
+                        device["image name"] = volume.image
+                        if volume.has_field("image_checksum"):
+                            device["image checksum"] = volume.image_checksum
                     vnfc["devices"].append(device)   
 
         vnfc_boot_data_init = False

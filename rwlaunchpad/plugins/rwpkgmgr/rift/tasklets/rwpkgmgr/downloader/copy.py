@@ -33,6 +33,8 @@ from gi.repository import (
     RwPkgMgmtYang
 )
 
+import rift.package.icon as icon 
+
 class PackageCopyError(Exception): 
     pass
 
@@ -136,6 +138,19 @@ class PackageFileCopier:
                 format(src=src_path, dest=self.dest_copy_path))
 
         shutil.copytree(src_path, self.dest_copy_path)
+        # If there are icon files, also need to copy them in UI location
+        if os.path.exists(os.path.join(src_path, "icons")): 
+            src_icon_path = os.path.join(
+                    icon.PackageIconExtractor.DEFAULT_INSTALL_DIR, 
+                    self.package_type, 
+                    self.src_package_id)
+            dest_icon_path = os.path.join(
+                    os.path.dirname(src_icon_path), 
+                    self.dest_package_id)
+            
+            self.log.debug("Copying UI icon location from {} to {}".format(src_icon_path, 
+                dest_icon_path))
+            shutil.copytree(src_icon_path, dest_icon_path)
 
     def _create_descriptor_file(self):
         """ Update descriptor file for the newly copied descriptor catalog.

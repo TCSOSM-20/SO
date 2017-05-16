@@ -123,21 +123,32 @@ class FileSystemProxy(AbstractPackageManagerProxy):
         store = self._get_store(package_type)
         package = store.get_package(package_id)
 
-        # for files other than README, create the package path from the asset type
-        package_path = package_file_type + "/" + package_path \
+        # for files other than README, create the relative package path from the asset type
+        package_path_rel = package_file_type + "/" + package_path \
             if package_file_type != "readme" else package_path
 
         # package_path has to be relative, so strip off the starting slash if
         # provided incorrectly.
-        if package_path[0] == "/":
-            package_path = package_path[1:]
+        if package_path_rel[0] == "/":
+            package_path_rel = package_path_rel[1:]
 
         # Construct abs path of the destination obj
         path = store._get_package_dir(package_id)
-        dest_file = os.path.join(path, package.prefix, package_path)
+        dest_file = os.path.join(path, package.prefix, package_path_rel)
 
         try:
-            package.delete_file(dest_file, package_path)
+            package.delete_file(dest_file, package_path_rel)
+
+            if package_file_type == 'icons': 
+                ui_icon_path = os.path.join(
+                        icon.PackageIconExtractor.DEFAULT_INSTALL_DIR, 
+                        package_type, 
+                        package_id)
+                if os.path.exists(ui_icon_path): 
+                    icon_file = os.path.join(ui_icon_path, package_path)
+                    self.log.debug("Deleting UI icon file path {}".format(icon_file))
+                    os.remove(icon_file)
+
         except rift.package.package.PackageAppendError as e:
             self.log.exception(e)
             return False

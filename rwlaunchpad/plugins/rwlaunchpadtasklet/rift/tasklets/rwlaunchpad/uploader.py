@@ -413,13 +413,13 @@ class UpdatePackage(downloader.DownloaderProtocol):
         checksum_validator = rift.package.package.PackageChecksumValidator(self.log)
 
         try:
-            file_checksums = checksum_validator.validate(package)
+            checksum_validator.validate(package)
         except rift.package.package.PackageFileChecksumError as e:
             raise MessageException(UpdateChecksumMismatch(e.filename)) from e
         except rift.package.package.PackageValidationError as e:
             raise MessageException(UpdateUnreadablePackage()) from e
 
-        return file_checksums
+        return checksum_validator.checksums
 
     def update_descriptors(self, package):
         descriptor_msg = package.descriptor_msg

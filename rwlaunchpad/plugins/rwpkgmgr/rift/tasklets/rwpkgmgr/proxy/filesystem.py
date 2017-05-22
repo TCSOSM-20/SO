@@ -40,7 +40,7 @@ class FileSystemProxy(AbstractPackageManagerProxy):
     # Refer: https://confluence.riftio.com/display/ATG/Launchpad+package+formats
     SCHEMA = {
         "nsd": ["icons", "ns_config", "scripts", "vnf_config"],
-        "vnfd": ["charms", "cloud_init", "icons", "images", "scripts"]
+        "vnfd": ["charms", "cloud_init", "icons", "images", "scripts", "readme"]
     }
 
     SCHEMA_TO_PERMS = {'scripts': 0o777}

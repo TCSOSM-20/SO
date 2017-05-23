@@ -559,6 +559,9 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
             if numa_node_policy.has_field("node"):
                 numa_node = numa_node_policy.node[0]
 
+                if numa_node.has_field("num_cores"):
+                    vnfc["numas"][0]["cores"] = numa_node.num_cores
+
                 if numa_node.has_field("paired_threads"):
                     if numa_node.paired_threads.has_field("num_paired_threads"):
                         vnfc["numas"][0]["paired-threads"] = numa_node.paired_threads.num_paired_threads

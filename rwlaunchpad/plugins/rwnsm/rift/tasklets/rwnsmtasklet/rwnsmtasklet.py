@@ -1755,7 +1755,7 @@ class NetworkServiceRecord(object):
 
             # Going ahead with terminate, even if there is an error in pre-scale-in config
             # as this could be result of scale out failure and we need to cleanup this group
-            yield from self.terminate_vnfrs(scale_instance.vnfrs)
+            yield from self.terminate_vnfrs(scale_instance.vnfrs, scalein=True)
             group.delete_instance(index)
 
             scale_instance.operational_status = "vnf_terminate_phase"
@@ -2404,11 +2404,13 @@ class NetworkServiceRecord(object):
         yield from self.publish()
 
     @asyncio.coroutine
-    def terminate_vnfrs(self, vnfrs):
+    def terminate_vnfrs(self, vnfrs, scalein=False):
         """ Terminate VNFRS in this network service """
         self._log.debug("Terminating VNFs in network service %s", self.id)
         for vnfr in vnfrs:
-            yield from self.nsm_plugin.terminate_vnf(vnfr)
+            self._log.debug("Terminating VNFs in network service %s %s", vnfr.id, self.id)
+            if scalein:
+                yield from self.nsm_plugin.terminate_vnf(self, vnfr, scalein=True)
 
     @asyncio.coroutine
     def terminate(self):
@@ -2453,9 +2455,7 @@ class NetworkServiceRecord(object):
         event_descr = "Terminating VLs in NS Id:%s" % self.id
         self.record_event("terminating-vls", event_descr)
         yield from terminate_vlrs()
-
         yield from self.nsm_plugin.terminate_ns(self)
-
         # Move the state to TERMINATED
         self.set_state(NetworkServiceRecordState.TERMINATED)
         event_descr = "Terminated NS Id:%s" % self.id

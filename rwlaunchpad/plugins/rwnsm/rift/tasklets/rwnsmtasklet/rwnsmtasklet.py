@@ -111,15 +111,9 @@ class NetworkServiceDescriptorNotFound(Exception):
     pass
 
 
-class NetworkServiceDescriptorRefCountExists(Exception):
+class NetworkServiceDescriptorNotFound(Exception):
     """ Network Service Descriptor reference count exists """
     pass
-
-
-class NetworkServiceDescriptorUnrefError(Exception):
-    """ Failed to unref a network service descriptor """
-    pass
-
 
 class NsrInstantiationFailed(Exception):
     """ Failed to instantiate network service """
@@ -1459,7 +1453,6 @@ class NetworkServiceRecord(object):
         for vlr in self._vlrs:
             yield from self.nsm_plugin.instantiate_vl(self, vlr)
             vlr.state = VlRecordState.ACTIVE
-            self.vlr_uptime_tasks[vlr.id] = self._loop.create_task(self.vlr_uptime_update(vlr))
 
 
     def vlr_uptime_update(self, vlr):
@@ -2239,14 +2232,6 @@ class NetworkServiceRecord(object):
         # Find the NSD
         self._nsd = self._nsr_cfg_msg.nsd
 
-        try:
-            # Update ref count if nsd present in catalog
-            self._nsm.get_nsd_ref(self.nsd_id)
-
-        except NetworkServiceDescriptorError:
-            # This could be an NSD not in the nsd-catalog
-            pass
-
         # Merge any config and initial config primitive values
         self.config_store.merge_nsd_config(self.nsd_msg)
         self._log.debug("Merged NSD: {}".format(self.nsd_msg.as_dict()))
@@ -2705,8 +2690,6 @@ class NetworkServiceDescriptor(object):
         self._loop = loop
 
         self._nsd = nsd
-        self._ref_count = 0
-
         self._nsm = nsm
 
     @property
@@ -2718,28 +2701,6 @@ class NetworkServiceDescriptor(object):
     def name(self):
         """ Returns name of nsd """
         return self._nsd.name
-
-    @property
-    def ref_count(self):
-        """ Returns reference count"""
-        return self._ref_count
-
-    def in_use(self):
-        """ Returns whether nsd is in use or not """
-        return True if self.ref_count > 0 else False
-
-    def ref(self):
-        """ Take a reference on this object """
-        self._ref_count += 1
-
-    def unref(self):
-        """ Release reference on this object """
-        if self.ref_count < 1:
-            msg = ("Unref on a NSD object - nsd id %s, ref_count = %s" %
-                   (self.id, self.ref_count))
-            self._log.critical(msg)
-            raise NetworkServiceDescriptorError(msg)
-        self._ref_count -= 1
 
     @property
     def msg(self):
@@ -2823,11 +2784,6 @@ class NsdDtsHandler(object):
             if fref.is_field_deleted():
                 # Delete an NSD record
                 self._log.debug("Deleting NSD with id %s", msg.id)
-                if self._nsm.nsd_in_use(msg.id):
-                    self._log.debug("Cannot delete NSD in use - %s", msg.id)
-                    err = "Cannot delete an NSD in use - %s" % msg.id
-                    raise NetworkServiceDescriptorRefCountExists(err)
-
                 yield from delete_nsd_libs(msg.id)
                 self._nsm.delete_nsd(msg.id)
             else:
@@ -3557,56 +3513,6 @@ class VnfrDtsHandler(object):
                                         flags=(rwdts.Flag.SUBSCRIBER),)
 
 
-class NsdRefCountDtsHandler(object):
-    """ The NSD Ref Count DTS handler """
-    XPATH = "D,/nsr:ns-instance-opdata/rw-nsr:nsd-ref-count"
-
-    def __init__(self, dts, log, loop, nsm):
-        self._dts = dts
-        self._log = log
-        self._loop = loop
-        self._nsm = nsm
-
-        self._regh = None
-
-    @property
-    def regh(self):
-        """ Return registration handle """
-        return self._regh
-
-    @property
-    def nsm(self):
-        """ Return the NS manager instance """
-        return self._nsm
-
-    @asyncio.coroutine
-    def register(self):
-        """ Register for NSD ref count read from dts """
-
-        @asyncio.coroutine
-        def on_prepare(xact_info, action, ks_path, msg):
-            """ prepare callback from dts """
-            xpath = ks_path.to_xpath(RwNsrYang.get_schema())
-
-            if action == rwdts.QueryAction.READ:
-                schema = RwNsrYang.YangData_Nsr_NsInstanceOpdata_NsdRefCount.schema()
-                path_entry = schema.keyspec_to_entry(ks_path)
-                nsd_list = yield from self._nsm.get_nsd_refcount(path_entry.key00.nsd_id_ref)
-                for xpath, msg in nsd_list:
-                    xact_info.respond_xpath(rsp_code=rwdts.XactRspCode.MORE,
-                                            xpath=xpath,
-                                            msg=msg)
-                xact_info.respond_xpath(rwdts.XactRspCode.ACK)
-            else:
-                raise NetworkServiceRecordError("Not supported operation %s" % action)
-
-        hdl = rift.tasklets.DTS.RegistrationHandler(on_prepare=on_prepare,)
-        with self._dts.group_create() as group:
-            self._regh = group.register(xpath=NsdRefCountDtsHandler.XPATH,
-                                        handler=hdl,
-                                        flags=rwdts.Flag.PUBLISHER,)
-
-
 class NsManager(object):
     """ The Network Service Manager class"""
     def __init__(self, dts, log, loop,
@@ -3634,7 +3540,7 @@ class NsManager(object):
         self._conf_url = "https://{ip}:{port}/api/config". \
                        format(ip=self._ip,
                               port=self._rport)
-        
+
         self._nsrs = {}
         self._nsds = {}
         self._vnfds = {}
@@ -3648,7 +3554,6 @@ class NsManager(object):
         self._vnfd_dts_handler = VnfdDtsHandler(dts, log, loop, self)
         self._dts_handlers = [self._nsd_dts_handler,
                               VnfrDtsHandler(dts, log, loop, self),
-                              NsdRefCountDtsHandler(dts, log, loop, self),
                               NsrDtsHandler(dts, log, loop, self),
                               ScalingRpcHandler(log, dts, loop, self.scale_rpc_callback),
                               NsrRpcDtsHandler(dts,log,loop,self),
@@ -3774,7 +3679,7 @@ class NsManager(object):
                 return None
             scaling_group_info = json.loads(output.text)
             return scaling_group_info
-        
+
         def config_scaling_group_information(scaling_group_info):
             data_str = json.dumps(scaling_group_info)
             self.log.debug("scaling group Info %s", data_str)
@@ -3782,12 +3687,12 @@ class NsManager(object):
             scale_out_url = "{url}/ns-instance-config/nsr/{nsr_id}".format(url=self._conf_url, nsr_id=msg.nsr_id_ref)
             response = requests.put(scale_out_url, data=data_str, verify=False, auth=(self._user, self._password), headers=self._headers)
             response.raise_for_status()
-            
+
         def scale_out():
             scaling_group_info = get_scaling_group_information()
             if scaling_group_info is None:
                 return
-                    
+
             scaling_group_present = False
             if "scaling-group" in scaling_group_info["nsr:nsr"]:
                 scaling_group_array = scaling_group_info["nsr:nsr"]["scaling-group"]
@@ -3799,12 +3704,12 @@ class NsManager(object):
                         for instance in scaling_group['instance']:
                             if instance["id"] == int(msg.instance_id):
                                 self.log.error("scaling group with instance id %s exists for scale out", msg.instance_id)
-                                return 
-                        scaling_group["instance"].append({"id": int(msg.instance_id)})       
-            
+                                return
+                        scaling_group["instance"].append({"id": int(msg.instance_id)})
+
             if not scaling_group_present:
                 scaling_group_info["nsr:nsr"]["scaling-group"] = [{"scaling-group-name-ref": msg.scaling_group_name_ref, "instance": [{"id": msg.instance_id}]}]
-                
+
             config_scaling_group_information(scaling_group_info)
             return
 
@@ -3812,7 +3717,7 @@ class NsManager(object):
             scaling_group_info = get_scaling_group_information()
             if scaling_group_info is None:
                 return
-            
+
             scaling_group_array = scaling_group_info["nsr:nsr"]["scaling-group"]
             scaling_group_present = False
             instance_id_present = False
@@ -3821,20 +3726,20 @@ class NsManager(object):
                     scaling_group_present = True
                     if 'instance' in scaling_group:
                         instance_array = scaling_group["instance"];
-                        for index in range(len(instance_array)):       
+                        for index in range(len(instance_array)):
                             if instance_array[index]["id"] == int(msg.instance_id):
                                 instance_array.pop(index)
                                 instance_id_present = True
                                 break
-    
+
             if not scaling_group_present:
                 self.log.error("Scaling group %s doesnot exists for scale in", msg.scaling_group_name_ref)
                 return
-            
+
             if not instance_id_present:
                 self.log.error("Instance id %s doesnot exists for scale in", msg.instance_id)
                 return
-            
+
             config_scaling_group_information(scaling_group_info)
             return
 
@@ -3937,13 +3842,6 @@ class NsManager(object):
         """ Delete VNFR  with the passed id"""
         del self._vnfrs[vnfr_id]
 
-    def get_nsd_ref(self, nsd_id):
-        """ Get network service descriptor for the passed nsd_id
-            with a reference"""
-        nsd = self.get_nsd(nsd_id)
-        nsd.ref()
-        return nsd
-
     @asyncio.coroutine
     def get_nsr_config(self, nsd_id):
         xpath = "C,/nsr:ns-instance-config"
@@ -3958,33 +3856,6 @@ class NsManager(object):
                     return nsr
 
         return None
-
-    @asyncio.coroutine
-    def nsd_unref_by_nsr_id(self, nsr_id):
-        """ Unref the network service descriptor based on NSR id """
-        self._log.debug("NSR Unref called for Nsr Id:%s", nsr_id)
-        if nsr_id in self._nsrs:
-            nsr = self._nsrs[nsr_id]
-
-            try:
-                nsd = self.get_nsd(nsr.nsd_id)
-                self._log.debug("Releasing ref on NSD %s held by NSR %s - Curr %d",
-                                nsd.id, nsr.id, nsd.ref_count)
-                nsd.unref()
-            except NetworkServiceDescriptorError:
-                # We store a copy of NSD in NSR and the NSD in nsd-catalog
-                # could be deleted
-                pass
-
-        else:
-            self._log.error("Cannot find NSR with id %s", nsr_id)
-            raise NetworkServiceDescriptorUnrefError("No NSR with id" % nsr_id)
-
-    @asyncio.coroutine
-    def nsd_unref(self, nsd_id):
-        """ Unref the network service descriptor associated with the id """
-        nsd = self.get_nsd(nsd_id)
-        nsd.unref()
 
     def get_nsd(self, nsd_id):
         """ Get network service descriptor for the passed nsd_id"""
@@ -4028,16 +3899,6 @@ class NsManager(object):
         if nsd_id not in self._nsds:
             self._log.debug("Delete NSD failed - cannot find nsd-id %s", nsd_id)
             raise NetworkServiceDescriptorNotFound("Cannot find %s", nsd_id)
-
-        if nsd_id not in self._nsds:
-            self._log.debug("Cannot delete NSD id %s reference exists %s",
-                            nsd_id,
-                            self._nsds[nsd_id].ref_count)
-            raise NetworkServiceDescriptorRefCountExists(
-                "Cannot delete :%s, ref_count:%s",
-                nsd_id,
-                self._nsds[nsd_id].ref_count)
-
         del self._nsds[nsd_id]
 
     def get_vnfd_config(self, xact):
@@ -4090,13 +3951,6 @@ class NsManager(object):
 
         del self._vnfds[vnfd_id]
 
-    def nsd_in_use(self, nsd_id):
-        """ Is the NSD with the passed id in use """
-        self._log.debug("Is this NSD in use - msg:%s", nsd_id)
-        if nsd_id in self._nsds:
-            return self._nsds[nsd_id].in_use()
-        return False
-
     @asyncio.coroutine
     def publish_nsr(self, xact, path, msg):
         """ Publish a NSR """
@@ -4119,29 +3973,6 @@ class NsManager(object):
             raise VirtualNetworkFunctionRecordError(err)
         self._vnfrs[vnfr_id].is_ready()
 
-    @asyncio.coroutine
-    def get_nsd_refcount(self, nsd_id):
-        """ Get the nsd_list from this NSM"""
-
-        def nsd_refcount_xpath(nsd_id):
-            """ xpath for ref count entry """
-            return (NsdRefCountDtsHandler.XPATH +
-                    "[rw-nsr:nsd-id-ref = '{}']").format(nsd_id)
-
-        nsd_list = []
-        if nsd_id is None or nsd_id == "":
-            for nsd in self._nsds.values():
-                nsd_msg = RwNsrYang.YangData_Nsr_NsInstanceOpdata_NsdRefCount()
-                nsd_msg.nsd_id_ref = nsd.id
-                nsd_msg.instance_ref_count = nsd.ref_count
-                nsd_list.append((nsd_refcount_xpath(nsd.id), nsd_msg))
-        elif nsd_id in self._nsds:
-            nsd_msg = RwNsrYang.YangData_Nsr_NsInstanceOpdata_NsdRefCount()
-            nsd_msg.nsd_id_ref = self._nsds[nsd_id].id
-            nsd_msg.instance_ref_count = self._nsds[nsd_id].ref_count
-            nsd_list.append((nsd_refcount_xpath(nsd_id), nsd_msg))
-
-        return nsd_list
 
     @asyncio.coroutine
     def terminate_ns(self, nsr_id, xact):
@@ -4155,9 +3986,6 @@ class NsManager(object):
             yield from self._nsrs[nsr_id].terminate()
         except Exception as e:
             self.log.exception("Failed to terminate NSR[id=%s]", nsr_id)
-
-        # Unref the NSD
-        yield from self.nsd_unref_by_nsr_id(nsr_id)
 
         # Unpublish the NSR record
         self._log.debug("Unpublishing the network service %s", nsr_id)

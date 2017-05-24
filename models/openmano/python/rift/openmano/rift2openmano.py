@@ -572,6 +572,8 @@ def rift2openmano_vnfd(rift_vnfd, rift_nsd):
                                      [pair.thread_a, pair.thread_b]
                                      )
 
+                if numa_node.has_field("num_threads"):
+                    vnfc["numas"][0]["threads"] = numa_node.num_threads
             else:
                 if vdu.vm_flavor.has_field("vcpu_count"):
                     vnfc["numas"][0]["cores"] = max(vdu.vm_flavor.vcpu_count, 1)

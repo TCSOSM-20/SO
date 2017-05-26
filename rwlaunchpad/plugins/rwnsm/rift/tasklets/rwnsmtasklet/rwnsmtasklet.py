@@ -3234,6 +3234,17 @@ class NsrDtsHandler(object):
                 self._log.info("Beginning NS instantiation: %s", nsr.id)
                 yield from self._nsm.instantiate_ns(nsr.id, xact)
 
+            def on_instantiate_done(fut):
+                # If the do_instantiate fails, then publish NSR with failed result
+                e = fut.exception()
+                if e is not None:
+                    import traceback
+                    print(traceback.format_exception(None, e, e.__traceback__), file=sys.stderr, flush=True)
+                    self._log.error("NSR instantiation failed for NSR id %s: %s", msg.id, str(e))
+                    failed_nsr = self._nsm.nsrs[msg.id]
+                    self._loop.create_task(failed_nsr.instantiation_failed(failed_reason=str(e)))
+
+
             self._log.debug("Got nsr apply (xact: %s) (action: %s)(scr: %s)",
                             xact, action, scratch)
 
@@ -3243,7 +3254,8 @@ class NsrDtsHandler(object):
                     key_pairs.append(element)
                 for element in self._nsr_regh.elements:
                     nsr = handle_create_nsr(element, key_pairs, restart_mode=True)
-                    self._loop.create_task(begin_instantiation(nsr))
+                    instantiate_task = self._loop.create_task(begin_instantiation(nsr))
+                    instantiate_task.add_done_callback(on_instantiate_done)
 
 
             (added_msgs, deleted_msgs, updated_msgs) = get_add_delete_update_cfgs(self._nsr_regh,
@@ -3258,7 +3270,8 @@ class NsrDtsHandler(object):
                     self._log.info("Create NSR received in on_apply to instantiate NS:%s", msg.id)
                     key_pairs = get_nsr_key_pairs(self._key_pair_regh, xact)
                     nsr = handle_create_nsr(msg,key_pairs)
-                    self._loop.create_task(begin_instantiation(nsr))
+                    instantiate_task = self._loop.create_task(begin_instantiation(nsr))
+                    instantiate_task.add_done_callback(on_instantiate_done)
 
             for msg in deleted_msgs:
                 self._log.info("Delete NSR received in on_apply to terminate NS:%s", msg.id)

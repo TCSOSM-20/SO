@@ -182,7 +182,7 @@ class UrlDownloader(base.AbstractDownloader):
 
     def _download(self):
 
-        url_options = {"verify": False, "timeout": 1}
+        url_options = {"verify": False, "timeout": 10}
 
         if self.auth is not None:
             url_options["auth"] = self.auth

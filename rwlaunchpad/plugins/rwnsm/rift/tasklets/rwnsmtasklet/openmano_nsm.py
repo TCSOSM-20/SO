@@ -70,6 +70,9 @@ def dump_openmano_descriptor(name, descriptor_str):
 
     return filepath
 
+class VNFExistError(Exception):
+    pass
+
 class VnfrConsoleOperdataDtsHandler(object):
     """ registers 'D,/vnfr:vnfr-console/vnfr:vnfr[id]/vdur[id]' and handles CRUD from DTS"""
     @property
@@ -506,6 +509,16 @@ class OpenmanoNsr(object):
         yield from asyncio.sleep(1, loop=self._loop)
 
     @asyncio.coroutine
+    def remove_vnf(self,vnf):
+        if vnf in self._vnfrs:
+            self._vnfrs.remove(vnf)
+            yield from self._publisher.unpublish_vnfr(
+                None,
+                vnfr_msg
+              )
+        yield from asyncio.sleep(1, loop=self._loop)
+
+    @asyncio.coroutine
     def delete_vlr(self, vlr):
         if vlr in self._vlrs:
             self._vlrs.remove(vlr)
@@ -916,6 +929,8 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         self._http_api = None
         self._openmano_nsrs = {}
         self._vnfr_uptime_tasks = {}
+        self._openmano_nsr_by_vnfr_id = {}
+        #self._nsr_uuid = None
 
         self._set_ro_account(ro_account)
 
@@ -992,9 +1007,14 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                 openmano_nsr.nsd_msg,
                 openmano_nsr.nsr_config_msg,
                 openmano_nsr.key_pairs,
-                #openmano_nsr.nsr_msg,
                 vnfr.vnfd.id
             )
+            self._openmano_nsr_by_vnfr_id[nsr.id] = openmano_nsr
+            if vnfr.id in self._openmano_nsr_by_vnfr_id:
+                raise VNFExistError("VNF %s already exist", vnfr.id)
+            self._openmano_nsr_by_vnfr_id[vnfr.id] = openmano_vnf_nsr
+            self._log.debug("VNFRID %s %s %s", type(self._openmano_nsr_by_vnfr_id), type(openmano_vnf_nsr), type(self._openmano_nsr_by_vnfr_id[vnfr.id]))
+
             for vlr in openmano_nsr.vlrs:
                 yield from openmano_vnf_nsr.add_vlr(vlr)
             try:
@@ -1079,12 +1099,17 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         openmano_nsr.delete()
 
     @asyncio.coroutine
-    def terminate_vnf(self, vnfr):
+    def terminate_vnf(self, nsr, vnfr, scalein=False):
         """
         Terminate the network service
         """
-        if vnfr.id in self._vnfr_uptime_tasks:
-            self._vnfr_uptime_tasks[vnfr.id].cancel()
+        if scalein:
+            openmano_vnf_nsr = self._openmano_nsr_by_vnfr_id[vnfr.id]
+            openmano_vnf_nsr.terminate()
+            openmano_vnf_nsr.delete()
+            yield from openmano_vnf_nsr.remove_vnf(vnfr)
+            if vnfr.id in self._vnfr_uptime_tasks:
+                self._vnfr_uptime_tasks[vnfr.id].cancel()
 
     @asyncio.coroutine
     def terminate_vl(self, vlr):

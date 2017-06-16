@@ -339,7 +339,8 @@ def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids,rift_vnfd_id=
     openmano_vnfd_id = openmano_vnfd_ids.get(rift_vnfd_id,None)
     for rvnfd_id in rift_nsd.constituent_vnfds:
         if rvnfd_id.vnfd_id_ref == rift_vnfd_id:
-            topology["nodes"][rift_vnfd_id+'__'+str(rvnfd_id.member_vnf_index)] = {
+            rift_vnfd = rift_vnfds[rift_vnfd_id]
+            topology["nodes"][rift_vnfd.name +'__'+str(rvnfd_id.member_vnf_index)] = {
                 "type": "VNF",
                 "vnf_id": openmano_vnfd_id
             }
@@ -374,7 +375,7 @@ def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids,rift_vnfd_id=
             topology["connections"][vld.name]["type"] = "link"
             # Vnf ref is the vnf name with the member_vnf_idx appended
             member_idx = vnfd_cp.member_vnf_index_ref
-            vnf_ref = rift_vnfd_id + "__" + str(member_idx)
+            vnf_ref = vnfd.name + "__" + str(member_idx)
             topology["connections"][vld.name]["nodes"].append(
                 {
                     vnf_ref: vnfd_cp.vnfd_connection_point_ref

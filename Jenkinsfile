@@ -8,6 +8,7 @@ pipeline {
 				dockerfile true
 			}
 			steps {
+				sh 'rm -rf .build'
 				sh 'make NOT_DEVELOPER_BUILD=TRUE -j16 package'
 				stash name: "deb-files", includes: ".build/*.deb"
 			}

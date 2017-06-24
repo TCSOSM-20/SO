@@ -1260,8 +1260,6 @@ class NetworkServiceRecord(object):
         self._is_active = False
         self._vl_phase_completed = False
         self._vnf_phase_completed = False
-        self.vlr_uptime_tasks = {}
-
 
         # Initalise the state to init
         # The NSR moves through the following transitions
@@ -1453,19 +1451,6 @@ class NetworkServiceRecord(object):
         for vlr in self._vlrs:
             yield from self.nsm_plugin.instantiate_vl(self, vlr)
             vlr.state = VlRecordState.ACTIVE
-
-
-    def vlr_uptime_update(self, vlr):
-        try:
-
-            vlr_ = RwVlrYang.YangData_Vlr_VlrCatalog_Vlr.from_dict({'id': vlr.id})
-            while True:
-                vlr_.uptime = int(time.time()) - vlr._create_time
-                yield from self._vlr_handler.update(None, VirtualLinkRecord.vlr_xpath(vlr), vlr_)
-                yield from asyncio.sleep(2, loop=self._loop)
-        except asyncio.CancelledError:
-            self._log.debug("Received cancellation request for vlr_uptime_update task")
-            yield from self._vlr_handler.delete(None, VirtualLinkRecord.vlr_xpath(vlr))
 
 
     @asyncio.coroutine
@@ -2412,8 +2397,6 @@ class NetworkServiceRecord(object):
             for vlr in self.vlrs:
                 yield from self.nsm_plugin.terminate_vl(vlr)
                 vlr.state = VlRecordState.TERMINATED
-                if vlr.id in self.vlr_uptime_tasks:
-                    self.vlr_uptime_tasks[vlr.id].cancel()
 
         self._log.debug("Terminating network service id %s", self.id)
 

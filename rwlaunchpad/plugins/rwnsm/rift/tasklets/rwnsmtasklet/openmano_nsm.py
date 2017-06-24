@@ -928,7 +928,6 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         self._cli_api = None
         self._http_api = None
         self._openmano_nsrs = {}
-        self._vnfr_uptime_tasks = {}
         self._openmano_nsr_by_vnfr_id = {}
         #self._nsr_uuid = None
 
@@ -1044,18 +1043,6 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         self._log.debug("Attempting to publish openmano vnf: %s", vnfr_msg)
         with self._dts.transaction() as xact:
             yield from self._publisher.publish_vnfr(xact, vnfr_msg)
-        self._log.debug("Creating a task to update uptime for vnfr: %s", vnfr.id)
-        self._vnfr_uptime_tasks[vnfr.id] = self._loop.create_task(self.vnfr_uptime_update(vnfr))
-
-    def vnfr_uptime_update(self, vnfr):
-        try:
-            vnfr_ = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr.from_dict({'id': vnfr.id})
-            while True:
-                vnfr_.uptime = int(time.time()) - vnfr._create_time
-                yield from self._publisher.publish_vnfr(None, vnfr_)
-                yield from asyncio.sleep(2, loop=self._loop)
-        except asyncio.CancelledError:
-            self._log.debug("Received cancellation request for vnfr_uptime_update task")
 
     @asyncio.coroutine
     def instantiate_vl(self, nsr, vlr):
@@ -1108,8 +1095,6 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
             openmano_vnf_nsr.terminate()
             openmano_vnf_nsr.delete()
             yield from openmano_vnf_nsr.remove_vnf(vnfr)
-            if vnfr.id in self._vnfr_uptime_tasks:
-                self._vnfr_uptime_tasks[vnfr.id].cancel()
 
     @asyncio.coroutine
     def terminate_vl(self, vlr):

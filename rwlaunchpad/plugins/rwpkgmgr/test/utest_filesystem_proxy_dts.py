@@ -66,11 +66,11 @@ class TestCase(rift.test.dts.AbstractDTSTest):
                 "launchpad/packages/vnfd",
                 uid)
 
-        package_path = os.path.join(path, "pong_vnfd")
+        asset_path = os.path.join(path, "icons")
 
-        os.makedirs(package_path)
+        os.makedirs(asset_path)
         open(os.path.join(path, "pong_vnfd.xml"), "wb").close()
-        open(os.path.join(path, "logo.png"), "wb").close()
+        open(os.path.join(asset_path, "logo.png"), "wb").close()
 
         return uid, path
 
@@ -182,7 +182,8 @@ class TestCase(rift.test.dts.AbstractDTSTest):
                 "package_type": "VNFD",
                 "package_id": uid,
                 "external_url": "https://raw.githubusercontent.com/RIFTIO/RIFT.ware/master/rift-shell",
-                "package_path": "icons/rift-shell"})
+                "vnfd_file_type": "ICONS",
+                "package_path": "rift-shell"})
 
         rpc_out = yield from self.dts.query_rpc(
                     "I,/rw-pkg-mgmt:package-file-add",
@@ -190,7 +191,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
                     ip)
 
         yield from asyncio.sleep(5, loop=self.loop)
-        filepath = os.path.join(path, ip.package_path)
+        filepath = os.path.join(path, ip.vnfd_file_type.lower(), ip.package_path)
         assert os.path.isfile(filepath)
         mode = oct(os.stat(filepath)[stat.ST_MODE])
         assert str(mode) == "0o100664"
@@ -218,9 +219,10 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         ip = RwPkgMgmtYang.YangInput_RwPkgMgmt_PackageFileDelete.from_dict({
                 "package_type": "VNFD",
                 "package_id": uid,
+                "vnfd_file_type": "ICONS",
                 "package_path": "logo.png"})
 
-        assert os.path.isfile(os.path.join(path, ip.package_path))
+        assert os.path.isfile(os.path.join(path, ip.vnfd_file_type.lower(), ip.package_path))
 
         rpc_out = yield from self.dts.query_rpc(
                     "I,/rw-pkg-mgmt:package-file-delete",
@@ -228,7 +230,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
                     ip)
 
         yield from asyncio.sleep(5, loop=self.loop)
-        assert not os.path.isfile(os.path.join(path, ip.package_path))
+        assert not os.path.isfile(os.path.join(path, ip.vnfd_file_type.lower(), ip.package_path))
 
         shutil.rmtree(path)
 

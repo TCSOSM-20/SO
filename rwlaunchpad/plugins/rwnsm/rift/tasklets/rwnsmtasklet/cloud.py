@@ -1,5 +1,5 @@
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,7 +61,7 @@ class RwNsPlugin(rwnsmplugin.NsmPluginBase):
         yield from nsr.instantiate(config_xact)
 
     @asyncio.coroutine
-    def instantiate_vnf(self, nsr, vnfr):
+    def instantiate_vnf(self, nsr, vnfr, scaleout=False):
         """
         Instantiate NSR with the passed nsr id
         """
@@ -143,7 +143,7 @@ class CloudAccountConfigSubscriber:
         if account_name in self._cloud_sub.accounts:
             self._log.debug("Cloud accnt msg is %s",self._cloud_sub.accounts[account_name].account_msg)
             if self._cloud_sub.accounts[account_name].account_msg.has_field("sdn_account"):
-                sdn_account = self._cloud_sub.accounts[account_name].account_msg.sdn_account 
+                sdn_account = self._cloud_sub.accounts[account_name].account_msg.sdn_account
                 self._log.info("SDN associated with Cloud name %s is %s", account_name, sdn_account)
                 return sdn_account
             else:

@@ -139,18 +139,44 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         proxy = mock.MagicMock()
 
         url = "http://boson.eng.riftio.com/common/unittests/plantuml.jar"
-        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
+        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", "SCRIPTS", "VNF_CONFIG", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
         assert download_id is not None
        
         # Waiting for 5 secs to be sure that the file is downloaded
-        yield from asyncio.sleep(5, loop=self.loop)
+        yield from asyncio.sleep(10, loop=self.loop)
         xpath = "/download-jobs/job[download-id='{}']".format(
             download_id)
         result = yield from self.read_xpath(xpath)
         self.log.debug("Test result before complete check - %s", result)
         assert result.status == "COMPLETED"
+        assert len(self.job_handler.tasks) == 0
+
+    @rift.test.dts.async_test
+    def test_url_download_unreachable_ip(self):
+        """
+        Integration Test:
+            Ensure that a bad IP does not block forever
+        """
+        yield from self.job_handler.register()
+
+        proxy = mock.MagicMock()
+
+        # Here, we are assuming that there is no HTTP server at 10.1.2.3
+        url = "http://10.1.2.3/common/unittests/plantuml.jar"
+        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", "SCRIPTS", "VNF_CONFIG", proxy)
+
+        download_id = yield from self.job_handler.register_downloader(url_downloader)
+        assert download_id is not None
+       
+        # Waiting for 10 secs to be sure all reconnect attempts have been exhausted
+        yield from asyncio.sleep(10, loop=self.loop)
+        xpath = "/download-jobs/job[download-id='{}']".format(
+            download_id)
+        result = yield from self.read_xpath(xpath)
+        self.log.debug("Test result before complete check - %s", result)
+        assert result.status == "FAILED"
         assert len(self.job_handler.tasks) == 0
 
 
@@ -165,7 +191,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
         proxy = mock.MagicMock()
         url = "http://boson.eng.riftio.com/common/unittests/Fedora-x86_64-20-20131211.1-sda-ping.qcow2"
-        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", proxy)
+        url_downloader = downloader.PackageFileDownloader(url, "1", "/", "VNFD", "SCRIPTS", "VNF_CONFIG", proxy)
 
         download_id = yield from self.job_handler.register_downloader(url_downloader)
         assert download_id is not None

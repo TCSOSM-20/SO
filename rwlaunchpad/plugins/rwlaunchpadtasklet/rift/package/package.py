@@ -171,6 +171,16 @@ class DescriptorPackage(object):
 
         return self.descriptor_msg.name
 
+    @property
+    def descriptor_version(self):
+        desc_msg = self.descriptor_msg
+        return desc_msg.version if desc_msg.has_field("version") else ''
+
+    @property
+    def descriptor_vendor(self):
+        desc_msg = self.descriptor_msg
+        return desc_msg.vendor if desc_msg.has_field("vendor") else ''
+
     @classmethod
     def get_descriptor_patterns(cls):
         """ Returns a tuple of descriptor regex and Package Types  """
@@ -352,9 +362,15 @@ class DescriptorPackage(object):
 
         try:
             # Copy the contents of the file to the correct path
+            # For folder creation (or nested folders), dest_file appears w/ trailing "/" like: dir1/ or dir1/dir2/
+            # For regular file upload, dest_file appears as dir1/abc.txt
+
             dest_dir_path = os.path.dirname(dest_file)
             if not os.path.isdir(dest_dir_path):
                 os.makedirs(dest_dir_path)
+                if not os.path.basename(dest_file): 
+                    self._log.debug("Created dir path, no filename to insert in {}, skipping..".format(dest_dir_path))
+                    return
 
             with open(dest_file, 'wb') as dst_hdl:
                 with open(new_file, 'rb') as src_hdl:
@@ -415,10 +431,21 @@ class DescriptorPackage(object):
         Raises:
             NotADirectoryError - dest_root_dir is not a directory
         """
+        def find_prefix():
+            """ Find comon prefix of all files in package. This prefix will be 
+            used to collapse directory structure during extraction to eliminate 
+            empty nested folders.
+            """
+            common_dir = set() 
+            for f in self.files: 
+                common_dir.add(os.path.dirname(f))
+            prefix = os.path.commonprefix(list(common_dir))
+            return prefix if prefix else None
+
         if not os.path.isdir(dest_root_dir):
             raise NotADirectoryError(dest_root_dir)
 
-        self.extract_dir(None, dest_root_dir, extract_images)
+        self.extract_dir(find_prefix(), dest_root_dir, extract_images)
 
     def open(self, rel_path):
         """ Open a file contained in the package in read-only, binary mode.
@@ -477,7 +504,7 @@ class DescriptorPackage(object):
             raise PackageError("Empty file name added")
 
         if rel_path not in self._package_file_mode_map:
-            raise PackageError("File %s does not in package" % rel_path)
+            raise PackageError("File %s does not exist in package" % rel_path)
 
         del self._package_file_mode_map[rel_path]
 
@@ -525,6 +552,32 @@ class VnfdPackage(DescriptorPackage):
     def serializer(self):
         return VnfdPackage.SERIALIZER
 
+class PackageConstructValidator(object): 
+
+    def __init__(self, log):
+        self._log = log
+
+    def validate(self, package):
+        """ Validate presence of descriptor file (.yaml) at the top level in the 
+        package folder structure. 
+
+        Arguments: 
+            package - The Descriptor Package being validated. 
+        Returns: 
+            None
+        Raises:
+            PackageValidationError - The package validation failed for some
+              generic reason.
+        """
+        pass
+        desc_file = package.descriptor_file
+        prefix, desc_file = package.prefix.rstrip('/'), desc_file.rstrip('/')
+
+        if os.path.dirname(desc_file) != prefix: 
+            msg = "Descriptor file {} not found in expcted location {}".format(desc_file, prefix)
+            self._log.error(msg)
+            raise PackageValidationError(msg)
+
 
 class PackageChecksumValidator(object):
     """  This class uses the checksums.txt file in the package
@@ -535,6 +588,7 @@ class PackageChecksumValidator(object):
 
     def __init__(self, log):
         self._log = log
+        self.validated_file_checksums = {}
 
     @classmethod
     def get_package_checksum_file(cls, package):
@@ -543,6 +597,10 @@ class PackageChecksumValidator(object):
             raise FileNotFoundError("%s does not exist in archive" % checksum_file)
 
         return checksum_file
+
+    @property
+    def checksums(self):
+        return self.validated_file_checksums
 
     def validate(self, package):
         """ Validate file checksums match that in the checksums.txt
@@ -559,7 +617,6 @@ class PackageChecksumValidator(object):
             PackageFileChecksumError - A file within the package did not match the
               checksum within checksums.txt
         """
-        validated_file_checksums = {}
 
         try:
             checksum_file = PackageChecksumValidator.get_package_checksum_file(package)
@@ -567,7 +624,7 @@ class PackageChecksumValidator(object):
                 archive_checksums = checksums.ArchiveChecksums.from_file_desc(checksum_hdl)
         except (FileNotFoundError, PackageError) as e:
             self._log.warning("Could not open package checksum file.  Not validating checksums.")
-            return validated_file_checksums
+            return self.validated_file_checksums
 
         for pkg_file in package.files:
             if pkg_file == checksum_file:
@@ -595,9 +652,7 @@ class PackageChecksumValidator(object):
                 self._log.error(msg)
                 raise PackageFileChecksumError(pkg_file)
 
-            validated_file_checksums[pkg_file] = file_checksum
-
-        return validated_file_checksums
+            self.validated_file_checksums[pkg_file] = file_checksum
 
 
 class TarPackageArchive(object):

@@ -53,16 +53,6 @@ install(
       COMPONENT ${PKG_LONG_NAME}
     )
 
-install(
-    FILES
-      ${CMAKE_CURRENT_BINARY_DIR}/ping_vnfd_with_image.tar.gz
-      ${CMAKE_CURRENT_BINARY_DIR}/pong_vnfd_with_image.tar.gz
-    DESTINATION
-      usr/rift/mano/examples/ping_pong_ns
-    COMPONENT ${PKG_LONG_NAME}
-    OPTIONAL
-    )
-
 rift_python_install_tree(
   COMPONENT ${PKG_LONG_NAME}
   FILES

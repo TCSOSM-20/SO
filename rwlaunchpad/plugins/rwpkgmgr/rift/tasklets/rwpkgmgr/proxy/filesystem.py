@@ -22,6 +22,7 @@ import os
 
 import rift.package.store as store
 import rift.package.package
+import rift.package.icon as icon
 
 from .base import AbstractPackageManagerProxy
 
@@ -39,7 +40,7 @@ class FileSystemProxy(AbstractPackageManagerProxy):
     # Refer: https://confluence.riftio.com/display/ATG/Launchpad+package+formats
     SCHEMA = {
         "nsd": ["icons", "ns_config", "scripts", "vnf_config"],
-        "vnfd": ["charms", "cloud_init", "icons", "images", "scripts"]
+        "vnfd": ["charms", "cloud_init", "icons", "images", "scripts", "readme"]
     }
 
     SCHEMA_TO_PERMS = {'scripts': 0o777}
@@ -78,10 +79,15 @@ class FileSystemProxy(AbstractPackageManagerProxy):
 
         return self.SCHEMA[package_type]
 
-    def package_file_add(self, new_file, package_type, package_id, package_path):
+    def package_file_add(self, new_file, package_type, package_id, package_path, package_file_type):
         # Get the schema from thr package path
         # the first part will always be the vnfd/nsd name
         mode = 0o664
+
+        # for files other than README, create the package path from the asset type, e.g. icons/icon1.png
+        # for README files, strip off any leading '/' 
+        package_path = package_file_type + "/" + package_path \
+            if package_file_type != "readme" else package_path.strip('/')
         components = package_path.split("/")
         if len(components) > 2:
             schema = components[1]
@@ -94,32 +100,55 @@ class FileSystemProxy(AbstractPackageManagerProxy):
 
         # Construct abs path of the destination obj
         path = store._get_package_dir(package_id)
-        dest_file = os.path.join(path, package_path)
+        dest_file = os.path.join(path, package.prefix, package_path)
 
+        # Insert (by copy) the file in the package location. For icons, 
+        # insert also in UI location for UI to pickup
         try:
             package.insert_file(new_file, dest_file, package_path, mode=mode)
+
+            if package_file_type == 'icons': 
+                icon_extract = icon.PackageIconExtractor(self.log) 
+                icon_extract.extract_icons(package)
+
         except rift.package.package.PackageAppendError as e:
             self.log.exception(e)
             return False
 
+        self.log.debug("File insertion complete at {}".format(dest_file))
         return True
 
-    def package_file_delete(self, package_type, package_id, package_path):
+    def package_file_delete(self, package_type, package_id, package_path, package_file_type):
         package_type = package_type.lower()
         store = self._get_store(package_type)
         package = store.get_package(package_id)
 
+        # for files other than README, create the relative package path from the asset type
+        package_path_rel = package_file_type + "/" + package_path \
+            if package_file_type != "readme" else package_path
+
         # package_path has to be relative, so strip off the starting slash if
         # provided incorrectly.
-        if package_path[0] == "/":
-            package_path = package_path[1:]
+        if package_path_rel[0] == "/":
+            package_path_rel = package_path_rel[1:]
 
         # Construct abs path of the destination obj
         path = store._get_package_dir(package_id)
-        dest_file = os.path.join(path, package_path)
+        dest_file = os.path.join(path, package.prefix, package_path_rel)
 
         try:
-            package.delete_file(dest_file, package_path)
+            package.delete_file(dest_file, package_path_rel)
+
+            if package_file_type == 'icons': 
+                ui_icon_path = os.path.join(
+                        icon.PackageIconExtractor.DEFAULT_INSTALL_DIR, 
+                        package_type, 
+                        package_id)
+                if os.path.exists(ui_icon_path): 
+                    icon_file = os.path.join(ui_icon_path, package_path)
+                    self.log.debug("Deleting UI icon file path {}".format(icon_file))
+                    os.remove(icon_file)
+
         except rift.package.package.PackageAppendError as e:
             self.log.exception(e)
             return False

@@ -1,6 +1,6 @@
 
 /*
- * 
+ *
  *   Copyright 2016 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -95,28 +95,6 @@ module rw-nsr
     }
   }
 
-  grouping nsd-ref-count {
-    list nsd-ref-count {
-      key "nsd-id-ref";
-      description "This table maintains the number of NSRs used by each NSD";
-
-      leaf nsd-id-ref {
-        description "Reference to NSD";
-        type leafref {
-          path "/nsd:nsd-catalog/nsd:nsd/nsd:id";
-        }
-      }
-      leaf instance-ref-count {
-        description
-          "Reference count for the number of NSRs refering this NSD.
-           Every NS record instantiated using this descriptor takes
-           a reference on the NSD and releases the reference when the
-           network service is terminated. This desciptor cannot be
-           deleted when this counter is non zero";
-        type uint64;
-      }
-    }
-  }
 
   grouping rw-ns-instance-config {
     leaf cloud-account {
@@ -381,9 +359,6 @@ module rw-nsr
     uses operational-events;
   }
 
-  augment /nsr:ns-instance-opdata {
-    uses nsd-ref-count;
-  }
 
   augment /nsr:ns-instance-opdata/nsr:nsr/nsr:vlr {
     leaf assigned-subnet {

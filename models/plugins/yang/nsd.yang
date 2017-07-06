@@ -1,6 +1,6 @@
 
 /*
- * 
+ *
  *   Copyright 2016 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -148,8 +148,8 @@ module nsd
 
     leaf logo {
       description
-        "File path for  the vendor specific logo. For example icons/mylogo.png.
-         The logo  should be part of the network service";
+        "File path for the vendor-specific logo. For example, icons/mylogo.png.
+         The logo should be part of the network service";
       type string;
     }
 
@@ -166,16 +166,11 @@ module nsd
     list connection-point {
       description
           "List for external connection points.
-          Each NS has one or more external connection
-          points. As the name implies that external
-          connection points are used for connecting
-          the NS to other NS or to external networks.
-          Each NS exposes these connection points to
-          the orchestrator. The orchestrator can
-          construct network service chains by
-          connecting the connection points between
-          different NS.";
-
+          Each network service (NS) has one or more external connection
+          points that connect the NS to other NSs or to external networks.
+          Each NS exposes connection points to the orchestrator, which can
+          construct network service chains by connecting the connection
+          points between different NSs.";
       key "name";
       leaf name {
         description
@@ -190,12 +185,12 @@ module nsd
       }
     }
 
-    /* Still having issues modelling this,
+    /* Model Limitations,
        see the comments under vnfd-connection-point-ref
      */
     list vld {
       description
-          "List of Virtual Link Descriptors.";
+          "List of Virtual Link Descriptors (VLDs).";
 
       key "id";
 
@@ -262,7 +257,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-              "A reference to a vnfd";
+              "A reference to a VNFD";
           type leafref {
             path "../../../constituent-vnfd" +
                  "[member-vnf-index = current()/../member-vnf-index-ref]" +
@@ -284,7 +279,7 @@ module nsd
       uses manotypes:provider-network;
 
       leaf mgmt-network {
-         description "Flag indicating whether this network is a VIM management network"; 
+         description "Flag indicating whether this network is a VIM management network";
          type boolean;
          default false;
       }
@@ -304,10 +299,11 @@ module nsd
         case vim-network-profile {
           leaf ip-profile-ref {
             description "Named reference to IP-profile object";
-            type string;
-          } 
+            type leafref {
+              path "../../ip-profiles/name";
+            }
+          }
         }
-
       }
     }
 
@@ -321,8 +317,8 @@ module nsd
       leaf member-vnf-index {
         description
           "Identifier/index for the VNFD. This separate id
-           is required to ensure that multiple VNFs can be
-           part of single NS";
+           is required so that multiple VNFs can be part of
+           single NS";
         type uint64;
       }
 
@@ -344,7 +340,7 @@ module nsd
 
     list scaling-group-descriptor {
       description
-          "scaling group descriptor within this network service.
+          "Scaling group descriptor within this network service.
            The scaling group defines a group of VNFs,
            and the ratio of VNFs in the network service
            that is used as target for scaling action";
@@ -381,7 +377,7 @@ module nsd
 
         leaf scale-in-operation-type {
           description
-              "Operation to be applied to check between scaling criterias to 
+              "Operation to be applied to check between scaling criterias to
                check if the scale in threshold condition has been met.
                Defaults to AND";
           type scaling-criteria-operation;
@@ -390,9 +386,9 @@ module nsd
 
         leaf scale-out-operation-type {
           description
-              "Operation to be applied to check between scaling criterias to 
+              "Operation to be applied to check between scaling criterias to
                check if the scale out threshold condition has been met.
-               Defauls to OR";
+               Defaults to OR";
           type scaling-criteria-operation;
           default OR;
         }
@@ -407,7 +403,7 @@ module nsd
         leaf cooldown-time {
           description
             "The duration after a scaling-in/scaling-out action has been
-            triggered, for which there will be no further optional";
+            triggered, for which there will be no further scaling activity";
           type uint32;
           mandatory true;
         }
@@ -419,23 +415,26 @@ module nsd
           key "name";
 
           leaf name {
+            description "Name of the scaling criteria";
             type string;
           }
 
           leaf scale-in-threshold {
             description
-                "Value below which scale-in requests are generated";
+                "Value below which scale-in requests are generated
+                 (depends on monitoring parameters)";
             type uint64;
           }
 
           leaf scale-out-threshold {
             description
-                "Value above which scale-out requests are generated";
+                "Value above which scale-out requests are generated
+                 (depends on monitoring parameters)";
             type uint64;
           }
 
           leaf ns-monitoring-param-ref {
-            description 
+            description
                "Reference to the NS level monitoring parameter
                 that is aggregated";
             type leafref {
@@ -450,7 +449,7 @@ module nsd
         key "member-vnf-index-ref";
 
         leaf member-vnf-index-ref {
-          description "member VNF index of this member VNF";
+          description "Member VNF index of this member VNF";
           type leafref {
             path "../../../constituent-vnfd/member-vnf-index";
           }
@@ -458,9 +457,9 @@ module nsd
 
         leaf count {
           description
-            "count of this member VNF  within this scaling group.
-             The count allows to define  the number of instances
-             when a scaling action targets this scaling group";
+            "Count of this member VNF  within this scaling group.
+             The count defines the number of instances when a
+             scaling action targets this scaling group.";
           type uint32;
           default 1;
         }
@@ -468,19 +467,20 @@ module nsd
 
       leaf min-instance-count {
         description
-          "Minimum instances of the scaling group which are allowed.
-          These instances are created by default when the network service
-          is instantiated.";
+          "Minimum number of instances of the scaling group that
+          are allowed in a single network service. These instances
+          are created by default when the network service is
+          instantiated.";
         type uint32;
         default 0;
       }
 
       leaf max-instance-count {
         description
-          "Maximum instances of this scaling group that are allowed
-           in a single network service. The network service scaling
-           will fail, when the number of service group instances
-           exceed the max-instance-count specified.";
+          "Maximum number of instances of this scaling group that
+          are allowed in a single network service. The network
+          service scaling fails when the number of service group
+          instances exceeds the max-instance-count specified.";
         type uint32;
         default 10;
       }
@@ -490,7 +490,7 @@ module nsd
         key "trigger";
 
         leaf trigger {
-          description "scaling trigger";
+          description "Scaling trigger";
           type scaling-trigger;
         }
 
@@ -516,7 +516,7 @@ module nsd
         key "member-vnf-index-ref";
 
         leaf member-vnf-index-ref {
-          description "member VNF index of this member VNF";
+          description "Member VNF index of this member VNF";
           type leafref {
             path "../../../constituent-vnfd/member-vnf-index";
           }
@@ -526,7 +526,7 @@ module nsd
           description
               "Identifier for the VNFD.";
           type leafref {
-            path "../../../constituent-vnfd" + 
+            path "../../../constituent-vnfd" +
                  "[member-vnf-index = current()/../member-vnf-index-ref]" +
                  "/vnfd-id-ref";
           }
@@ -547,7 +547,7 @@ module nsd
       }
       leaf vnf-depends-on-ref {
         description
-            "Reference to VNF that sorce VNF depends.";
+            "Reference to VNF on which the source VNF depends.";
         type leafref {
           path "../../constituent-vnfd/vnfd-id-ref";
         }
@@ -686,7 +686,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-              "A reference to a vnfd";
+              "A reference to a VNFD";
           type leafref {
               path "../../../constituent-vnfd" +
                    "[member-vnf-index = current()/../member-vnf-index-ref]" +
@@ -718,7 +718,7 @@ module nsd
 
           leaf ip-proto {
             description
-                "IP Protocol.";
+                "Internet Protocol.";
             type uint8;
           }
 
@@ -745,22 +745,23 @@ module nsd
                 "Destination port number.";
             type inet:port-number;
           }
-          //TODO: Add more match criteria
         } //match-attributes
       } // classifier
     } // vnffgd
 
     list monitoring-param {
       description
-        "List of monitoring parameters from VNF's that should be
+        "List of monitoring parameters from VNFs that should be
         propogated up into NSR";
       key "id";
 
       leaf id {
+        description "Identifier for a monitoring parameter";
         type string;
       }
 
       leaf name {
+        description "Name of the monitoring parameter";
         type string;
       }
 
@@ -774,7 +775,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-             "A reference to a vnfd. This is a leafref";
+             "A reference to a VNFD. This is a leafref";
 
           type leafref {
             path "../../../constituent-vnfd" +
@@ -806,8 +807,8 @@ module nsd
 
     list parameter-pool {
       description
-        "Pool of parameter values which must be
-         pulled from during configuration";
+         "Pool of parameter values from which to choose during
+         configuration.";
       key "name";
 
       leaf name {
@@ -818,7 +819,7 @@ module nsd
 
       container range {
         description
-            "Create a range of values to populate the pool with";
+            "Create a range of values from which to populate the pool with";
 
         leaf start-value {
           description
@@ -873,7 +874,7 @@ module nsd
 
         leaf vnfd-id-ref {
           description
-              "A reference to a vnfd. This is a leafref";
+              "A reference to a VNFD. This is a leafref";
 
           type leafref {
              path "../../../constituent-vnfd" +
@@ -912,7 +913,7 @@ module nsd
         type string;
       }
     }
- 
+
     list initial-config-primitive {
       rwpb:msg-new NsdInitialConfigPrimitive;
       description
@@ -925,7 +926,7 @@ module nsd
     list key-pair {
       key "name";
       description "Used to configure the list of public keys to be injected as part
-          of ns instantiation";
+          of NS instantiation";
 
       leaf name {
         description "Name of this key pair";
@@ -955,7 +956,7 @@ module nsd
       list key-pair {
         key "name";
         description "Used to configure the list of public keys to be injected as part
-            of ns instantiation";
+            of NS instantiation";
 
         leaf name {
           description "Name of this key pair";

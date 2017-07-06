@@ -732,7 +732,7 @@ class ConfigManagerConfig(object):
                 vdu_data = []
                 for vdu in vnfr['vdur']:
                     d = {}
-                    for k in ['name','management_ip', 'vm_management_ip', 'id']:
+                    for k in ['name','management_ip', 'vm_management_ip', 'id', 'vdu_id_ref']:
                         if k in vdu:
                             d[k] = vdu[k]
                     vdu_data.append(d)

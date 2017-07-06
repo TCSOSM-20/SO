@@ -43,6 +43,11 @@ rift_py3test(utest_publisher_dts.test_url_download
   ${CMAKE_CURRENT_SOURCE_DIR}/utest_publisher_dts.py TestCase.test_url_download
   )
 
+rift_py3test(utest_publisher_dts.test_url_download_unreachable_ip
+  TEST_ARGS
+  ${CMAKE_CURRENT_SOURCE_DIR}/utest_publisher_dts.py TestCase.test_url_download_unreachable_ip
+  )
+
 rift_py3test(utest_publisher_dts.test_cancelled
   TEST_ARGS
   ${CMAKE_CURRENT_SOURCE_DIR}/utest_publisher_dts.py TestCase.test_cancelled
@@ -53,6 +58,7 @@ add_custom_target(utest_publisher_dts.py
     utest_publisher_dts.test_download_publisher
     utest_publisher_dts.test_publish
     utest_publisher_dts.test_url_download
+    utest_publisher_dts.test_url_download_unreachable_ip
     utest_publisher_dts.test_cancelled
   )
 

@@ -23,7 +23,6 @@ import os
 import tempfile
 import threading
 import time
-import uuid
 import zlib
 
 import requests
@@ -34,12 +33,7 @@ from requests.packages.urllib3.util.retry import Retry
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-import gi
-gi.require_version("RwPkgMgmtYang", "1.0")
-
-from gi.repository import RwPkgMgmtYang
 from . import base
-
 
 class UrlDownloader(base.AbstractDownloader):
     """Handles downloads of URL with some basic retry strategy.
@@ -106,7 +100,9 @@ class UrlDownloader(base.AbstractDownloader):
 
     def _create_session(self):
         session = requests.Session()
-        retries = Retry(total=5, backoff_factor=1)
+        # 3 connection attempts should be more than enough, We can't wait forever!
+        # The user needs to be  updated of the status
+        retries = Retry(total=2, backoff_factor=1)
         session.mount("http://", HTTPAdapter(max_retries=retries))
         session.mount("https://", HTTPAdapter(max_retries=retries))
 
@@ -153,8 +149,8 @@ class UrlDownloader(base.AbstractDownloader):
 
             try:
                 os.remove(self.filepath)
-            except Exception as e:
-                self.log.exception(e)
+            except Exception:
+                pass
 
     def download(self):
         """Start the download
@@ -186,12 +182,15 @@ class UrlDownloader(base.AbstractDownloader):
 
     def _download(self):
 
-        url_options = {"verify": False}
+        url_options = {"verify": False, "timeout": 10}
 
         if self.auth is not None:
             url_options["auth"] = self.auth
 
         response = self.session.head(self.url, **url_options)
+
+        if response.status_code != requests.codes.ok:
+            response.raise_for_status()
 
         # Prepare the meta data
         self.meta.update_data_with_head(response.headers)

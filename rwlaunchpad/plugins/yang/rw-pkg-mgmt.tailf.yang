@@ -35,7 +35,15 @@ module rw-pkg-mgmt-annotation
     tailf:callpoint rw_callpoint;
   }
 
+  tailf:annotate "/rw-pkg-mgmt:copy-jobs" {
+    tailf:callpoint rw_callpoint;
+  }
+
   tailf:annotate "/rw-pkg-mgmt:get-package-endpoint" {
+     tailf:actionpoint rw_actionpoint;
+  }
+
+  tailf:annotate "/rw-pkg-mgmt:package-copy" {
      tailf:actionpoint rw_actionpoint;
   }
 

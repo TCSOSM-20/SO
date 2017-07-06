@@ -164,11 +164,11 @@ class RiftCMRPCHandler(object):
 
                 try:
                     vnfr_data_dict['vdur'] = []
-                    vdu_data = [(vdu['name'], vdu['management_ip'], vdu['vm_management_ip'], vdu['id'])
+                    vdu_data = [(vdu['name'], vdu['management_ip'], vdu['vm_management_ip'], vdu['id'], vdu['vdu_id_ref'])
                                 for vdu in vnfr.vnfr['vdur']]
 
                     for data in vdu_data:
-                        data = dict(zip(['name', 'management_ip', 'vm_management_ip', 'id'] , data))
+                        data = dict(zip(['name', 'management_ip', 'vm_management_ip', 'id', 'vdu_id_ref'] , data))
                         vnfr_data_dict['vdur'].append(data)
 
                     vnfr_data_map[vnfr.member_vnf_index] = vnfr_data_dict

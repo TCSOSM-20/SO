@@ -192,7 +192,7 @@ class RiftCMConfigAgent(object):
     def _on_config_agent_delete(self, config_agent):
         self._log.debug("Got nsm plugin config agent delete, account: %s, type: %s",
                 config_agent.name, config_agent.account_type)
-        cap_name = config_agent.account_type
+        cap_name = config_agent.name
         if cap_name in self._plugin_instances:
             self._log.debug("Config agent nsm plugin exists, deleting it.")
             del self._plugin_instances[cap_name]

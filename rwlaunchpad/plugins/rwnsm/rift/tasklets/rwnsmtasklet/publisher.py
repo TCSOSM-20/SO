@@ -1,4 +1,4 @@
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,7 +62,7 @@ class NsrOpDataDtsHandler(object):
         Create an NS record in DTS with the path and message
         """
         self._log.debug("Creating NSR xact = %s, %s:%s", xact, path, msg)
-        self.regh.create_element(path, msg)
+        self.regh.create_element(path, msg, xact=xact)
         self._log.debug("Created NSR xact = %s, %s:%s", xact, path, msg)
 
     @asyncio.coroutine
@@ -71,7 +71,7 @@ class NsrOpDataDtsHandler(object):
         Update an NS record in DTS with the path and message
         """
         self._log.debug("Updating NSR xact = %s, %s:%s regh = %s", xact, path, msg, self.regh)
-        self.regh.update_element(path, msg, flags)
+        self.regh.update_element(path, msg, flags, xact=xact)
         self._log.debug("Updated NSR xact = %s, %s:%s", xact, path, msg)
 
     @asyncio.coroutine
@@ -80,9 +80,8 @@ class NsrOpDataDtsHandler(object):
         Update an NS record in DTS with the path and message
         """
         self._log.debug("Deleting NSR xact:%s, path:%s", xact, path)
-        self.regh.delete_element(path)
+        self.regh.delete_element(path, xact=xact)
         self._log.debug("Deleted NSR xact:%s, path:%s", xact, path)
-
 
 
 class VnfrPublisherDtsHandler(object):
@@ -134,7 +133,7 @@ class VnfrPublisherDtsHandler(object):
         """
         self._log.debug("Creating VNFR xact = %s, %s:%s",
                         xact, path, msg)
-        self.regh.create_element(path, msg)
+        self.regh.create_element(path, msg, xact=xact)
         self._log.debug("Created VNFR xact = %s, %s:%s",
                         xact, path, msg)
 
@@ -145,7 +144,7 @@ class VnfrPublisherDtsHandler(object):
         """
         self._log.debug("Updating VNFR xact = %s, %s:%s",
                         xact, path, msg)
-        self.regh.update_element(path, msg)
+        self.regh.update_element(path, msg, xact=xact)
         self._log.debug("Updated VNFR xact = %s, %s:%s",
                         xact, path, msg)
 
@@ -155,7 +154,7 @@ class VnfrPublisherDtsHandler(object):
         Delete a VNFR record in DTS with path and message
         """
         self._log.debug("Deleting VNFR xact = %s, %s", xact, path)
-        self.regh.delete_element(path)
+        self.regh.delete_element(path, xact=xact)
         self._log.debug("Deleted VNFR xact = %s, %s", xact, path)
 
 
@@ -208,7 +207,7 @@ class VlrPublisherDtsHandler(object):
         """
         self._log.debug("Creating VLR xact = %s, %s:%s",
                         xact, path, msg)
-        self.regh.create_element(path, msg)
+        self.regh.create_element(path, msg, xact=xact)
         self._log.debug("Created VLR xact = %s, %s:%s",
                         xact, path, msg)
 
@@ -219,7 +218,7 @@ class VlrPublisherDtsHandler(object):
         """
         self._log.debug("Updating VLR xact = %s, %s:%s",
                         xact, path, msg)
-        self.regh.update_element(path, msg)
+        self.regh.update_element(path, msg, xact=xact)
         self._log.debug("Updated VLR xact = %s, %s:%s",
                         xact, path, msg)
 
@@ -229,7 +228,7 @@ class VlrPublisherDtsHandler(object):
         Delete a VLR record in DTS with path and message
         """
         self._log.debug("Deleting VLR xact = %s, %s", xact, path)
-        self.regh.delete_element(path)
+        self.regh.delete_element(path, xact=xact)
         self._log.debug("Deleted VLR xact = %s, %s", xact, path)
 
 
@@ -286,4 +285,3 @@ class VnfdPublisher(object):
             update,
             vnfd
             )
-

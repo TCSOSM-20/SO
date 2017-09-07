@@ -16,7 +16,6 @@
 
 import asyncio
 import concurrent.futures
-import gi
 import time
 import gi
 
@@ -39,6 +38,7 @@ import rift.mano.utils.juju_api as juju
 class ConfigAgentAccountNotFound(Exception):
     pass
 
+
 class JujuClient(object):
     def __init__(self, log, ip, port, user, passwd):
         self._log = log
@@ -51,29 +51,39 @@ class JujuClient(object):
                                  server=ip, port=port,
                                  user=user, secret=passwd)
 
-
     def validate_account_creds(self):
-        status = RwcalYang.YangData_Rwcal_ConnectionStatus()
+        """Validate the account credentials.
+
+        Verifies if the account credentials can connect and login to a Juju
+        controller at the provided IP address.
+        """
+        status = "unknown"
+        details = "Connection status not known."
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            env = self._api._get_env()
-        except juju.JujuEnvError as e:
-            msg = "JujuClient: Invalid account credentials: %s", str(e)
-            self._log.error(msg)
-            raise Exception(msg)
-        except ConnectionRefusedError as e:
-            msg = "JujuClient: Wrong IP or Port: %s", str(e)
-            self._log.error(msg)
-            raise Exception(msg)
+            loop.run_until_complete(asyncio.gather(
+                self._api.logout(),
+                self._api.login(),
+                loop=loop,
+            ))
         except Exception as e:
             msg = "JujuClient: Connection Failed: %s", str(e)
             self._log.error(msg)
             raise Exception(msg)
         else:
-            status.status = "success"
-            status.details = "Connection was successful"
+            self._log.error("Success reached.")
+            status = "success"
+            details = "Connection was successful"
             self._log.info("JujuClient: Connection Successful")
+        finally:
+            loop.close()
 
-        return status
+        return RwConfigAgentYang.YangData_RwProject_Project_ConfigAgent_Account_ConnectionStatus(
+            status="unknown",
+            details="Connection status lookup not started"
+        )
 
 
 class ConfigAgentAccount(object):
@@ -136,7 +146,7 @@ class ConfigAgentAccount(object):
             try:
                 status = yield from loop.run_in_executor(
                     None,
-                    self._cfg_agent_client_plugin.validate_account_creds
+                    self._cfg_agent_client_plugin.validate_account_creds,
                     )
                 self._status = RwConfigAgentYang.YangData_RwProject_Project_ConfigAgent_Account_ConnectionStatus.from_dict(status.as_dict())
             except Exception as e:

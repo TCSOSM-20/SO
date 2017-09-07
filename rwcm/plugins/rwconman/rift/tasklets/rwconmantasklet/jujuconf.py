@@ -175,7 +175,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                           'tags': {},
                           'active': False,
                           'config': vnf_config,
-                          'vnfr_name' : agent_vnfr.name})
+                          'vnfr_name': agent_vnfr.name})
         self._log.debug("jujuCA: Charm %s for vnf %s to be deployed as %s",
                         charm, agent_vnfr.name, vnf_unique_name)
 
@@ -200,7 +200,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             self._tasks[vnf_unique_name] = {}
 
         self._tasks[vnf_unique_name]['deploy'] = self.loop.create_task(
-            self.api.deploy_service(charm, vnf_unique_name, path=path))
+            self.api.deploy_application(charm, vnf_unique_name, path=path))
 
         self._log.debug("jujuCA: Deploying service %s",
                         vnf_unique_name)
@@ -242,7 +242,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             self._log.debug ("jujuCA: Terminating VNFr %s, %s",
                              agent_vnfr.name, service)
             self._tasks[service]['destroy'] = self.loop.create_task(
-                    self.api.destroy_service(service)
+                    self.api.remove_application(service)
                 )
 
             del self._juju_vnfs[agent_vnfr.id]
@@ -255,7 +255,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                     tasks.append(action)
                 del tasks
         except KeyError as e:
-            self._log.debug ("jujuCA: Termiating charm service for VNFr {}, e={}".
+            self._log.debug ("jujuCA: Terminating charm service for VNFr {}, e={}".
                              format(agent_vnfr.name, e))
         except Exception as e:
             self._log.error("jujuCA: Exception terminating charm service for VNFR {}: {}".
@@ -360,10 +360,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                                             "params {} for service {}".
                                             format(params, service))
 
-                            rc = yield from self.api.apply_config(
-                                params,
-                                service=service,
-                                wait=True)
+                            rc = yield from self.api.apply_config(params, application=service)
 
                             if rc:
                                 rc = "completed"
@@ -387,9 +384,10 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                                         format(config.name, service, params))
 
                         resp = yield from self.api.execute_action(
+                            service,
                             config.name,
-                            params,
-                            service=service)
+                            **params,
+                        )
 
                         if resp:
                             if 'error' in resp:
@@ -585,12 +583,11 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                             format(vnfr_msg.name))
             return True
 
-        service = vnfr['vnf_juju_name']
-        rc = yield from self.api.is_service_up(service=service)
+        rc = yield from self.api.is_application_up(application=service)
         if not rc:
             return False
 
-        action_ids = []
+        # action_ids = []
         try:
             if vnfr_msg.mgmt_interface.ip_address:
                 vnfr['tags'].update({'rw_mgmt_ip': vnfr_msg.mgmt_interface.ip_address})
@@ -633,73 +630,67 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                                 val = self.xlate(param.value,
                                                  vnfr['tags'])
                                 config.update({param.name: val})
+            except KeyError as e:
+                self._log.exception("jujuCA:(%s) Initial config error(%s): config=%s",
+                                    vnfr['vnf_juju_name'], str(e), config)
+                config = None
+                return False
+
+            if config:
+                self.juju_log('info', vnfr['vnf_juju_name'],
+                              "Applying Initial config:%s",
+                              config)
+
+                rc = yield from self.api.apply_config(
+                    config,
+                    application=service,
+                )
+                if rc is False:
+                    self.log.error("Service {} is in error state".format(service))
+                    return False
 
                         if config:
                             self.juju_log('info', vnfr['vnf_juju_name'],
                                           "Applying Initial config:%s",
                                           config)
 
-                            rc = yield from self.api.apply_config(
-                                config,
-                                service=service)
-                            if rc is False:
-                                self.log.error("Service {} is in error state".
-                                               format(service))
-                                return False
+            # Apply any actions specified as part of initial config
+            for primitive in vnfr['config'].initial_config_primitive:
+                if primitive.name != 'config':
+                    self._log.debug("jujuCA:(%s) Initial config action primitive %s",
+                                    vnfr['vnf_juju_name'], primitive)
+                    action = primitive.name
+                    params = {}
+                    for param in primitive.parameter:
+                        val = self.xlate(param.value, vnfr['tags'])
+                        params.update({param.name: val})
 
-                    # Apply any actions specified as part of initial config
-                    else:
-                        self._log.debug("(%s) Initial config action "
-                                        "primitive %s",
-                                        vnfr['vnf_juju_name'], primitive)
-                        action = primitive.name
-                        params = {}
-                        for param in primitive.parameter:
-                            val = self.xlate(param.value, vnfr['tags'])
-                            params.update({param.name: val})
+                    self._log.info("jujuCA:(%s) Action %s with params %s",
+                                   vnfr['vnf_juju_name'], action, params)
+                    self._log.debug("executing action")
+                    resp = yield from self.api.execute_action(
+                        service,
+                        action,
+                        **params,
+                    )
+                    self._log.debug("executed action")
+                    if 'error' in resp:
+                        self._log.error("Applying initial config on {} failed for {} with {}: {}".
+                                        format(vnfr['vnf_juju_name'], action, params, resp))
+                        return False
 
-                            self._log.info("(%s) Action %s with params %s",
-                                           vnfr['vnf_juju_name'], action,
-                                           params)
-
-                        resp = yield from self.api.execute_action(
-                            action,
-                            params,
-                            service=service)
-                        if 'error' in resp:
-                            self._log.error("Applying initial config on {}"
-                                            " failed for {} with {}: {}".
-                                            format(vnfr['vnf_juju_name'],
-                                                   action, params, resp))
-                            return False
-
-                        action_ids.append(resp['action']['tag'])
-
+                    # action_ids.append(resp['action']['tag'])
+                    # action_ids.append(resp)
+        except KeyError as e:
+            self._log.info("Juju config agent(%s): VNFR %s not managed by Juju",
+                           vnfr['vnf_juju_name'], agent_vnfr.id)
+            return False
         except Exception as e:
             self._log.exception("jujuCA:(%s) Exception juju "
                                 "apply_initial_config for VNFR {}: {}".
                                 format(vnfr['vnf_juju_name'],
                                        agent_vnfr.id, e))
             return False
-
-        # Check if all actions completed
-        pending = True
-        while pending:
-            pending = False
-            for act in action_ids:
-                resp = yield from self.api.get_action_status(act)
-                if 'error' in resp:
-                    self._log.error("Initial config failed for action {}: {}".
-                                    format(act, resp))
-                    return False
-
-                if resp['status'] == 'failed':
-                    self._log.error("Initial config action failed for "
-                                    "action {}: {}".format(act, resp))
-                    return False
-
-                if resp['status'] == 'pending':
-                    pending = True
 
         return True
 
@@ -728,7 +719,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
 
             vnfr = self._juju_vnfs[vnfr_id].vnfr
             service = vnfr['vnf_juju_name']
-            resp = self.api.is_service_active(service=service)
+            resp = self.api.is_application_active(application=service)
             self._juju_vnfs[vnfr_id]['active'] = resp
             self._log.debug("jujuCA: Service state for {} is {}".
                             format(service, resp))
@@ -761,7 +752,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             return rc
 
         try:
-            resp = yield from self.api.get_service_status(service=service)
+            resp = yield from self.api.get_service_status(application=service)
             self._log.debug("jujuCA: Get service %s status? %s", service, resp)
 
             if resp == 'error':

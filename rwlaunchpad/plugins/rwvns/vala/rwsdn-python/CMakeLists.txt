@@ -17,4 +17,4 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwsdn-plugin rwsdn-plugin.py)
+rift_install_gobject_python_plugin(rwsdn-plugin rwsdn-plugin.py COMPONENT ${INSTALL_COMPONENT})

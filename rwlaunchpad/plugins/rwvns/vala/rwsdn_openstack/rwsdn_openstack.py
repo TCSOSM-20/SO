@@ -94,7 +94,9 @@ class OpenstackL2PortChainingDriver(object):
         cert_validate = kwargs['cert_validate'] if 'cert_validate' in kwargs else False
         region = kwargs['region_name'] if 'region_name' in kwargs else False
 
-        discover = ks_drv.KeystoneVersionDiscover(kwargs['auth_url'], logger = self.log)
+        discover = ks_drv.KeystoneVersionDiscover(kwargs['auth_url'], 
+                                                  cert_validate,
+                                                  logger = self.log)
         (major, minor) = discover.get_version()
 
         self.sess_drv = sess_drv.SessionDriver(auth_method = 'password',
@@ -112,7 +114,7 @@ class OpenstackL2PortChainingDriver(object):
                                                         logger = self.log)
 
     def validate_account_creds(self):
-        status = RwsdnalYang.SdnConnectionStatus()
+        status = RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList_ConnectionStatus()
         try:
             self.sess_drv.invalidate_auth_token()
             self.sess_drv.auth_token
@@ -279,7 +281,7 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
         Returns:
             Validation Code and Details String
         """
-        status = RwsdnalYang.SdnConnectionStatus()
+        status = RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList_ConnectionStatus()
         try:
             drv = self._use_driver(account)
             drv.validate_account_creds()
@@ -322,7 +324,7 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
             else:
                 prev_vm_id = path.vnfr_ids[0].vdu_list[0].vm_id
                 port_list.append((path.vnfr_ids[0].vdu_list[0].port_id, path.vnfr_ids[0].vdu_list[0].port_id))
-        vnffg_id = drv.create_port_chain(vnffg.name, port_list)
+        vnffg_id = drv.portchain_drv.create_port_chain(vnffg.name, port_list)
         return vnffg_id
 
     @rwstatus
@@ -390,7 +392,7 @@ class SdnOpenstackPlugin(GObject.Object, RwSdn.Topology):
            @param account - a SDN account
         """
         self.log.debug('Received get VNFFG rendered path for account %s ', account)
-        vnffg_rsps = RwsdnalYang.VNFFGRenderedPaths() 
+        vnffg_rsps = RwsdnalYang.YangData_RwProject_Project_VnffgRenderedPaths() 
         drv = self._use_driver(account)
         port_chain_list = drv.get_port_chain_list()
         for port_chain in port_chain_list:

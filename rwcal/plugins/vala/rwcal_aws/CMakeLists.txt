@@ -17,12 +17,9 @@
 
 include(rift_plugin)
 
-set(PKG_NAME rwcal-aws)
-set(PKG_VERSION 1.0)
-set(PKG_RELEASE 1)
-set(PKG_LONG_NAME ${PKG_NAME}-${PKG_VERSION})
+set(INSTALL_COMPONENT rwcal-plugin-aws)
 
-rift_install_python_plugin(rwcal_aws rwcal_aws.py)
+rift_install_gobject_python_plugin(rwcal_aws rwcal_aws.py COMPONENT ${INSTALL_COMPONENT})
 
 rift_python_install_tree(
   FILES
@@ -33,5 +30,5 @@ rift_python_install_tree(
     rift/rwcal/aws/prepare_vm.py
     rift/rwcal/aws/delete_vm.py
   PYTHON3_ONLY
-  COMPONENT ${PKG_LONG_NAME})
+  COMPONENT ${INSTALL_COMPONENT})
 

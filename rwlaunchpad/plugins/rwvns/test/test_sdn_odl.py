@@ -38,9 +38,9 @@ odl_info = {
 
 def get_sdn_account():
     """
-    Creates an object for class RwsdnalYang.SdnAccount()
+    Creates an object for class RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList()
     """
-    account                 = RwsdnalYang.SDNAccount()
+    account                 = RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList()
     account.name            = "grunt27"
     account.account_type    = "odl"
     account.odl.plugin_name = "rwsdn_odl"

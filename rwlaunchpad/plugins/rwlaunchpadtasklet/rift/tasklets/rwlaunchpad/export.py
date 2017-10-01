@@ -1,6 +1,6 @@
 
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -37,14 +37,15 @@ from . import message
 from . import tosca
 
 import gi
-gi.require_version('NsdYang', '1.0')
-gi.require_version('VnfdYang', '1.0')
 gi.require_version('RwPkgMgmtYang', '1.0')
 
 from gi.repository import (
-        NsdYang,
-        VnfdYang,
-        RwPkgMgmtYang)
+        RwPkgMgmtYang,
+        RwVnfdYang, 
+        RwProjectVnfdYang, 
+        RwNsdYang,
+        RwProjectNsdYang
+)
 import rift.mano.dts as mano_dts
 
 
@@ -95,7 +96,7 @@ class DescriptorPackageArchiveExporter(object):
         finally:
             package.open = orig_open
 
-    def create_archive(self, archive_hdl, package, desc_json_str, serializer):
+    def create_archive(self, archive_hdl, package, desc_json_str, serializer, project=None):
         """ Create a package archive from an existing package, descriptor messages,
             and a destination serializer.
 
@@ -117,7 +118,7 @@ class DescriptorPackageArchiveExporter(object):
             ArchiveExportError - The exported archive failed to create
 
         """
-        new_desc_msg = serializer.from_file_hdl(io.BytesIO(desc_json_str.encode()), ".json")
+        new_desc_msg = serializer.from_file_hdl(io.BytesIO(desc_json_str.encode()), ".json", project)
         _, dest_ext = os.path.splitext(package.descriptor_file)
         new_desc_hdl = io.BytesIO(serializer.to_string(new_desc_msg, dest_ext).encode())
         descriptor_checksum = rift.package.checksums.checksum(new_desc_hdl)
@@ -141,7 +142,10 @@ class DescriptorPackageArchiveExporter(object):
                         checksum_hdl
                         )
 
-            archive_checksums[package.descriptor_file] = descriptor_checksum
+            # Get the name of the descriptor file without the prefix
+            # (which is what is stored in the checksum file)
+            desc_file_no_prefix = os.path.relpath(package.descriptor_file, package.prefix)
+            archive_checksums[desc_file_no_prefix] = descriptor_checksum
 
             checksum_hdl = io.BytesIO(archive_checksums.to_string().encode())
             return checksum_hdl
@@ -160,7 +164,7 @@ class DescriptorPackageArchiveExporter(object):
 
         return archive
 
-    def export_package(self, package, export_dir, file_id, json_desc_str, dest_serializer):
+    def export_package(self, package, export_dir, file_id, json_desc_str, dest_serializer, project=None):
         """ Export package as an archive to the export directory
 
         Arguments:
@@ -185,7 +189,7 @@ class DescriptorPackageArchiveExporter(object):
         with open(archive_path, 'wb') as archive_hdl:
             try:
                 self.create_archive(
-                    archive_hdl, package, json_desc_str, dest_serializer
+                    archive_hdl, package, json_desc_str, dest_serializer, project
                     )
             except Exception as e:
                 os.remove(archive_path)
@@ -197,22 +201,20 @@ class DescriptorPackageArchiveExporter(object):
 
 
 class ExportRpcHandler(mano_dts.AbstractRpcHandler):
-    def __init__(self, log, dts, loop, application, store_map, exporter, onboarder, catalog_map):
+    def __init__(self, application, catalog_map):
         """
         Args:
             application: UploaderApplication
-            store_map: dict containing VnfdStore & NsdStore
-            exporter : DescriptorPackageArchiveExporter
             calalog_map: Dict containing Vnfds and Nsd onboarding.
         """
-        super().__init__(log, dts, loop)
+        super().__init__(application.log, application.dts, application.loop)
 
         self.application = application
-        self.store_map = store_map
-        self.exporter = exporter
-        self.onboarder = onboarder
+        self.exporter = application.exporter
+        self.onboarder = application.onboarder
         self.catalog_map = catalog_map
-        self.log = log
+
+
 
     @property
     def xpath(self):
@@ -235,6 +237,11 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
         return rpc_out
 
     def export(self, transaction_id, log, msg):
+        DESC_TYPE_PB_MAP = { 
+            "vnfd": RwProjectVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd,
+            "nsd": RwProjectNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd
+        }
+        
         log.message(ExportStart())
         desc_type = msg.package_type.lower()
 
@@ -243,12 +250,19 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
 
         # Parse the IDs
         desc_id = msg.package_id
-        catalog = self.catalog_map[desc_type]
+        catalog = self.catalog_map[desc_type](project=msg.project_name)
 
-        if desc_id not in catalog:
-            raise ValueError("Unable to find package ID: {}".format(desc_id))
-
-        desc_msg = catalog[desc_id]
+        # TODO: Descriptor isn't available from catalog info passed in from launchpad tasklet.
+        # If unavailable, create a filler descriptor object, which will be updated  
+        # via GET call to config. 
+        if desc_id in catalog: 
+            desc_msg = catalog[desc_id]
+        else: 
+            log.warn("Unable to find package ID in catalog: {}".format(desc_id))
+            desc_msg = DESC_TYPE_PB_MAP[desc_type](id = desc_id)
+            
+        self.store_map = self.application.build_store_map(project=msg.project_name)
+        self.project_name = msg.project_name if msg.has_field('project_name') else None
 
         # Get the schema for exporting
         schema = msg.export_schema.lower()
@@ -310,6 +324,11 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
         # If that fails, create a temporary package using the descriptor only
         try:
             package = package_store.get_package(desc_id)
+            #Remove the image file from the package while exporting
+            for file in package.files:
+                if rift.package.image.is_image_file(file):
+                    package.remove_file(file)
+            
         except rift.package.store.PackageNotFoundError:
             log.debug("stored package not found.  creating package from descriptor config")
 
@@ -320,29 +339,34 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
                     log, hdl
                     )
 
-        # Try to get the updated descriptor from the api endpoint so that we have 
-        # the updated descriptor file in the exported archive and the name of the archive 
-        # tar matches the name in the yaml descriptor file. Proceed with the current 
-        # file if there's an error
+        # Get the updated descriptor from the api endpoint to get any updates
+        # made to the catalog. Also desc_msg may not be populated correctly as yet. 
         #
-        json_desc_msg = src_serializer.to_json_string(desc_msg)
-        desc_name, desc_version = desc_msg.name, desc_msg.version
-        try: 
-            d = collections.defaultdict(dict)
-            sub_dict = self.onboarder.get_updated_descriptor(desc_msg)
-            root_key, sub_key = "{0}:{0}-catalog".format(desc_type), "{0}:{0}".format(desc_type)
-            # root the dict under "vnfd:vnfd-catalog" 
-            d[root_key] = sub_dict
-            
-            json_desc_msg = json.dumps(d)
-            desc_name, desc_version = sub_dict[sub_key]['name'], sub_dict[sub_key]['version']
 
+        try: 
+            # merge the descriptor content: for rbac everything needs to be project rooted, with project name.
+            D = collections.defaultdict(dict)
+            sub_dict = self.onboarder.get_updated_descriptor(desc_msg, self.project_name)
+
+            if self.project_name: 
+                D["project"] = dict(name = self.project_name)
+                root_key, sub_key = "project-{0}:{0}-catalog".format(desc_type), "project-{0}:{0}".format(desc_type)
+                D["project"].update({root_key: sub_dict})
+            else:
+                root_key, sub_key = "{0}:{0}-catalog".format(desc_type), "{0}:{0}".format(desc_type)
+                D[root_key] = sub_dict
+            
+            json_desc_msg = json.dumps(D)
+            desc_name, desc_version = sub_dict[sub_key]['name'], sub_dict[sub_key].get('version', '')
+        
         except Exception as e:
             msg = "Exception {} raised - {}".format(e.__class__.__name__, str(e)) 
-            self.log.debug(msg)
+            self.log.error(msg)
+            raise ArchiveExportError(msg) from e
 
         # exported filename based on the updated descriptor name
         self.filename = "{}_{}".format(desc_name, desc_version)
+        self.log.debug("JSON string for descriptor: {}".format(json_desc_msg))        
 
         self.exporter.export_package(
                 package=package,
@@ -350,6 +374,7 @@ class ExportRpcHandler(mano_dts.AbstractRpcHandler):
                 file_id = self.filename,
                 json_desc_str=json_desc_msg,
                 dest_serializer=dest_serializer,
+                project=self.project_name,
                 )
 
     def export_tosca(self, format_, schema, desc_type, desc_id, desc_msg, log, transaction_id):

@@ -17,4 +17,4 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwve_vnfm_vnf_rest rwve_vnfm_vnf_rest.py)
+rift_install_gobject_python_plugin(rwve_vnfm_vnf_rest rwve_vnfm_vnf_rest.py COMPONENT ${INSTALL_COMPONENT})

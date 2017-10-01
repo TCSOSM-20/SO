@@ -57,13 +57,13 @@ class ToscaVnfConfiguration(ManoResource):
             self._vnf_id = vnf_node.id
         self.properties["vnf-configuration"] = {}
         prop = {}
-        prop["config-attributes"] = {}
+        #prop["config-attributes"] = {}
         prop["script"] = {}
         if 'config' in tosca_props:
-            if 'config_delay' in tosca_props['config']:
-                prop["config-attributes"]['config-delay'] = tosca_props['config']['config_delay']
-            if 'config_priority' in tosca_props['config']:
-                prop["config-attributes"]['config-priority'] = tosca_props['config']['config_priority']
+           # if 'config_delay' in tosca_props['config']:
+           #     prop["config-attributes"]['config-delay'] = tosca_props['config']['config_delay']
+           # if 'config_priority' in tosca_props['config']:
+           #     prop["config-attributes"]['config-priority'] = tosca_props['config']['config_priority']
             if 'config_template' in tosca_props['config']:
                 prop["config-template"] = tosca_props['config']['config_template']
             if 'config_details' in tosca_props['config']:
@@ -71,15 +71,16 @@ class ToscaVnfConfiguration(ManoResource):
                     prop["script"]["script-type"] = tosca_props['config']['config_details']['script_type']
             if 'initial_config' in tosca_props:
                 prop['initial-config-primitive'] = []
-                #print("Weleek  " + str(tosca_props['initial_config']))
                 for init_config in tosca_props['initial_config']:
                     if 'parameter' in init_config:
                         parameters = init_config.pop('parameter')
                         init_config['parameter'] = []
-                        for key, value in parameters.items():
-                            init_config['parameter'].append({'name': key, 'value': str(value)})
-                            if 'user_defined_script' in init_config:
-                                self.scripts.append('../scripts/{}'. \
+                        for parameter in parameters:
+                            for key, value in parameter.items():
+                                init_config['parameter'].append({'name': key, 'value': str(value)})
+
+                    if 'user_defined_script' in init_config:
+                        self.scripts.append('../scripts/{}'. \
                                 format(init_config['user_defined_script']))
                     prop['initial-config-primitive'].append(init_config)
 
@@ -111,7 +112,7 @@ class ToscaVnfConfiguration(ManoResource):
             return
 
         if self._vnf_id not in files:
-            files[desc_id] = []
+            files[self._vnf_id] = []
 
         for script in self.scripts:
             files[self._vnf_id].append({

@@ -67,7 +67,7 @@ class TestCase(tornado.testing.AsyncHTTPTestCase):
         self.staging_id = str(uuid.uuid4())
         self.staging_dir = os.path.join(self.staging_dir_tmp, self.staging_id)
         os.makedirs(self.staging_dir)
-        mock_model = RwStagingMgmtYang.StagingArea.from_dict({
+        mock_model = RwStagingMgmtYang.YangData_RwProject_Project_StagingAreas_StagingArea.from_dict({
             'path': self.staging_dir,
             "validity_time": int(time.time()) + 5
             })
@@ -95,7 +95,7 @@ class TestCase(tornado.testing.AsyncHTTPTestCase):
 
     def get_app(self):
         self.store, self.mock_model = self.create_mock_store()
-        return StagingApplication(self.store, cleanup_interval=5)
+        return StagingApplication(self.store, self._loop, cleanup_interval=5)
 
     def test_file_upload_and_download(self):
         """
@@ -118,6 +118,7 @@ class TestCase(tornado.testing.AsyncHTTPTestCase):
                               headers={"Content-Type": "multipart/form-data"})
 
         assert response.code == 200
+
         assert os.path.isfile(os.path.join(
                                     self.staging_dir,
                                     os.path.basename(temp_file)))
@@ -138,6 +139,8 @@ class TestCase(tornado.testing.AsyncHTTPTestCase):
         print (self.get_url('/'))
         print (self.staging_dir)
         time.sleep(5)
+        
+        self.store.remove_staging_area(self.mock_model)
         self.store.remove_staging_area.assert_called_once_with(self.mock_model)
 
     def tearDown(self):

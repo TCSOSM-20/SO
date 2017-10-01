@@ -48,16 +48,17 @@ class ConfigAgentVnfrTypeError(Exception):
 
 
 class ConfigAccountHandler(object):
-    def __init__(self, dts, log, loop, on_add_config_agent, on_delete_config_agent):
+    def __init__(self, dts, log, loop, project, on_add_config_agent, on_delete_config_agent):
         self._log = log
         self._dts = dts
         self._loop = loop
+        self._project = project
         self._on_add_config_agent = on_add_config_agent
         self._on_delete_config_agent = on_delete_config_agent
 
         self._log.debug("creating config account handler")
         self.cloud_cfg_handler = rift.mano.config_agent.ConfigAgentSubscriber(
-            self._dts, self._log,
+            self._dts, self._log, self._project,
             rift.mano.config_agent.ConfigAgentCallbacks(
                 on_add_apply=self.on_config_account_added,
                 on_delete_apply=self.on_config_account_deleted,
@@ -76,6 +77,10 @@ class ConfigAccountHandler(object):
     @asyncio.coroutine
     def register(self):
         self.cloud_cfg_handler.register()
+
+    def deregister(self):
+        self.cloud_cfg_handler.deregister()
+
 
 class RiftCMConfigPlugins(object):
     """ NSM Config Agent Plugins """
@@ -117,14 +122,16 @@ class RiftCMConfigAgent(object):
 
         self._config_plugins = RiftCMConfigPlugins()
         self._config_handler = ConfigAccountHandler(
-            self._dts, self._log, self._loop, self._on_config_agent, self._on_config_agent_delete)
+            self._dts, self._log, self._loop, parent._project,
+            self._on_config_agent, self._on_config_agent_delete)
         self._plugin_instances = {}
         self._default_account_added = False
 
     @asyncio.coroutine
     def invoke_config_agent_plugins(self, method, nsr, vnfr, *args):
         # Invoke the methods on all config agent plugins registered
-        rc = False
+        rc = True
+        
         for agent in self._plugin_instances.values():
             if not agent.is_vnfr_managed(vnfr.id):
                 continue
@@ -133,20 +140,15 @@ class RiftCMConfigAgent(object):
                 rc = yield from agent.invoke(method, nsr, vnfr, *args)
                 break
             except Exception as e:
-                self._log.error("Error invoking {} on {} : {}".
-                                format(method, agent.name, e))
-                raise
+                self._log.exception("Error invoking {} on {} : {}".
+                                    format(method, agent.name, e))
+                raise e
 
         self._log.info("vnfr({}), method={}, return rc={}"
                        .format(vnfr.name, method, rc))
         return rc
 
     def get_vnfr_config_agent(self, vnfr):
-        # if (not vnfr.has_field('netconf') and
-        #     not vnfr.has_field('juju') and
-        #     not vnfr.has_field('script')):
-        #     return False
-
         for agent in self._plugin_instances.values():
             try:
                 if agent.is_vnfr_managed(vnfr.id):
@@ -179,7 +181,8 @@ class RiftCMConfigAgent(object):
         else:
             # Otherwise, instantiate a new plugin using the config agent account
             self._log.debug("Instantiting new config agent using class: %s", cap_inst)
-            new_instance = cap_inst(self._dts, self._log, self._loop, config_agent)
+            new_instance = cap_inst(self._dts, self._log, self._loop,
+                                    self._ConfigManagerConfig._project, config_agent)
             self._plugin_instances[cap_name] = new_instance
 
         # TODO (pjoseph): See why this was added, as this deletes the
@@ -192,7 +195,7 @@ class RiftCMConfigAgent(object):
     def _on_config_agent_delete(self, config_agent):
         self._log.debug("Got nsm plugin config agent delete, account: %s, type: %s",
                 config_agent.name, config_agent.account_type)
-        cap_name = config_agent.account_type
+        cap_name = config_agent.name
         if cap_name in self._plugin_instances:
             self._log.debug("Config agent nsm plugin exists, deleting it.")
             del self._plugin_instances[cap_name]
@@ -204,8 +207,8 @@ class RiftCMConfigAgent(object):
     def register(self):
         self._log.debug("Registering for config agent nsm plugin manager")
         yield from self._config_handler.register()
-
-        account = rwcfg_agent.ConfigAgentAccount()
+                            
+        account = rwcfg_agent.YangData_RwProject_Project_ConfigAgent_Account()
         account.account_type = DEFAULT_CAP_TYPE
         account.name = "RiftCA"
         self._on_config_agent(account)
@@ -216,10 +219,15 @@ class RiftCMConfigAgent(object):
         for account in config_agents:
             self._on_config_agent(account)
 
+    def deregister(self):
+        self._log.debug("De-registering config agent nsm plugin manager".
+                        format(self._ConfigManagerConfig._project))
+        self._config_handler.deregister()
+
     def set_config_agent(self, nsr, vnfr, method):
         if method == 'juju':
             agent_type = 'juju'
-        elif method in ['netconf', 'script']:
+        elif method in ['script']:
             agent_type = DEFAULT_CAP_TYPE
         else:
             msg = "Unsupported configuration method ({}) for VNF:{}/{}". \
@@ -257,7 +265,7 @@ class RiftCMConfigAgent(object):
         for agent in self._plugin_instances:
             if self._plugin_instances[agent].agent_type == agent_type:
                 self._plugin_instances[agent].add_vnfr_managed(vnfr)
-                self._log.debug("Added vnfr {} as config plugin {} managed".
+                self._log.debug("Added vnfr from {} from default CAs as config plugin {} managed".
                                 format(vnfr.name, agent))
                 return
 

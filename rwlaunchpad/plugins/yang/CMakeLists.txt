@@ -1,5 +1,5 @@
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -64,18 +64,41 @@ rift_add_yang_target(
     ${rw_monitor_log_file}
     ${rw_mon_params_log_file}
     ${rw_resource_mgr_log_file}
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   LIBRARIES
     mano_yang_gen
     rwcloud_yang_gen
+    rwro_account_yang_gen
     rw_conman_yang_gen
     rwconfig_agent_yang_gen
     mano-types_yang_gen
+    rwprojectmano_yang_gen
   DEPENDS
     mano_yang
     rwcloud_yang
+    rwro_account_yang
     rw_conman_yang
     rwconfig_agent_yang
     mano-types_yang
+    rwprojectmano_yang
+    # Added to make sure that the target is built,
+    # Not required b mano yang
+    rw_project_person_yang
+  ASSOCIATED_FILES
+    rw-pkg-mgmt.role.xml
+    rw-staging-mgmt.role.xml
+    rw-image-mgmt.role.xml
 )
 
+rift_add_yang_target(
+  TARGET rw_project_person_yang
+  YANG_FILES
+    rw-project-person-db.yang
+  COMPONENT ${INSTALL_COMPONENT}
+  LIBRARIES
+    rwprojectmano_yang_gen
+  DEPENDS
+    rwprojectmano_yang
+  ASSOCIATED_FILES
+    rw-launchpad.role.xml
+)

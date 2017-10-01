@@ -16,26 +16,27 @@
 #
 
 import asyncio
+import gi
 import sys
 import types
 import unittest
 import uuid
 
-
 import rift.test.dts
 import rift.mano.dts as store
 
-import gi
 gi.require_version('RwDtsYang', '1.0')
 from gi.repository import (
         RwLaunchpadYang as launchpadyang,
         RwDts as rwdts,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         RwVnfrYang,
         RwNsrYang,
-        RwNsdYang,
+        RwProjectNsdYang as RwNsdYang,
         VnfrYang
         )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 
 class DescriptorPublisher(object):
@@ -107,11 +108,11 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
     def test_vnfd_handler(self):
         yield from self.store.register()
 
-        mock_vnfd = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd()
+        mock_vnfd = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
         mock_vnfd.id = str(uuid.uuid1())
 
-        w_xpath = "C,/vnfd:vnfd-catalog/vnfd:vnfd"
-        xpath = "{}[vnfd:id='{}']".format(w_xpath, mock_vnfd.id)
+        w_xpath = "C,/rw-project:project/project-vnfd:vnfd-catalog/project-vnfd:vnfd"
+        xpath = "{}[project-vnfd:id={}]".format(w_xpath, quoted_key(mock_vnfd.id))
         yield from self.publisher.publish(w_xpath, xpath, mock_vnfd)
 
         yield from asyncio.sleep(5, loop=self.loop)
@@ -128,11 +129,11 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
     def test_vnfr_handler(self):
         yield from self.store.register()
 
-        mock_vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
+        mock_vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
         mock_vnfr.id = str(uuid.uuid1())
 
-        w_xpath = "D,/vnfr:vnfr-catalog/vnfr:vnfr"
-        xpath = "{}[vnfr:id='{}']".format(w_xpath, mock_vnfr.id)
+        w_xpath = "D,/rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr"
+        xpath = "{}[vnfr:id={}]".format(w_xpath, quoted_key(mock_vnfr.id))
         yield from self.publisher.publish(w_xpath, xpath, mock_vnfr)
 
         yield from asyncio.sleep(5, loop=self.loop)
@@ -151,12 +152,12 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
     def test_nsr_handler(self):
         yield from self.store.register()
 
-        mock_nsr = RwNsrYang.YangData_Nsr_NsInstanceOpdata_Nsr()
+        mock_nsr = RwNsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr()
         mock_nsr.ns_instance_config_ref = str(uuid.uuid1())
         mock_nsr.name_ref = "Foo"
 
-        w_xpath = "D,/nsr:ns-instance-opdata/nsr:nsr"
-        xpath = "{}[nsr:ns-instance-config-ref='{}']".format(w_xpath, mock_nsr.ns_instance_config_ref)
+        w_xpath = "D,/rw-project:project/nsr:ns-instance-opdata/nsr:nsr"
+        xpath = "{}[nsr:ns-instance-config-ref={}]".format(w_xpath, quoted_key(mock_nsr.ns_instance_config_ref))
         yield from self.publisher.publish(w_xpath, xpath, mock_nsr)
 
         yield from asyncio.sleep(5, loop=self.loop)
@@ -175,11 +176,11 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
     def test_nsd_handler(self):
         yield from self.store.register()
 
-        mock_nsd = RwNsdYang.YangData_Nsd_NsdCatalog_Nsd()
+        mock_nsd = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
         mock_nsd.id = str(uuid.uuid1())
 
-        w_xpath = "C,/nsd:nsd-catalog/nsd:nsd"
-        xpath = "{}[nsd:id='{}']".format(w_xpath, mock_nsd.id)
+        w_xpath = "C,/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd"
+        xpath = "{}[project-nsd:id={}]".format(w_xpath, quoted_key(mock_nsd.id))
         yield from self.publisher.publish(w_xpath, xpath, mock_nsd)
 
         yield from asyncio.sleep(2, loop=self.loop)
@@ -206,22 +207,22 @@ class SubscriberStoreDtsTestCase(rift.test.dts.AbstractDTSTest):
         # publish
         yield from vnf_handler.register()
 
-        mock_vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
+        mock_vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
         mock_vnfr.id = str(uuid.uuid1())
 
         def mon_xpath(param_id=None):
             """ Monitoring params xpath """
-            return("D,/vnfr:vnfr-catalog" +
-                   "/vnfr:vnfr[vnfr:id='{}']".format(mock_vnfr.id) +
+            return("D,/rw-project:project/vnfr:vnfr-catalog" +
+                   "/vnfr:vnfr[vnfr:id={}]".format(quoted_key(mock_vnfr.id)) +
                    "/vnfr:monitoring-param" +
-                   ("[vnfr:id='{}']".format(param_id) if param_id else ""))
+                   ("[vnfr:id={}]".format(quoted_key(param_id)) if param_id else ""))
 
 
-        w_xpath = "D,/vnfr:vnfr-catalog/vnfr:vnfr"
-        xpath = "{}[vnfr:id='{}']".format(w_xpath, mock_vnfr.id)
+        w_xpath = "D,/rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr"
+        xpath = "{}[vnfr:id={}]".format(w_xpath, quoted_key(mock_vnfr.id))
         yield from self.publisher.publish(w_xpath, xpath, mock_vnfr)
 
-        mock_param = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MonitoringParam.from_dict({
+        mock_param = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MonitoringParam.from_dict({
                 "id": "1"
             })
         mock_vnfr.monitoring_param.append(mock_param)

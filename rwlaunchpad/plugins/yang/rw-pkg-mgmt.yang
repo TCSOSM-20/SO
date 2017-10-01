@@ -1,6 +1,6 @@
 /*
  *
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -33,10 +33,6 @@ module rw-pkg-mgmt
     prefix "yang";
   }
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import rw-cli-ext {
     prefix "rwcli";
   }
@@ -56,8 +52,30 @@ module rw-pkg-mgmt
   import rw-vnfd {
     prefix "rwvnfd";
   }
+
   import rw-nsd {
     prefix "rwnsd";
+  }
+
+  import rw-project-vnfd {
+    prefix "rw-project-vnfd";
+  }
+
+  import rw-project-nsd {
+    prefix "rw-project-nsd";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2016-06-01 {
@@ -95,6 +113,8 @@ module rw-pkg-mgmt
       enum IMAGES;
       enum CLOUD_INIT;
       enum README;
+      enum DOC;
+      enum TEST;
     }
   }
 
@@ -221,53 +241,85 @@ module rw-pkg-mgmt
     }
   }
 
-  container download-jobs {
-    rwpb:msg-new DownloadJobs;
-    description "Download jobs";
-    config false;
+  augment "/rw-project:project" {
+    container download-jobs {
+      description "Download jobs";
+      config false;
 
-    list job {
-      rwpb:msg-new DownloadJob;
-      key "download-id";
+      list job {
+        key "download-id";
 
-      leaf download-id {
-        description "Unique UUID";
-        type string;
+        leaf download-id {
+          description "Unique UUID";
+          type string;
+        }
+
+        leaf url {
+          description "URL of the download";
+          type string;
+        }
+
+        uses package-file-identifer;
+        uses download-task-status;
       }
+    }
 
-      leaf url {
-        description "URL of the download";
-        type string;
+    container copy-jobs {
+      description "Copy jobs";
+      config false;
+
+      list job {
+        key "transaction-id";
+
+        leaf transaction-id {
+          description "Unique UUID";
+          type string;
+        }
+
+        uses copy-task-status;
       }
+    }
 
-      uses package-file-identifer;
-      uses download-task-status;
+    container create-jobs {
+      description "Create jobs";
+      config false;
+
+      list job {
+        key "transaction-id";
+
+        leaf transaction-id {
+          description "Unique UUID";
+          type string;
+        }
+
+        uses copy-task-status;
+      }
+    }
+
+    container update-jobs {
+      description "Update jobs";
+      config false;
+
+      list job {
+        key "transaction-id";
+
+        leaf transaction-id {
+          description "Unique UUID";
+          type string;
+        }
+
+        uses copy-task-status;
+      }
     }
   }
 
-  container copy-jobs {
-    rwpb:msg-new CopyJobs;
-    description "Copy jobs";
-    config false;
-
-    list job {
-      rwpb:msg-new CopyJob;
-      key "transaction-id";
-
-      leaf transaction-id {
-        description "Unique UUID";
-        type string;
-      }
-
-      uses copy-task-status;
-    }
-  }
 
   rpc get-package-endpoint {
     description "Retrieves the endpoint for the descriptor";
 
     input {
       uses package-identifer;
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -288,6 +340,8 @@ module rw-pkg-mgmt
         description "Name of destination package";
         type string;
       }
+
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -308,6 +362,8 @@ module rw-pkg-mgmt
         description "Type of the package";
         type manotypes:package-type;
       }
+
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -324,6 +380,7 @@ module rw-pkg-mgmt
     input {
       uses package-identifer;
       uses external-url-data;
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -331,6 +388,7 @@ module rw-pkg-mgmt
         description "Valid ID to track the status of the task";
         type string;
       }
+      uses manotypes:rpc-project-name;
     }
   }
 
@@ -340,6 +398,7 @@ module rw-pkg-mgmt
     input {
       uses package-identifer;
       uses external-url-data;
+      uses manotypes:rpc-project-name;
     }
 
     output {
@@ -347,6 +406,7 @@ module rw-pkg-mgmt
         description "Valid ID to track the status of the task";
         type string;
       }
+      uses manotypes:rpc-project-name;
     }
   }
 
@@ -355,6 +415,7 @@ module rw-pkg-mgmt
 
     input {
       uses package-identifer;
+      uses manotypes:rpc-project-name;
 
       leaf export-schema {
         description "Schema to export";
@@ -373,7 +434,6 @@ module rw-pkg-mgmt
         type export-format;
         default YAML;
       }
-
     }
 
     output {
@@ -386,6 +446,8 @@ module rw-pkg-mgmt
         description "Valid ID to track the status of the task";
         type string;
       }
+
+      uses manotypes:rpc-project-name;
     }
   }
 
@@ -395,6 +457,7 @@ module rw-pkg-mgmt
     input {
       uses package-file-identifer;
       uses external-url-data;
+      uses manotypes:rpc-project-name;
 
       choice catalog-type {
           mandatory true;
@@ -411,7 +474,6 @@ module rw-pkg-mgmt
             }
           }
       }
-      
     }
 
     output {
@@ -419,6 +481,7 @@ module rw-pkg-mgmt
         description "Valid ID to track the status of the task";
         type string;
       }
+      uses manotypes:rpc-project-name;
     }
   }
 
@@ -427,6 +490,8 @@ module rw-pkg-mgmt
 
     input {
       uses package-file-identifer;
+      uses manotypes:rpc-project-name;
+
       choice catalog-type {
           case VNFD {
             leaf vnfd-file-type { 
@@ -441,7 +506,6 @@ module rw-pkg-mgmt
             }
           }
       }
-      
     }
 
     output {
@@ -455,6 +519,7 @@ module rw-pkg-mgmt
         type string;
       }
 
+      uses manotypes:rpc-project-name;
     }
   }
 

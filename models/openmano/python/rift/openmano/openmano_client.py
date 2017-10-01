@@ -92,6 +92,143 @@ class OpenmanoHttpAPI(object):
 
         return None
 
+    def vnfs(self):
+        url = "http://{host}:{port}/openmano/{tenant}/vnfs".format(
+            host=self._host,
+            port=self._port,
+            tenant=self._tenant
+            )
+        resp = self._session.get(url, headers={'content-type': 'application/json'})
+        
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            raise InstanceStatusError(e)
+
+        return resp.json()
+
+    def vnf(self, vnf_id):
+        vnf_uuid = None
+        try:
+            vnfs = self.vnfs()
+            for vnf in vnfs["vnfs"]:
+                # Rift vnf ID gets mapped to osm_id in OpenMano
+                if vnf_id == vnf["osm_id"]:
+                    vnf_uuid = vnf["uuid"]
+                    break
+        except Exception as e:
+            raise e    
+
+        if not vnf_uuid:
+            return None
+        else:
+            url = "http://{host}:{port}/openmano/{tenant}/vnfs/{uuid}".format(
+                host=self._host,
+                port=self._port,
+                tenant=self._tenant,
+                uuid=vnf_uuid
+                )
+            resp = self._session.get(url, headers={'content-type': 'application/json'})
+        
+            try:
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                raise InstanceStatusError(e)
+
+            return resp.json()['vnf']
+
+    def scenarios(self):
+        url = "http://{host}:{port}/openmano/{tenant}/scenarios".format(
+            host=self._host,
+            port=self._port,
+            tenant=self._tenant
+            )
+        resp = self._session.get(url, headers={'content-type': 'application/json'})
+        
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            raise InstanceStatusError(e)
+
+        return resp.json()
+
+    def scenario(self, scenario_id):
+        scenario_uuid = None
+        try:
+            scenarios = self.scenarios()
+            for scenario in scenarios["scenarios"]:
+                # Rift NS ID gets mapped to osm_id in OpenMano
+                if scenario_id == scenario["osm_id"]:
+                    scenario_uuid = scenario["uuid"]
+                    break
+        except Exception as e:
+            raise e    
+
+        if not scenario_uuid:
+            return None
+        else:
+            url = "http://{host}:{port}/openmano/{tenant}/scenarios/{uuid}".format(
+                host=self._host,
+                port=self._port,
+                tenant=self._tenant,
+                uuid=scenario_uuid
+                )
+            resp = self._session.get(url, headers={'content-type': 'application/json'})
+        
+            try:
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                raise InstanceStatusError(e)
+
+            return resp.json()['scenario']
+
+    def post_vnfd_v3(self, vnfd_body):
+        # Check if the VNF is present at the RO
+        vnf_rift_id = vnfd_body["vnfd:vnfd-catalog"]["vnfd"][0]["id"]
+        vnf_check = self.vnf(vnf_rift_id)
+        
+        if not vnf_check:  
+            url = "http://{host}:{port}/openmano/v3/{tenant}/vnfd".format(
+                host=self._host,
+                port=self._port,
+                tenant=self._tenant
+                )
+            payload_data = json.dumps(vnfd_body)
+            resp = self._session.post(url, headers={'content-type': 'application/json'},
+                                        data=payload_data)
+            try:
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                raise InstanceStatusError(e)
+
+            return resp.json()['vnfd'][0]
+
+        else:
+            return vnf_check
+
+    def post_nsd_v3(self, nsd_body):
+        # Check if the NS (Scenario) is present at the RO
+        scenario_rift_id = nsd_body["nsd:nsd-catalog"]["nsd"][0]["id"]
+        scenario_check = self.scenario(scenario_rift_id)
+
+        if not scenario_check:   
+            url = "http://{host}:{port}/openmano/v3/{tenant}/nsd".format(
+                host=self._host,
+                port=self._port,
+                tenant=self._tenant
+                )
+            payload_data = json.dumps(nsd_body)
+            resp = self._session.post(url, headers={'content-type': 'application/json'},
+                                        data=payload_data)
+            try:
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                raise InstanceStatusError(e)
+
+            return resp.json()['nsd'][0]
+        else:
+            return scenario_check        
+
 
 class OpenmanoCliAPI(object):
     """ This class implements the necessary funtionality to interact with  """

@@ -79,7 +79,7 @@ class CeilometerMonitoringPlugin(GObject.Object, RwMon.Monitoring):
         try:
             samples = self._get_driver(account).ceilo_nfvi_metrics(vm_id)
 
-            metrics = RwmonYang.NfviMetrics()
+            metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics()
 
             vcpu = samples.get("cpu_util", {})
             memory = samples.get("memory_usage", {})
@@ -112,7 +112,7 @@ class CeilometerMonitoringPlugin(GObject.Object, RwMon.Monitoring):
         try:
             samples = self._get_driver(account).ceilo_nfvi_metrics(vm_id)
 
-            metrics = RwmonYang.NfviMetrics_Vcpu()
+            metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Vcpu()
             metrics.utilization = samples.get("cpu_util", 0)
 
             return metrics
@@ -125,7 +125,7 @@ class CeilometerMonitoringPlugin(GObject.Object, RwMon.Monitoring):
         try:
             samples = self._get_driver(account).ceilo_nfvi_metrics(vm_id)
 
-            metrics = RwmonYang.NfviMetrics_Memory()
+            metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Memory()
             metrics.used = samples.get("memory_usage", 0)
 
             return metrics
@@ -138,7 +138,7 @@ class CeilometerMonitoringPlugin(GObject.Object, RwMon.Monitoring):
         try:
             samples = self._get_driver(account).ceilo_nfvi_metrics(vm_id)
 
-            metrics = RwmonYang.NfviMetrics_Storage()
+            metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Storage()
             metrics.used = samples.get("disk_usage", 0)
 
             return metrics
@@ -240,7 +240,7 @@ class OpenstackAuthTokenV2(object):
         """Create an OpenstackAuthTokenV2 using account information
 
         Arguments:
-            account - an RwcalYang.CloudAccount object
+            account - an RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList object
 
         Returns:
             an openstack token
@@ -306,7 +306,7 @@ class OpenstackAuthTokenV3(object):
         """Create an OpenstackAuthTokenV3 using account information
 
         Arguments:
-            account - an RwcalYang.CloudAccount object
+            account - an RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList object
 
         Returns:
             an openstack token

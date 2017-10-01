@@ -33,10 +33,10 @@ class SubscriberStore(core.SubscriberDtsHandler):
     """
     KEY = enum.Enum('KEY', 'NSR NSD VNFD VNFR')
 
-    def __init__(self, log, dts, loop, callback=None):
-        super().__init__(log, dts, loop)
+    def __init__(self, log, dts, loop, project, callback=None):
+        super().__init__(log, dts, loop, project)
 
-        params = (self.log, self.dts, self.loop)
+        params = (self.log, self.dts, self.loop, self.project)
 
         self._nsr_sub = ns_subscriber.NsrCatalogSubscriber(*params, callback=self.on_nsr_change)
         self._nsrs = {}
@@ -91,6 +91,14 @@ class SubscriberStore(core.SubscriberDtsHandler):
         yield from self._nsd_sub.register()
         yield from self._vnfr_sub.register()
         yield from self._nsr_sub.register()
+
+    def deregister(self):
+        self._log.debug("De-register store for project {}".
+                        format(self._project))
+        self._vnfd_sub.deregister()
+        self._nsd_sub.deregister()
+        self._vnfr_sub.deregister()
+        self._nsr_sub.deregister()
 
     @asyncio.coroutine
     def refresh_store(self, subsriber, store):

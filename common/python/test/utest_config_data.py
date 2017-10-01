@@ -31,11 +31,11 @@ import yaml
 from rift.mano.config_data import config
 
 import gi
-gi.require_version('VnfdYang', '1.0')
+gi.require_version('ProjectVnfdYang', '1.0')
 gi.require_version('RwYang', '1.0')
 
 from gi.repository import (
-        VnfdYang,
+        ProjectVnfdYang,
         RwYang,
         )
 
@@ -63,7 +63,7 @@ class InitialPrimitiveReaderTest(unittest.TestCase):
             reader = config.VnfInitialConfigPrimitiveReader.from_yaml_file_hdl(yaml_hdl)
 
         expected_primitives = [
-                VnfdYang.InitialConfigPrimitive.from_dict({
+                VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd_VnfConfiguration_InitialConfigPrimitive.from_dict({
                         "name": "prim_1", "seq": 0, "parameter": [
                             {
                                 "name": "hostname",
@@ -71,7 +71,7 @@ class InitialPrimitiveReaderTest(unittest.TestCase):
                             },
                         ]
                     }),
-                VnfdYang.InitialConfigPrimitive.from_dict({
+                VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd_VnfConfiguration_InitialConfigPrimitive.from_dict({
                         "name": "prim_2", "seq": 1
                     }),
                 ]

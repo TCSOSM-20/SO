@@ -35,6 +35,15 @@ class YangVnfd(ToscaResource):
                  ('mgmt_interface', 'http_endpoint', 'monitoring_param')
     vnf_prefix_type = 'tosca.nodes.nfv.riftio.'
 
+    VALUE_TYPE_CONVERSION_MAP =  {
+    'INTEGER' : 'integer',
+    'INT' : 'integer',
+    'STRING' : 'string',
+    'DECIMAL' : 'float',
+    'INTEGER': 'INTEGER',
+    'DECIMAL' : 'float'
+
+    }
 
     def __init__(self,
                  log,
@@ -100,7 +109,7 @@ class YangVnfd(ToscaResource):
                         for parameter in init_conf_prim['parameter']:
                             init_conf['parameter'].append({parameter['name']: parameter['value']})
                     init_config_prims.append(init_conf)
-                vnf_conf['initial_config_primitive'] = init_config_prims
+                vnf_conf['initial_config'] = init_config_prims
 
             self.vnf_configuration = vnf_conf
 
@@ -168,6 +177,9 @@ class YangVnfd(ToscaResource):
                     mon_param['url_path'] = param['http_endpoint_ref']
                 if 'json_query_method' in param:
                     mon_param['json_query_method'] = param['json_query_method'].lower()
+                #if 'value_type' in param:
+                #    mon_param['constraints'] = {}
+                #    mon_param['constraints']['value_type'] = YangVnfd.VALUE_TYPE_CONVERSION_MAP[param['value_type'].upper()]
                 if 'group_tag' in param:
                     ui_param['group_tag'] = param['group_tag']
                 if 'widget_type' in param:
@@ -210,7 +222,8 @@ class YangVnfd(ToscaResource):
         dic = deepcopy(self.yang)
         try:
             for key in self.REQUIRED_FIELDS:
-                self.props[key] = dic.pop(key)
+                if key in dic:
+                    self.props[key] = dic.pop(key)
 
             self.id = self.props[self.ID]
 
@@ -292,11 +305,13 @@ class YangVnfd(ToscaResource):
                     mon_param = {}
                     mon_param['properties'] = self.mon_param[0]
                     tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vdu.get_name(self.name)][self.CAPABILITIES]['monitoring_param'] = mon_param #TEST
-                if len(self.mon_param) == 2:
-                    mon_param = {}
-                    mon_param = {}
-                    mon_param['properties'] = self.mon_param[1]
-                    tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vdu.get_name(self.name)][self.CAPABILITIES]['monitoring_param_1'] = mon_param
+                if len(self.mon_param) > 1:
+                    for idx in range(1, len(self.mon_param)):
+                        monitor_param_name = "monitoring_param_{}".format(idx)
+                        mon_param = {}
+                        mon_param = {}
+                        mon_param['properties'] = self.mon_param[idx]
+                        tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vdu.get_name(self.name)][self.CAPABILITIES][monitor_param_name] = mon_param
 
         node = {}
         node[self.TYPE] = self.T_VNF1
@@ -363,13 +378,17 @@ class YangVnfd(ToscaResource):
         for vdu in self.vdus:
             if conn_point in vdu.cp_name_to_cp_node:
                 conn_point_node_name = vdu.cp_name_to_cp_node[conn_point]
-                self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING][self.REQUIREMENTS].\
-                    append({virtualLink : "[{0}, {1}]".format(conn_point_node_name, "virtualLink")})
+                if {virtualLink : "[{0}, {1}]".format(conn_point_node_name, "virtualLink")} not in \
+                 self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING][self.REQUIREMENTS]:
+                    self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING][self.REQUIREMENTS].\
+                        append({virtualLink : "[{0}, {1}]".format(conn_point_node_name, "virtualLink")})
 
         if self.REQUIREMENTS not in self.tosca[self.NODE_TYPES][self.vnf_type]:
             self.tosca[self.NODE_TYPES][self.vnf_type][self.REQUIREMENTS] = []
-        self.tosca[self.NODE_TYPES][self.vnf_type][self.REQUIREMENTS].append({virtualLink : {
-                                                                        "type": "tosca.nodes.nfv.VL"}})
+        if {virtualLink : {"type": "tosca.nodes.nfv.VL"}} not in self.tosca[self.NODE_TYPES][self.vnf_type][self.REQUIREMENTS]:
+            self.tosca[self.NODE_TYPES][self.vnf_type][self.REQUIREMENTS].append({virtualLink : {
+                                                                            "type": "tosca.nodes.nfv.VL"}})
+
     def generate_forwarder_sub_mapping(self, sub_link):
         if self.CAPABILITIES not in self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING]:
             self.tosca[self.TOPOLOGY_TMPL][self.SUBSTITUTION_MAPPING][self.CAPABILITIES] = {}

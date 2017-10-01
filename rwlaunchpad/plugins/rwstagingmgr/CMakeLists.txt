@@ -24,7 +24,7 @@ set(TASKLET_NAME rwstagingmgr)
 ##
 # This function creates an install target for the plugin artifacts
 ##
-rift_install_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py)
+rift_install_gobject_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py COMPONENT ${INSTALL_COMPONENT})
 
 
 # Workaround RIFT-6485 - rpmbuild defaults to python2 for
@@ -46,7 +46,7 @@ rift_python_install_tree(
     rift/tasklets/${TASKLET_NAME}/store/file_store.py
     rift/tasklets/${TASKLET_NAME}/model/__init__.py
     rift/tasklets/${TASKLET_NAME}/model/staging_area.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY)
 
 rift_add_subdirs(test)

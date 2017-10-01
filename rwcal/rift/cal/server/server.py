@@ -113,7 +113,7 @@ class CalServer():
         """Start the server."""
 
         cal = self.get_cal_interface()
-        account = RwcalYang.CloudAccount(account_type="cloudsim")
+        account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList(account_type="cloudsim")
 
         tornado.platform.asyncio.AsyncIOMainLoop().install()
         loop = asyncio.get_event_loop()

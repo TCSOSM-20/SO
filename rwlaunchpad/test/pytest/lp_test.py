@@ -22,42 +22,42 @@
 @brief Launchpad Module Test
 """
 
+import datetime
+import gi
 import json
 import logging
 import os
 import pytest
-import shlex
 import requests
+import shlex
 import subprocess
 import time
 import uuid
-import datetime
 
-import gi
 gi.require_version('RwBaseYang', '1.0')
 gi.require_version('RwCloudYang', '1.0')
-gi.require_version('RwIwpYang', '1.0')
 gi.require_version('RwlogMgmtYang', '1.0')
 gi.require_version('RwNsmYang', '1.0')
-gi.require_version('RwNsmYang', '1.0')
+gi.require_version('ProjectNsdYang', '1.0')
 gi.require_version('RwResourceMgrYang', '1.0')
 gi.require_version('RwConmanYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 
 from gi.repository import (
-        NsdYang,
+        ProjectNsdYang as NsdYang,
         NsrYang,
         RwBaseYang,
         RwCloudYang,
-        RwIwpYang,
         RwlogMgmtYang,
         RwNsmYang,
         RwNsrYang,
         RwResourceMgrYang,
         RwConmanYang,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         VldYang,
         )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -73,11 +73,6 @@ class PackageError(Exception):
 
 def raise_package_error():
     raise PackageError("Could not find ns packages")
-
-
-@pytest.fixture(scope='module')
-def iwp_proxy(request, mgmt_session):
-    return mgmt_session.proxy(RwIwpYang)
 
 
 @pytest.fixture(scope='module')
@@ -172,7 +167,7 @@ def ping_pong_nsd_package_file():
 
 
 def create_nsr_from_nsd_id(nsd_id):
-    nsr = RwNsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+    nsr = RwNsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
     nsr.id = str(uuid.uuid4())
     nsr.name = "pingpong_{}".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
     nsr.short_name = "nsr_short_name"
@@ -181,8 +176,8 @@ def create_nsr_from_nsd_id(nsd_id):
     nsr.admin_status = "ENABLED"
     nsr.cloud_account = "openstack"
 
-    param = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter()
-    param.xpath = '/nsd:nsd-catalog/nsd:nsd/nsd:vendor'
+    param = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter()
+    param.xpath = '/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/project-nsd:vendor'
     param.value = "rift-o-matic"
 
     nsr.input_parameter.append(param)
@@ -208,14 +203,14 @@ class DescriptorOnboardError(Exception):
     pass
 
 
-def wait_unboard_transaction_finished(logger, transaction_id, timeout_secs=600, host="127.0.0.1"):
+def wait_unboard_transaction_finished(logger, transaction_id, timeout_secs=600, host="127.0.0.1", project="default"):
     logger.info("Waiting for onboard trans_id %s to complete",
                 transaction_id)
     start_time = time.time()
     while (time.time() - start_time) < timeout_secs:
         r = requests.get(
-                'http://{host}:4567/api/upload/{t_id}/state'.format(
-                    host=host, t_id=transaction_id
+                'http://{host}:8008/api/operational/project/{proj}/create-jobs/job/{t_id}'.format(
+                    host=host, proj=project, t_id=transaction_id
                     )
                 )
         state = r.json()
@@ -251,7 +246,7 @@ class TestLaunchpadStartStop(object):
         rwlog_mgmt_proxy.merge_config("/rwlog-mgmt:logging", logging)
 
     def test_configure_cloud_account(self, cloud_proxy, logger):
-        cloud_account = RwCloudYang.CloudAccount()
+        cloud_account = RwCloudYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         # cloud_account.name = "cloudsim_proxy"
         # cloud_account.account_type = "cloudsim_proxy"
         cloud_account.name = "openstack"
@@ -269,7 +264,7 @@ class TestLaunchpadStartStop(object):
         trans_id = upload_descriptor(logger, ping_vnfd_package_file)
         wait_unboard_transaction_finished(logger, trans_id)
 
-        catalog = vnfd_proxy.get_config('/vnfd-catalog')
+        catalog = vnfd_proxy.get_config('/rw-project:project[rw-project:name="default"]/vnfd-catalog')
         vnfds = catalog.vnfd
         assert len(vnfds) == 1, "There should only be a single vnfd"
         vnfd = vnfds[0]
@@ -280,7 +275,7 @@ class TestLaunchpadStartStop(object):
         trans_id = upload_descriptor(logger, pong_vnfd_package_file)
         wait_unboard_transaction_finished(logger, trans_id)
 
-        catalog = vnfd_proxy.get_config('/vnfd-catalog')
+        catalog = vnfd_proxy.get_config('/rw-project:project[rw-project:name="default"]/vnfd-catalog')
         vnfds = catalog.vnfd
         assert len(vnfds) == 2, "There should be two vnfds"
         assert "pong_vnfd" in [vnfds[0].name, vnfds[1].name]
@@ -290,20 +285,20 @@ class TestLaunchpadStartStop(object):
         trans_id = upload_descriptor(logger, ping_pong_nsd_package_file)
         wait_unboard_transaction_finished(logger, trans_id)
 
-        catalog = nsd_proxy.get_config('/nsd-catalog')
+        catalog = nsd_proxy.get_config('/rw-project:project[rw-project:name="default"]/nsd-catalog')
         nsds = catalog.nsd
         assert len(nsds) == 1, "There should only be a single nsd"
         nsd = nsds[0]
         assert nsd.name == "ping_pong_nsd"
 
     def test_instantiate_ping_pong_nsr(self, logger, nsd_proxy, nsr_proxy, rwnsr_proxy, base_proxy):
-        catalog = nsd_proxy.get_config('/nsd-catalog')
+        catalog = nsd_proxy.get_config('/rw-project:project[rw-project:name="default"]/nsd-catalog')
         nsd = catalog.nsd[0]
 
         nsr = create_nsr_from_nsd_id(nsd.id)
-        rwnsr_proxy.merge_config('/ns-instance-config', nsr)
+        rwnsr_proxy.merge_config('/rw-project:project[rw-project:name="default"]/ns-instance-config', nsr)
 
-        nsr_opdata = rwnsr_proxy.get('/ns-instance-opdata')
+        nsr_opdata = rwnsr_proxy.get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
         nsrs = nsr_opdata.nsr
         assert len(nsrs) == 1
         assert nsrs[0].ns_instance_config_ref == nsr.id
@@ -383,8 +378,8 @@ class TestLaunchpadStartStop(object):
         #     assert False, "Did not find all ping and pong component in time"
 
     #def test_terminate_ping_pong_ns(self, logger, nsd_proxy, nsr_proxy, rwnsr_proxy, base_proxy):
-    #    nsr_configs = nsr_proxy.get_config('/ns-instance-config')
+    #    nsr_configs = nsr_proxy.get_config('/rw-project:project[rw-project:name="default"]/ns-instance-config')
     #    nsr = nsr_configs.nsr[0]
     #    nsr_id = nsr.id
 
-    #    nsr_configs = nsr_proxy.delete_config("/ns-instance-config/nsr[id='{}']".format(nsr_id))
+    #    nsr_configs = nsr_proxy.delete_config("/ns-instance-config/nsr[id={}]".format(quoted_key(nsr_id)))

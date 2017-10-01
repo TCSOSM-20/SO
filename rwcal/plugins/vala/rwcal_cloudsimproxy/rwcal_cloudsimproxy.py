@@ -566,7 +566,7 @@ class CloudSimProxyPlugin(GObject.Object, RwCal.Cloud):
         """
         self._set_host_from_account(account)
 
-        status = RwcalYang.CloudConnectionStatus()
+        status = RwcalYang.YangData_Rwcal_ConnectionStatus()
         try:
             self._proxy_rpc_call("get_vm_list")
         except Exception as e:
@@ -601,17 +601,21 @@ class CloudSimProxyPlugin(GObject.Object, RwCal.Cloud):
             link_id  - id for the virtual-link
 
         Returns:
-            Object of type RwcalYang.VirtualLinkInfoParams
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList
         """
         self._set_host_from_account(account)
         return self._proxy_rpc_call("get_virtual_link", link_id=link_id)
+
+    @rwstatus(ret_on_failure=[None])
+    def do_get_virtual_link_by_name(self, account, link_name):
+        raise NotImplementedError()
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_virtual_link_list(self, account):
         """Returns the a list of the Virtual links
 
         Returns:
-            a list of RwcalYang.VirtualLinkInfoParams objects
+            a list of RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList objects
 
         """
         self._set_host_from_account(account)
@@ -648,7 +652,7 @@ class CloudSimProxyPlugin(GObject.Object, RwCal.Cloud):
 
         Arguments:
             account     - a cloud account
-            vdu_init  - information about VDU to create (RwcalYang.VDUInitParams)
+            vdu_init  - information about VDU to create (RwcalYang.YangData_RwProject_Project_VduInitParams)
 
         Returns:
             The vdu_id
@@ -662,7 +666,7 @@ class CloudSimProxyPlugin(GObject.Object, RwCal.Cloud):
 
         Arguments:
             account     -  a cloud account
-            vdu_modify  -  Information about VDU Modification (RwcalYang.VDUModifyParams)
+            vdu_modify  -  Information about VDU Modification (RwcalYang.YangData_RwProject_Project_VduModifyParams)
         """
         self._set_host_from_account(account)
         return self._proxy_rpc_call("modify_vdu", vdu_params=vdu_modify.as_dict())
@@ -682,15 +686,17 @@ class CloudSimProxyPlugin(GObject.Object, RwCal.Cloud):
         return self._proxy_rpc_call("delete_vdu", vdu_id=vdu_id)
 
     @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    def do_get_vdu(self, account, vdu_id, mgmt_network):
         """Get information about a virtual deployment unit.
 
         Arguments:
             account - a cloud account
             vdu_id  - id for the vdu
+            mgmt_network - Added due to need for mgmt network.
+            # TO DO: Investigate the need for cloudsimproxy.
 
         Returns:
-            Object of type RwcalYang.VDUInfoParams
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList
         """
         self._set_host_from_account(account)
         return self._proxy_rpc_call("get_vdu", vdu_id=vdu_id)
@@ -703,7 +709,7 @@ class CloudSimProxyPlugin(GObject.Object, RwCal.Cloud):
             account     - a cloud account
 
         Returns:
-            A list of objects of type RwcalYang.VDUInfoParams
+            A list of objects of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList
         """
         self._set_host_from_account(account)
         return self._proxy_rpc_call("get_vdu_list")

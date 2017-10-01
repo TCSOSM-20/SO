@@ -17,7 +17,7 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwcalproxytasklet rwcalproxytasklet.py)
+rift_install_gobject_python_plugin(rwcalproxytasklet rwcalproxytasklet.py COMPONENT ${INSTALL_COMPONENT})
 
 # Workaround RIFT-6485 - rpmbuild defaults to python2 for
 # anything not in a site-packages directory so we have to
@@ -27,5 +27,5 @@ rift_python_install_tree(
   FILES
     rift/tasklets/rwcalproxytasklet/__init__.py
     rift/tasklets/rwcalproxytasklet/rwcalproxytasklet.py
-  COMPONENT rwcalproxytasklet-1.0
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY)

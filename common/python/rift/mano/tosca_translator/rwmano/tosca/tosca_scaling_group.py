@@ -99,7 +99,7 @@ class ToscaScalingGroup(ManoResource):
                 conf = {}
                 if _validate_action(value):
                     conf['trigger'] = action
-                    conf['ns-config-primitive-name-ref'] = value
+                    conf['ns-service-primitive-name-ref'] = value
                     self.properties['scaling-config-action'].append(conf)
                 else:
                     err_msg = _("{0}: Did not find the action {1} in "

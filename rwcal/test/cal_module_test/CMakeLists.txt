@@ -23,19 +23,22 @@ install(
   PROGRAMS
     cal_module_test
   DESTINATION usr/rift/systemtest/cal_module_test
-  COMPONENT ${PKG_LONG_NAME})
+  COMPONENT ${INSTALL_COMPONENT}
+  )
 
 install(
   FILES
     pytest/conftest.py
     pytest/cal_module_test.py
   DESTINATION usr/rift/systemtest/cal_module_test/pytest
-  COMPONENT ${PKG_LONG_NAME})
+  COMPONENT ${INSTALL_COMPONENT}
+  )
 
 install(
   FILES
     racfg/cal_module_test.racfg
   DESTINATION
     usr/rift/systemtest/cal_module_test
-    COMPONENT ${PKG_LONG_NAME})
+    COMPONENT ${INSTALL_COMPONENT}
+    )
 

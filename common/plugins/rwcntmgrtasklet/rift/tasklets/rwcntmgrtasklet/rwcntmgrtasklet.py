@@ -177,7 +177,7 @@ class ResourceProvisioning(object):
             ResourceProvisioning.cal_interface = plugin.get_interface("Cloud")
             ResourceProvisioning.cal_interface.init(ResourceProvisioning.log_hdl)
 
-        self.account = RwcalYang.CloudAccount()
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         self.account.account_type = "cloudsim_proxy"
         self.account.cloudsim_proxy.host = "192.168.122.1"
 
@@ -218,7 +218,7 @@ class ResourceProvisioning(object):
     def create_image(self, location):
         """Creates and returns a CAL image"""
 
-        image = RwcalYang.ImageInfoItem()
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         image.name = "rift-lxc-image"
         image.location = location
         image.disk_format = "qcow2"
@@ -228,7 +228,7 @@ class ResourceProvisioning(object):
     def create_network(self, network_name, subnet):
         """Creates and returns a CAL network"""
 
-        network = RwcalYang.NetworkInfoItem(
+        network = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList(
                 network_name=network_name,
                 subnet=subnet,
                 )
@@ -246,7 +246,7 @@ class ResourceProvisioning(object):
             A VM object
 
         """
-        vm = RwcalYang.VMInfoItem()
+        vm = RwcalYang.YangData_RwProject_Project_VimResources_VminfoList()
         vm.vm_name = 'rift-s{}'.format(index + 1)
         vm.image_id = image.id
         vm.user_tags.node_id = str(uuid.uuid4())
@@ -322,7 +322,7 @@ class ResourceProvisioning(object):
             Returns a port object
 
         """
-        port = RwcalYang.PortInfoItem()
+        port = RwcalYang.YangData_RwProject_Project_VimResources_PortinfoList()
         port.port_name = "eth1"
         port.network_id = network.network_id
         port.vm_id = vm.vm_id

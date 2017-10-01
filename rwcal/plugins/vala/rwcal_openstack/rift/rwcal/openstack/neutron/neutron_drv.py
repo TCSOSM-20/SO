@@ -246,7 +246,7 @@ class NeutronDriver(object):
         """
         networks = self._network_find(**{'id': network_id, 'name': network_name})
         if not networks:
-            raise NeutronException.NotFound("Could not find network. Network id: %s, Network name: %s " %(network_id, network_name))
+            return None
         return networks[0]
     
 
@@ -404,7 +404,7 @@ class NeutronDriver(object):
               security_groups        : A List of Neutron security group Ids
            }
         Returns:
-           A list of port_id (string)   
+           A list of ports { port_id (string), tag (connection_name, string) }   
         """
         params = dict()
         params['ports'] = ports 
@@ -414,7 +414,7 @@ class NeutronDriver(object):
         except Exception as e:
             self.log.exception("Ports Create operation failed. Exception: %s",str(e))
             raise
-        return [ p['id'] for p in ports['ports'] ] 
+        return [ { "id": p['id'], "tag": p['name'] } for p in ports['ports'] ] 
 
     
     def port_update(self, port_id, no_security_groups=None,port_security_enabled=None):

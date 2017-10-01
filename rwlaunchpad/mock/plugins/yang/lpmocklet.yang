@@ -23,10 +23,6 @@ module lpmocklet
     namespace "http://riftio.com/ns/riftware-1.0/lpmocklet";
     prefix "lpmocklet";
 
-    import rw-pb-ext {
-        prefix "rwpb";
-    }
-
     import ietf-inet-types {
         prefix "inet";
     }
@@ -83,14 +79,12 @@ module lpmocklet
 
     rpc start-vnfr {
         input {
-            rwpb:msg-new "StartVnfrInput";
             leaf id {
                 type yang:uuid;
                 mandatory true;
             }
         }
         output {
-            rwpb:msg-new "StartVnfrOutput";
             leaf status {
                 description "status of the start request";
                 type string;
@@ -100,7 +94,6 @@ module lpmocklet
 
     rpc stop-vnfr {
         input {
-            rwpb:msg-new "StopVnfr";
             leaf id {
                 type yang:uuid;
                 mandatory true;

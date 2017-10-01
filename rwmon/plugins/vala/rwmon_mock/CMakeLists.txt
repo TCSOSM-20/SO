@@ -17,4 +17,4 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwmon_mock rwmon_mock.py)
+rift_install_gobject_python_plugin(rwmon_mock rwmon_mock.py COMPONENT ${INSTALL_COMPONENT})

@@ -646,7 +646,7 @@ class PackageChecksumValidator(object):
                 raise PackageValidationError(msg) from e
 
             if archive_checksums[pkg_file_no_prefix] != file_checksum:
-                msg = "{} checksum ({}) did match expected checksum ({})".format(
+                msg = "{} checksum ({}) did not match expected checksum ({})".format(
                         pkg_file, file_checksum, archive_checksums[pkg_file_no_prefix]
                         )
                 self._log.error(msg)

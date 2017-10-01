@@ -20,23 +20,11 @@
 include(rift_plugin)
 
 set(TASKLET_NAME rwconmantasklet)
-set(CONMAN_INSTALL "etc/conman")
-
-##
-# Install translation script in demos
-##
-install(
-  FILES
-    rift/tasklets/${TASKLET_NAME}/xlate_cfg.py
-    rift/tasklets/${TASKLET_NAME}/xlate_tags.yml
-  DESTINATION ${CONMAN_INSTALL}
-  COMPONENT ${PKG_LONG_NAME})
-
 
 ##
 # This function creates an install target for the plugin artifacts
 ##
-rift_install_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py)
+rift_install_gobject_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py COMPONENT ${INSTALL_COMPONENT})
 
 # Workaround RIFT-6485 - rpmbuild defaults to python2 for
 # anything not in a site-packages directory so we have to
@@ -47,11 +35,10 @@ rift_python_install_tree(
     rift/tasklets/${TASKLET_NAME}/__init__.py
     rift/tasklets/${TASKLET_NAME}/${TASKLET_NAME}.py
     rift/tasklets/${TASKLET_NAME}/rwconman_config.py
-    rift/tasklets/${TASKLET_NAME}/rwconman_events.py
     rift/tasklets/${TASKLET_NAME}/jujuconf.py
     rift/tasklets/${TASKLET_NAME}/RiftCA.py
     rift/tasklets/${TASKLET_NAME}/riftcm_config_plugin.py
     rift/tasklets/${TASKLET_NAME}/RiftCM_rpc.py
     rift/tasklets/${TASKLET_NAME}/rwconman_conagent.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY)

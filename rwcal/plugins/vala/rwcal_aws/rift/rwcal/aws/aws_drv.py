@@ -883,9 +883,9 @@ class AWSDriver(object):
         """
         try:
             interface = self.get_network_interface(NetworkInterfaceId=NetworkInterfaceId) 
-            if interface  and interface.association and 'AssociationId' in interface.association:
-                self._ec2_client_handle.disassociate_address(AssociationId = interface.association['AssociationId'])
-                self._ec2_client_handle.release_address(AllocationId=interface.association['AllocationId'])
+            if interface  and interface.association_attribute and 'AssociationId' in interface.association_attribute:
+                self._ec2_client_handle.disassociate_address(AssociationId = interface.association_attribute['AssociationId'])
+                self._ec2_client_handle.release_address(AllocationId=interface.association_attribute['AllocationId'])
         except Exception as e:
              logger.error("AWSDriver: Associating Public IP to network interface %s failed with exception: %s",NetworkInterfaceId,(repr(e)))
              raise

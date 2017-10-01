@@ -16,19 +16,18 @@
 #   limitations under the License.
 #
 
-
+import argparse
 import asyncio
+import gi
+import logging
 import os
 import sys
+import time
+import types
 import unittest
 import uuid
 import xmlrunner
-import argparse
-import logging
-import time
-import types
 
-import gi
 gi.require_version('RwCloudYang', '1.0')
 gi.require_version('RwDts', '1.0')
 gi.require_version('RwNsmYang', '1.0')
@@ -51,6 +50,8 @@ from gi.repository import (
     RwConfigAgentYang as rwcfg_agent,
     RwlogMgmtYang
 )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 from gi.repository.RwTypes import RwStatus
 import rift.mano.examples.ping_pong_nsd as ping_pong_nsd
@@ -92,7 +93,7 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
         """
         Creates an object for class RwcalYang.Clo
         """
-        account = rwcloudyang.CloudAccount()
+        account = rwcloudyang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         if account_type == 'mock':
             account.name          = account_name
             account.account_type  = "mock"
@@ -110,7 +111,7 @@ class ManoTestCase(rift.test.dts.AbstractDTSTest):
     @asyncio.coroutine
     def configure_cloud_account(self, dts, cloud_type, cloud_name="cloud1"):
         account = self.get_cal_account(cloud_type, cloud_name)
-        account_xpath = "C,/rw-cloud:cloud/rw-cloud:account[rw-cloud:name='{}']".format(cloud_name)
+        account_xpath = "C,/rw-cloud:cloud/rw-cloud:account[rw-cloud:name={}]".format(quoted_key(cloud_name))
         self.log.info("Configuring cloud-account: %s", account)
         yield from dts.query_create(account_xpath,
                                     rwdts.XactFlag.ADVISE,

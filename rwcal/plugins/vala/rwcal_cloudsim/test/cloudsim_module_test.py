@@ -48,7 +48,7 @@ class CloudsimTest(unittest.TestCase):
 
     @classmethod
     def create_image(cls):
-        image = RwcalYang.ImageInfoItem()
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         image.name = "rift-lxc-image"
         image.location = "/net/sharedfiles/home1/common/vm/R0.4/rift-mano-devel-latest.qcow2"
         image.disk_format = "qcow2"
@@ -61,7 +61,7 @@ class CloudsimTest(unittest.TestCase):
         cls.cleanUp()
 
         lvm.create("rift")
-        cls.account = RwcalYang.CloudAccount()
+        cls.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         cls.cal = rwcal_cloudsim.CloudSimPlugin()
         cls.create_image()
 
@@ -79,7 +79,7 @@ class CloudsimTest(unittest.TestCase):
         return vm
 
     def create_virtual_link(self, index):
-        link = RwcalYang.VirtualLinkReqParams()
+        link = RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams()
         link.name = 'link-{}'.format(index + 1)
         link.subnet = '192.168.{}.0/24'.format(index + 1)
 
@@ -89,7 +89,7 @@ class CloudsimTest(unittest.TestCase):
         return link, link_id
 
     def create_vdu(self, image, index, virtual_link_ids=None):
-        vdu_init = RwcalYang.VDUInitParams()
+        vdu_init = RwcalYang.YangData_RwProject_Project_VduInitParams()
         vdu_init.name = 'rift-vdu{}'.format(index + 1)
         vdu_init.node_id = str(uuid.uuid4())
         vdu_init.image_id = image.id
@@ -125,7 +125,7 @@ class CloudsimTest(unittest.TestCase):
 
     def test_create_delete_vdu(self):
         vdu, vdu_id = self.create_vdu(self.image, 0)
-        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, no_rwstatus=True)
+        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, None, no_rwstatus=True)
 
         assert get_vdu.image_id == self.image.id
         assert get_vdu.name == vdu.name
@@ -149,7 +149,7 @@ class CloudsimTest(unittest.TestCase):
     def test_create_vdu_single_connection_point(self):
         link, link_id = self.create_virtual_link(0)
         vdu, vdu_id = self.create_vdu(self.image, 0, [link_id])
-        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, no_rwstatus=True)
+        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, None, no_rwstatus=True)
         assert len(get_vdu.connection_points) == 1
         cp = get_vdu.connection_points[0]
         assert (ipaddress.IPv4Address(cp.ip_address) in
@@ -173,7 +173,7 @@ class CloudsimTest(unittest.TestCase):
         link_id_map = {link1_id: link1, link2_id: link2, link3_id: link3}
 
         vdu, vdu_id = self.create_vdu(self.image, 0, link_id_map.keys())
-        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, no_rwstatus=True)
+        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, None, no_rwstatus=True)
         assert len(get_vdu.connection_points) == 3
         for cp in get_vdu.connection_points:
             assert cp.virtual_link_id in link_id_map
@@ -192,26 +192,26 @@ class CloudsimTest(unittest.TestCase):
         vdu, vdu_id = self.create_vdu(self.image, 0)
         link, link_id = self.create_virtual_link(0)
 
-        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, no_rwstatus=True)
+        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, None, no_rwstatus=True)
         assert len(get_vdu.connection_points) == 0
 
-        modify_vdu = RwcalYang.VDUModifyParams()
+        modify_vdu = RwcalYang.YangData_RwProject_Project_VduModifyParams()
         modify_vdu.vdu_id = vdu_id
         cp = modify_vdu.connection_points_add.add()
         cp.virtual_link_id = link_id
         cp.name = "link_1"
         self.cal.do_modify_vdu(self.account, modify_vdu, no_rwstatus=True)
 
-        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, no_rwstatus=True)
+        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, None, no_rwstatus=True)
         assert len(get_vdu.connection_points) == 1
 
-        modify_vdu = RwcalYang.VDUModifyParams()
+        modify_vdu = RwcalYang.YangData_RwProject_Project_VduModifyParams()
         modify_vdu.vdu_id = vdu_id
         cp = modify_vdu.connection_points_remove.add()
         cp.connection_point_id = get_vdu.connection_points[0].connection_point_id
         self.cal.do_modify_vdu(self.account, modify_vdu, no_rwstatus=True)
 
-        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, no_rwstatus=True)
+        get_vdu = self.cal.do_get_vdu(self.account, vdu_id, None, no_rwstatus=True)
         assert len(get_vdu.connection_points) == 0
 
         self.cal.do_delete_vdu(self.account, vdu_id, no_rwstatus=True)

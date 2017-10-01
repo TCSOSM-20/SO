@@ -4,7 +4,7 @@
   "test_description":"System test for standalone Launchpad (Openstack) with High availability",
   "run_as_root": false,
   "status":"broken",
-  "keywords":["nightly","smoke","MANO","openstack"],
+  "keywords":["nightly","MANO","openstack"],
   "timelimit": 2600,
   "networks":[],
   "vms":[

@@ -18,12 +18,9 @@
 include(rift_plugin)
 
 ### rwcal-openstack package
-set(PKG_NAME rwcal-openstack)
-set(PKG_VERSION 1.0)
-set(PKG_RELEASE 1)
-set(PKG_LONG_NAME ${PKG_NAME}-${PKG_VERSION})
+set(INSTALL_COMPONENT rwcal-plugin-openstack)
 
-rift_install_python_plugin(rwcal_openstack rwcal_openstack.py)
+rift_install_gobject_python_plugin(rwcal_openstack rwcal_openstack.py COMPONENT ${INSTALL_COMPONENT})
 
 rift_python_install_tree(
   FILES
@@ -54,5 +51,5 @@ rift_python_install_tree(
     rift/rwcal/openstack/utils/image.py
     
   PYTHON3_ONLY
-  COMPONENT ${PKG_LONG_NAME})
+  COMPONENT ${INSTALL_COMPONENT})
 

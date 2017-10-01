@@ -24,7 +24,7 @@ set(TASKLET_NAME rwimagemgrtasklet)
 ##
 # This function creates an install target for the plugin artifacts
 ##
-rift_install_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py)
+rift_install_gobject_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py COMPONENT ${INSTALL_COMPONENT})
 
 # Workaround RIFT-6485 - rpmbuild defaults to python2 for
 # anything not in a site-packages directory so we have to
@@ -40,14 +40,14 @@ rift_python_install_tree(
     rift/tasklets/rwimagemgr/lib/__init__.py
     rift/tasklets/rwimagemgr/lib/quickproxy/__init__.py
     rift/tasklets/rwimagemgr/lib/quickproxy/proxy.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY)
 
 rift_python_install_tree(
   FILES
     rift/imagemgr/__init__.py
     rift/imagemgr/client.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY)
 
 install(
@@ -55,7 +55,7 @@ install(
         bin/glance_start_wrapper
     DESTINATION
         usr/bin
-    COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
     )
 
 if($ENV{RIFT_PLATFORM} MATCHES "fc20")
@@ -70,7 +70,7 @@ if($ENV{RIFT_PLATFORM} MATCHES "fc20")
           etc/fc20/glance-api-dist-paste.ini
       DESTINATION
           etc/glance
-      COMPONENT ${PKG_LONG_NAME}
+      COMPONENT ${INSTALL_COMPONENT}
       )
 elseif($ENV{RIFT_PLATFORM} MATCHES "ub16")
   install(
@@ -85,7 +85,7 @@ elseif($ENV{RIFT_PLATFORM} MATCHES "ub16")
           etc/ub16/schema-image.json
       DESTINATION
           etc/glance
-      COMPONENT ${PKG_LONG_NAME}
+      COMPONENT ${INSTALL_COMPONENT}
       )
 else()
     message(FATAL_ERROR "Unknown platform $ENV{RIFT_PLATFORM}")

@@ -148,26 +148,31 @@ class TranslateDescriptors(object):
             for nsd in self.yangs[self.NSD]:
                 self.log.debug(_("Translate descriptor of type nsd: {}").
                                format(nsd))
+                node_name = nsd.pop(ToscaResource.NAME).replace(' ','_')
+                node_name = node_name if node_name.endswith('nsd') else ''.join([node_name, '_nsd'])
                 tosca_node = TranslateDescriptors. \
                              YANG_TO_TOSCA_TYPE[self.NSD](
                                  self.log,
-                                 nsd.pop(ToscaResource.NAME),
+                                 node_name,
                                  self.NSD,
                                  nsd,
                                  self.vnfd_files)
                 self.tosca_resources.append(tosca_node)
 
+        vnfd_name_list = []
         if self.VNFD in self.yangs:
             for vnfd in self.yangs[self.VNFD]:
-                self.log.debug(_("Translate descriptor of type vnfd: {}").
-                               format(vnfd))
-                tosca_node = TranslateDescriptors. \
-                             YANG_TO_TOSCA_TYPE[self.VNFD](
-                                 self.log,
-                                 vnfd.pop(ToscaResource.NAME),
-                                 self.VNFD,
-                                 vnfd)
-                self.tosca_resources.append(tosca_node)
+                if vnfd['name'] not in vnfd_name_list:
+                    self.log.debug(_("Translate descriptor of type vnfd: {}").
+                                   format(vnfd))
+                    vnfd_name_list.append(vnfd['name'])
+                    tosca_node = TranslateDescriptors. \
+                                 YANG_TO_TOSCA_TYPE[self.VNFD](
+                                     self.log,
+                                     vnfd.pop(ToscaResource.NAME),
+                                     self.VNFD,
+                                     vnfd)
+                    self.tosca_resources.append(tosca_node)
 
         # First translate VNFDs
         for node in self.tosca_resources:

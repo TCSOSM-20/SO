@@ -1,4 +1,4 @@
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ set(TASKLET_NAME rwnsmtasklet)
 ##
 # This function creates an install target for the plugin artifacts
 ##
-rift_install_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py)
+rift_install_gobject_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py COMPONENT ${INSTALL_COMPONENT})
 
 # Workaround RIFT-6485 - rpmbuild defaults to python2 for
 # anything not in a site-packages directory so we have to
@@ -35,6 +35,7 @@ rift_python_install_tree(
     rift/tasklets/${TASKLET_NAME}/__init__.py
     rift/tasklets/${TASKLET_NAME}/${TASKLET_NAME}.py
     rift/tasklets/${TASKLET_NAME}/rwnsm_conman.py
+    rift/tasklets/${TASKLET_NAME}/nsmpluginbase.py
     rift/tasklets/${TASKLET_NAME}/rwnsmplugin.py
     rift/tasklets/${TASKLET_NAME}/openmano_nsm.py
     rift/tasklets/${TASKLET_NAME}/cloud.py
@@ -43,5 +44,6 @@ rift_python_install_tree(
     rift/tasklets/${TASKLET_NAME}/xpath.py
     rift/tasklets/${TASKLET_NAME}/rwvnffgmgr.py
     rift/tasklets/${TASKLET_NAME}/scale_group.py
-  COMPONENT ${PKG_LONG_NAME}
+    rift/tasklets/${TASKLET_NAME}/subscriber.py
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY)

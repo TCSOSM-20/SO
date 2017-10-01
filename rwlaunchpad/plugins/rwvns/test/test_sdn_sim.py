@@ -31,9 +31,9 @@ logger = logging.getLogger('sdnsim')
 
 def get_sdn_account():
     """
-    Creates an object for class RwsdnalYang.SdnAccount()
+    Creates an object for class RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList()
     """
-    account                 = RwsdnalYang.SDNAccount()
+    account                 = RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList()
     account.account_type    = "sdnsim"
     account.sdnsim.username   = "rift"
     account.sdnsim.plugin_name = "rwsdn_sim"

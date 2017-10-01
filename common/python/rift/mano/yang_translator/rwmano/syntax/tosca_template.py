@@ -138,7 +138,7 @@ class ToscaTemplate(object):
 
         # Add all types
         types_list = [ToscaResource.DATA_TYPES, ToscaResource.CAPABILITY_TYPES,
-                      ToscaResource.NODE_TYPES,
+                      ToscaResource.NODE_TYPES, ToscaResource.ARTIFACT_TYPES,
                       ToscaResource.GROUP_TYPES, ToscaResource.POLICY_TYPES]
         for typ in types_list:
             if typ in tosca:

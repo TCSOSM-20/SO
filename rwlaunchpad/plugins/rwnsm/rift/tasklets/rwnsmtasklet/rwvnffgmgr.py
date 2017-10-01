@@ -1,6 +1,6 @@
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -61,25 +61,32 @@ class VnffgrUpdateFailed(Exception):
 
 class VnffgMgr(object):
     """ Implements the interface to backend plugins to fetch topology """
-    def __init__(self, dts, log, log_hdl, loop):
+    def __init__(self, dts, log, log_hdl, loop, project, cloud_account_handler):
         self._account = {}
         self._dts = dts
         self._log = log
         self._log_hdl = log_hdl
         self._loop = loop
+        self._cloud_account_handler = cloud_account_handler
+        self._project = project
         self._sdn = {}
-        self._sdn_handler = SDNAccountDtsHandler(self._dts,self._log,self)
+        self._sdn_handler = SDNAccountDtsHandler(self._dts, self._log, self)
         self._vnffgr_list = {}
 
     @asyncio.coroutine
     def register(self):
         yield from self._sdn_handler.register()
 
+    def deregister(self):
+        self._log.debug("Project {} de-register vnffgmgr".
+                        format(self._project.name))
+        self._sdn_handler.deregister()
+
     def set_sdn_account(self,account):
         if (account.name in self._account):
             self._log.error("SDN Account is already set")
         else:
-            sdn_account           = RwsdnalYang.SDNAccount()
+            sdn_account           = RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList()
             sdn_account.from_dict(account.as_dict())
             sdn_account.name = account.name
             self._account[account.name] = sdn_account
@@ -102,7 +109,7 @@ class VnffgMgr(object):
 
     def get_sdn_account(self, name):
         """
-        Creates an object for class RwsdnalYang.SdnAccount()
+        Creates an object for class RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList()
         """
         if (name in self._account):
             return self._account[name]
@@ -137,7 +144,10 @@ class VnffgMgr(object):
             self._log.error("VNFFGR with id %s not present in VNFFGMgr", vnffgr_id)
             msg = "VNFFGR with id {} not present in VNFFGMgr".format(vnffgr_id)
             raise VnffgrDoesNotExist(msg)
-        self.update_vnffgrs(self._vnffgr_list[vnffgr_id].sdn_account)
+        sdn_acct = self.get_sdn_account(self._vnffgr_list[vnffgr_id].sdn_account)
+        self._log.debug("SDN account received during vnffg update is %s",sdn_acct)
+        if sdn_acct.account_type != 'openstack':
+            self.update_vnffgrs(self._vnffgr_list[vnffgr_id].sdn_account)
         vnffgr = self._vnffgr_list[vnffgr_id].deep_copy()
         self._log.debug("VNFFGR for id %s is %s",vnffgr_id,vnffgr)
         return vnffgr
@@ -172,7 +182,7 @@ class VnffgMgr(object):
         sdn_plugin = self.get_sdn_plugin(sdn_acct_name)
 
         for rsp in vnffgr.rsp:
-            vnffg = RwsdnalYang.VNFFGChain()
+            vnffg = RwsdnalYang.YangData_RwProject_Project_Vnffgs_VnffgChain()
             vnffg.name = rsp.name
             vnffg.classifier_name = rsp.classifier_name
 
@@ -212,7 +222,7 @@ class VnffgMgr(object):
                 vnffgr.operational_status = 'failed'
                 msg = "Instantiation of VNFFGR with id {} failed".format(vnffgr.id)
                 raise VnffgrCreationFailed(msg)
-
+            rsp.rsp_id = rs
             self._log.info("VNFFG chain created successfully for rsp with id %s",rsp.id)
 
 
@@ -227,12 +237,15 @@ class VnffgMgr(object):
             vnffgr_cl = [_classifier  for _classifier in vnffgr.classifier if classifier.id == _classifier.id]
             if len(vnffgr_cl) > 0:
                 cl_rsp_name = vnffgr_cl[0].rsp_name
+                rsp_ids =  [rsp.rsp_id for rsp in vnffgr.rsp if rsp.name == cl_rsp_name]
+                self._log.debug("Received RSP id for Cl is %s",rsp_ids)
             else:
                 self._log.error("No RSP wiht name %s found; Skipping classifier %s creation",classifier.rsp_id_ref,classifier.name)
                 continue
-            vnffgcl = RwsdnalYang.VNFFGClassifier()
+            vnffgcl = RwsdnalYang.YangData_RwProject_Project_VnffgClassifiers_VnffgClassifier()
             vnffgcl.name = classifier.name
             vnffgcl.rsp_name = cl_rsp_name
+            vnffgcl.rsp_id = rsp_ids[0]
             vnffgcl.port_id = vnffgr_cl[0].port_id
             vnffgcl.vm_id = vnffgr_cl[0].vm_id
             # Get the symmetric classifier endpoint ip and set it in nsh ctx1
@@ -248,9 +261,11 @@ class VnffgMgr(object):
                 #acl.name = vnffgcl.name + str(index)
                 acl.name = match_rule.id
                 acl.ip_proto  = match_rule.ip_proto
-                acl.source_ip_address = match_rule.source_ip_address + '/32'
+                if match_rule.source_ip_address:
+                    acl.source_ip_address = match_rule.source_ip_address + '/32'
                 acl.source_port = match_rule.source_port
-                acl.destination_ip_address = match_rule.destination_ip_address + '/32'
+                if match_rule.destination_ip_address:
+                    acl.destination_ip_address = match_rule.destination_ip_address + '/32'
                 acl.destination_port = match_rule.destination_port
 
             self._log.debug(" Creating VNFFG Classifier Classifier %s for RSP: %s",vnffgcl.name,vnffgcl.rsp_name)
@@ -260,9 +275,14 @@ class VnffgMgr(object):
                 #vnffgr.operational_status = 'failed'
                 #msg = "Instantiation of VNFFGR with id {} failed".format(vnffgr.id)
                 #raise VnffgrCreationFailed(msg)
+            else:
+                vnffgr_cl[0].classifier_id = rs
 
         vnffgr.operational_status = 'running'
-        self.update_vnffgrs(vnffgr.sdn_account)
+        sdn_acct = self.get_sdn_account(vnffgr.sdn_account)
+        self._log.debug("SDN account received during vnffg update is %s",sdn_acct)
+        if sdn_acct.account_type != 'openstack':
+            self.update_vnffgrs(vnffgr.sdn_account)
         return vnffgr
 
     def update_vnffgrs(self,sdn_acct_name):
@@ -318,8 +338,17 @@ class VnffgMgr(object):
             sdn_account = [sdn_account.name for _,sdn_account in self._account.items()]
             sdn_account_name = sdn_account[0]
         sdn_plugin = self.get_sdn_plugin(sdn_account_name)
-        sdn_plugin.terminate_vnffg_chain(self._account[sdn_account_name],vnffgr_id)
-        sdn_plugin.terminate_vnffg_classifier(self._account[sdn_account_name],vnffgr_id)
+        vnffgr = self._vnffgr_list[vnffgr_id]
+        sdn_acct = self.get_sdn_account(vnffgr.sdn_account)
+        self._log.debug("SDN account received during vnffg update is %s",sdn_acct)
+        if sdn_acct.account_type == 'openstack':
+            for rsp in vnffgr.rsp:
+                sdn_plugin.terminate_vnffg_chain(self._account[sdn_account_name],rsp.rsp_id)
+            for classifier in vnffgr.classifier:
+                sdn_plugin.terminate_vnffg_classifier(self._account[sdn_account_name],classifier.classifier_id)
+        else:
+            sdn_plugin.terminate_vnffg_chain(self._account[sdn_account_name],vnffgr_id)
+            sdn_plugin.terminate_vnffg_classifier(self._account[sdn_account_name],vnffgr_id)
         del self._vnffgr_list[vnffgr_id]
 
 class SDNAccountDtsHandler(object):
@@ -329,8 +358,10 @@ class SDNAccountDtsHandler(object):
         self._dts = dts
         self._log = log
         self._parent = parent
+        self._project = self._parent._project
 
         self._sdn_account = {}
+        self._reg = None
 
     def _set_sdn_account(self, account):
         self._log.info("Setting sdn account: {}".format(account))
@@ -355,8 +386,15 @@ class SDNAccountDtsHandler(object):
     def register(self):
         def apply_config(dts, acg, xact, action, _):
             self._log.debug("Got sdn account apply config (xact: %s) (action: %s)", xact, action)
-            if action == rwdts.AppconfAction.INSTALL and xact.id is None:
-                self._log.debug("No xact handle.  Skipping apply config")
+            if xact.id is None:
+                if action == rwdts.AppconfAction.INSTALL:
+                    curr_cfg = self._reg.elements
+                    for cfg in curr_cfg:
+                        self._log.info("Config Agent Account {} being re-added after restart.".
+                                       format(cfg.name))
+                        self._set_sdn_account(cfg)
+                else:
+                    self._log.debug("No xact handle.  Skipping apply config")
                 return RwTypes.RwStatus.SUCCESS
 
             return RwTypes.RwStatus.SUCCESS
@@ -380,9 +418,11 @@ class SDNAccountDtsHandler(object):
                     if msg.has_field("account_type"):
                         errmsg = "Cannot update SDN account's account-type."
                         self._log.error(errmsg)
-                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
-                                                   SDNAccountDtsHandler.XPATH,
-                                                   errmsg)
+                        xact_info.send_error_xpath(
+                            RwTypes.RwStatus.FAILURE,
+                            self._project.add_project(SDNAccountDtsHandler.XPATH),
+                            errmsg
+                        )
                         raise SdnAccountError(errmsg)
 
                     # Update the sdn account record
@@ -392,9 +432,11 @@ class SDNAccountDtsHandler(object):
                     if not msg.has_field('account_type'):
                         errmsg = "New SDN account must contain account-type field."
                         self._log.error(errmsg)
-                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
-                                                   SDNAccountDtsHandler.XPATH,
-                                                   errmsg)
+                        xact_info.send_error_xpath(
+                            RwTypes.RwStatus.FAILURE,
+                            self._project.add_project(SDNAccountDtsHandler.XPATH),
+                            errmsg
+                        )
                         raise SdnAccountError(errmsg)
 
                     # Set the sdn account record
@@ -403,20 +445,23 @@ class SDNAccountDtsHandler(object):
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
 
-        self._log.debug("Registering for Sdn Account config using xpath: %s",
-                        SDNAccountDtsHandler.XPATH,
-                        )
+        xpath = self._project.add_project(SDNAccountDtsHandler.XPATH)
+        self._log.debug("Registering for Sdn Account config using xpath: {}".
+                        format(xpath))
 
         acg_handler = rift.tasklets.AppConfGroup.Handler(
                         on_apply=apply_config,
                         )
 
         with self._dts.appconf_group_create(acg_handler) as acg:
-            acg.register(
-                    xpath=SDNAccountDtsHandler.XPATH,
-                    flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY,
-                    on_prepare=on_prepare
-                    )
+            self._reg = acg.register(
+                xpath=xpath,
+                flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY,
+                on_prepare=on_prepare
+            )
 
-
-
+    def deregister(self):
+        self._log.debug("De-register SDN Account handler in vnffg for project".
+                        format(self._project.name))
+        self._reg.deregister()
+        self._reg = None

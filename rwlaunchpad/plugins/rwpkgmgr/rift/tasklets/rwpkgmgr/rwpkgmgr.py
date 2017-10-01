@@ -22,22 +22,66 @@
 """
 
 import asyncio
-
 import gi
+
 gi.require_version('RwDts', '1.0')
-gi.require_version('RwPkgMgmtYang', '1.0')
+gi.require_version('RwLaunchpadYang', '1.0')
 
 
 from gi.repository import (
         RwDts as rwdts,
-        RwPkgMgmtYang) 
-import rift.tasklets
+        RwLaunchpadYang)
 
+import rift.tasklets
+from rift.mano.utils.project import (
+    ManoProject,
+    ProjectHandler,
+)
 
 from . import rpc
 from .proxy import filesystem
 from . import publisher as pkg_publisher
-from . import subscriber 
+from . import subscriber
+
+class PackageManagerProject(ManoProject):
+
+    def __init__(self, name, tasklet, **kw):
+        super(PackageManagerProject, self).__init__(tasklet.log, name)
+        self.update(tasklet)
+        proxy = kw["proxy"]
+
+        args = [self.log, self.dts, self.loop, self]
+
+        # create catalog publishers
+        self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
+        self.copy_publisher = pkg_publisher.CopyStatusPublisher(*args)
+
+        # create catalog subscribers
+        self.vnfd_catalog_sub = subscriber.VnfdStatusSubscriber(*args)
+        self.nsd_catalog_sub = subscriber.NsdStatusSubscriber(*args)
+
+        args.append(proxy)
+        self.copy_rpc = rpc.PackageCopyOperationsRpcHandler(*(args + [self.copy_publisher]))
+
+    @asyncio.coroutine
+    def register (self):
+        try:
+            yield from self.vnfd_catalog_sub.register()
+            yield from self.nsd_catalog_sub.register()
+            yield from self.copy_rpc.register()
+            yield from self.copy_publisher.register()
+            yield from self.job_handler.register()
+        except Exception as e:
+            self.log.exception("Exception registering project {}: {}".
+                               format(self.name, e))
+
+    def deregister (self):
+        self.job_handler.deregister()
+        self.copy_rpc.deregister()
+        self.copy_publisher.deregister()
+        self.vnfd_catalog_sub.deregister()
+        self.nsd_catalog_sub.deregister()
+
 
 class PackageManagerTasklet(rift.tasklets.Tasklet):
     def __init__(self, *args, **kwargs):
@@ -46,6 +90,10 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
             self.rwlog.set_category("rw-mano-log")
             self.endpoint_rpc = None
             self.schema_rpc = None
+
+            self._project_handler = None
+            self.projects = {}
+
         except Exception as e:
             self.log.exception(e)
 
@@ -55,35 +103,29 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
 
         try:
             super().start()
+            
             self.dts = rift.tasklets.DTS(
                 self.tasklet_info,
-                RwPkgMgmtYang.get_schema(),
+                RwLaunchpadYang.get_schema(),
                 self.loop,
                 self.on_dts_state_change
                 )
-        
-            proxy = filesystem.FileSystemProxy(self.loop, self.log)
+
+            proxy = filesystem.FileSystemProxy(self.loop, self.log, self.dts)
             args = [self.log, self.dts, self.loop]
-
-        # create catalog publishers 
-            self.job_handler = pkg_publisher.DownloadStatusPublisher(*args)
-            self.copy_publisher = pkg_publisher.CopyStatusPublisher(*args +[self.tasklet_info])
-
-        # create catalog subscribers 
-            self.vnfd_catalog_sub = subscriber.VnfdStatusSubscriber(*args)
-            self.nsd_catalog_sub = subscriber.NsdStatusSubscriber(*args)
 
             args.append(proxy)
             self.endpoint_rpc = rpc.EndpointDiscoveryRpcHandler(*args)
             self.schema_rpc = rpc.SchemaRpcHandler(*args)
             self.delete_rpc = rpc.PackageDeleteOperationsRpcHandler(*args)
-            self.copy_rpc = rpc.PackageCopyOperationsRpcHandler(*(args + [self.copy_publisher]))
 
-            args.append(self.job_handler)
+            args.append(self)
             self.pkg_op = rpc.PackageOperationsRpcHandler(*args)
 
+            self.project_handler = ProjectHandler(self, PackageManagerProject,
+                                                  proxy=proxy,)
         except Exception as e:
-            self.log.error("Exception caught rwpkgmgr start: %s", str(e))
+            self.log.exception("Exception caught rwpkgmgr start: %s", str(e))
         else:
             self.log.debug("rwpkgmgr started successfully!")
 
@@ -99,12 +141,10 @@ class PackageManagerTasklet(rift.tasklets.Tasklet):
             yield from self.endpoint_rpc.register()
             yield from self.schema_rpc.register()
             yield from self.pkg_op.register()
-            yield from self.job_handler.register()
             yield from self.delete_rpc.register()
-            yield from self.copy_rpc.register()
-            yield from self.copy_publisher.register()
-            yield from self.vnfd_catalog_sub.register()
-            yield from self.nsd_catalog_sub.register()
+
+            self.log.debug("creating project handler")
+            self.project_handler.register()
         except Exception as e:
             self.log.error("Exception caught rwpkgmgr init %s", str(e))
 

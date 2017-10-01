@@ -43,7 +43,7 @@ openstack_info = {
 
 
 def create_account(log):
-    account_msg = RwCloudYang.CloudAccount.from_dict(dict(
+    account_msg = RwCloudYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList.from_dict(dict(
         name="openstack",
         account_type="openstack",
         openstack=dict(

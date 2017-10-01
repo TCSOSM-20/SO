@@ -34,10 +34,6 @@ module rw-sorch-log
     prefix rwbase;
   }
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import rw-yang-types {
     prefix "rwt";
   }
@@ -61,7 +57,6 @@ module rw-sorch-log
    * Generic Logger Log Events - ID space 160000 - 160099
    */
   notification debug {
-    rwpb:msg-new Debug;
     rwnotify:log-event-id 160000;
       description
          "Generic Debug Log";
@@ -75,7 +70,6 @@ module rw-sorch-log
   }
 
   notification info {
-    rwpb:msg-new Info;
     rwnotify:log-event-id 160001;
       description
          "Generic Info Log";
@@ -89,7 +83,6 @@ module rw-sorch-log
   }
 
   notification warn {
-    rwpb:msg-new Warn;
     rwnotify:log-event-id 160002;
       description
          "Generic Warning Log";
@@ -103,7 +96,6 @@ module rw-sorch-log
   }
 
   notification error {
-    rwpb:msg-new Error;
     rwnotify:log-event-id 160003;
       description
          "Generic Warning Log";
@@ -117,7 +109,6 @@ module rw-sorch-log
   }
 
   notification critical {
-    rwpb:msg-new Critical;
     rwnotify:log-event-id 160004;
       description
          "Generic Critical Log";

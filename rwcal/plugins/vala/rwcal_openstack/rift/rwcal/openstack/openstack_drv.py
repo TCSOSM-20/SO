@@ -109,7 +109,9 @@ class OpenstackDriver(object):
         region = kwargs['region_name'] if 'region_name' in kwargs else False
         mgmt_network = kwargs['mgmt_network'] if 'mgmt_network' in kwargs else None
         
-        discover = ks_drv.KeystoneVersionDiscover(kwargs['auth_url'], logger = self.log)
+        discover = ks_drv.KeystoneVersionDiscover(kwargs['auth_url'],
+                                                  cert_validate,
+                                                  logger = self.log)
         (major, minor) = discover.get_version()
 
         self.sess_drv = sess_drv.SessionDriver(auth_method = 'password',
@@ -388,7 +390,10 @@ class OpenstackDriver(object):
 
     def nova_server_create(self, **kwargs):
         if 'security_groups' not in kwargs:
-            kwargs['security_groups'] = [s['name'] for s in self._nova_security_groups]
+            security_groups = [s['name'] for s in self._nova_security_groups]
+            #Remove the security group names that are duplicate - RIFT-17035
+            valid_security_groups = list(filter(lambda s: security_groups.count(s) == 1, security_groups))
+            kwargs['security_groups'] = valid_security_groups
         return self.nova_drv.server_create(**kwargs)
 
     def nova_server_add_port(self, server_id, port_id):
@@ -450,6 +455,9 @@ class OpenstackDriver(object):
 
     def neutron_network_get(self, network_id):
         return self.neutron_drv.network_get(network_id=network_id)
+
+    def neutron_network_get_by_name(self, network_name):
+        return self.neutron_drv.network_get(network_name=network_name)
 
     def neutron_network_create(self, **kwargs):
         return self.neutron_drv.network_create(**kwargs)

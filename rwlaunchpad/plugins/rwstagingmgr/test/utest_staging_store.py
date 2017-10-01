@@ -26,13 +26,30 @@ import tempfile
 import unittest
 import xmlrunner
 
+#Setting RIFT_VAR_ROOT if not already set for unit test execution
+if "RIFT_VAR_ROOT" not in os.environ:
+    os.environ['RIFT_VAR_ROOT'] = os.path.join(os.environ['RIFT_INSTALL'], 'var/rift/unittest')
+
 from rift.tasklets.rwstagingmgr.store import StagingFileStore
+from rift.mano.utils.project import ManoProject, DEFAULT_PROJECT
 
 import gi
 gi.require_version('RwStagingMgmtYang', '1.0')
 from gi.repository import (
         RwStagingMgmtYang,
         )
+
+class MockTasklet(object):
+    def __init__(self):
+        self.log = logging.getLogger()
+        self.projects = {}
+        project = ManoProject(self.log, name=DEFAULT_PROJECT)
+        project.publisher = None
+        self.projects[project.name] = project
+
+    def set_delegate(self, store):
+        self.projects[DEFAULT_PROJECT].publisher = store
+
 
 class TestSerializer(unittest.TestCase):
 
@@ -44,9 +61,10 @@ class TestSerializer(unittest.TestCase):
 
         """
         tmp_dir = tempfile.mkdtemp()
-        store = StagingFileStore(root_dir=tmp_dir)
+        tasklet = MockTasklet()
+        store = StagingFileStore(tasklet, root_dir=tmp_dir)
 
-        mock_model = RwStagingMgmtYang.StagingArea.from_dict({})
+        mock_model = RwStagingMgmtYang.YangData_RwProject_Project_StagingAreas_StagingArea.from_dict({})
         stg = store.create_staging_area(mock_model)
         mock_id = stg.model.area_id
 
@@ -63,9 +81,10 @@ class TestSerializer(unittest.TestCase):
 
         """
         tmp_dir = tempfile.mkdtemp()
-        store = StagingFileStore(root_dir=tmp_dir)
+        tasklet = MockTasklet()
+        store = StagingFileStore(tasklet, root_dir=tmp_dir)
 
-        mock_model = RwStagingMgmtYang.StagingArea.from_dict({})
+        mock_model = RwStagingMgmtYang.YangData_RwProject_Project_StagingAreas_StagingArea.from_dict({})
         # get the wrapped mock model
         mock_model = store.create_staging_area(mock_model)
         mock_id = mock_model.model.area_id

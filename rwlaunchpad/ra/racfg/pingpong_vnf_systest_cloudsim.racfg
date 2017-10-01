@@ -3,9 +3,10 @@
   "commandline":"./pingpong_vnf_systest --test-name 'TC_PINGPONG_VNF_CLOUDSIM'",
   "target_vm":"VM",
   "test_description":"System test for ping and pong vnf",
+  "allow_rpm_install": true,
   "run_as_root": true,
   "status":"broken",
-  "keywords":["nightly","smoke","smoke_stable","MANO","cloudsim"],
+  "keywords":["nightly","MANO","cloudsim"],
   "timelimit": 1800,
   "networks":[],
   "vms":[

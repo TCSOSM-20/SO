@@ -25,24 +25,24 @@ import xml.etree.ElementTree as etree
 
 from gi.repository import (
     RwYang,
-    NsdYang,
-    RwNsdYang,
-    VnfdYang,
-    RwVnfdYang,
+    ProjectNsdYang as NsdYang,
+    RwProjectNsdYang as RwNsdYang,
+    ProjectVnfdYang as VnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     VldYang,
     RwVldYang
 )
 
 def read_from_file(module_list, infile, input_format, descr_type):
-      model = RwYang.Model.create_libncx()
+      model = RwYang.Model.create_libyang()
       for module in module_list:
           model.load_module(module)
 
       descr = None
       if descr_type == "nsd":
-        descr = RwNsdYang.YangData_Nsd_NsdCatalog_Nsd()
+        descr = RwNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd()
       else:
-        descr = VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd()
+        descr = VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
 
       if input_format == 'json':
           json_str = open(infile).read()

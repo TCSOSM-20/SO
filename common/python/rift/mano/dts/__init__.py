@@ -25,6 +25,5 @@ from .subscriber.ns_subscriber import (
         NsdCatalogSubscriber,
         NsInstanceConfigSubscriber)
 from .subscriber.store import SubscriberStore
-from .subscriber.ro_account import ROAccountConfigSubscriber
 
 from .rpc.core import AbstractRpcHandler

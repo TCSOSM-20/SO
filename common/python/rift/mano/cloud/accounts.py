@@ -1,5 +1,5 @@
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@
 import sys
 import asyncio
 from gi import require_version
+require_version('RwCal', '1.0')
 require_version('RwcalYang', '1.0')
 require_version('RwTypes', '1.0')
 require_version('RwCloudYang', '1.0')
@@ -52,8 +53,8 @@ class CloudAccount(object):
 
         self._cal = self.plugin.get_interface("Cloud")
         self._cal.init(rwlog_hdl)
-
-        self._status = RwCloudYang.CloudAccount_ConnectionStatus(
+                                    
+        self._status = RwCloudYang.YangData_RwProject_Project_Cloud_Account_ConnectionStatus(
                 status="unknown",
                 details="Connection status lookup not started"
                 )
@@ -103,13 +104,13 @@ class CloudAccount(object):
 
     @property
     def cal_account_msg(self):
-        return RwcalYang.CloudAccount.from_dict(
+        return RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList.from_dict(
                 self.account_msg.as_dict(),
                 ignore_missing_keys=True,
                 )
 
     def cloud_account_msg(self, account_dict):
-        self._account_msg = RwCloudYang.CloudAccount.from_dict(account_dict)
+        self._account_msg = RwCloudYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList.from_dict(account_dict)
 
     @property
     def account_type(self):
@@ -150,8 +151,9 @@ class CloudAccount(object):
 
     @asyncio.coroutine
     def validate_cloud_account_credentials(self, loop):
-        self._log.debug("Validating Cloud Account credentials %s", self._account_msg)
-        self._status = RwCloudYang.CloudAccount_ConnectionStatus(
+        self._log.debug("Validating Cloud Account credentials for account %s",
+                        self.name)
+        self._status = RwCloudYang.YangData_RwProject_Project_Cloud_Account_ConnectionStatus(
                 status="validating",
                 details="Cloud account connection validation in progress"
                 )
@@ -161,22 +163,24 @@ class CloudAccount(object):
                 self.cal_account_msg,
                 )
         if rwstatus == RwTypes.RwStatus.SUCCESS:
-            self._status = RwCloudYang.CloudAccount_ConnectionStatus.from_dict(status.as_dict())
+            self._status = RwCloudYang.YangData_RwProject_Project_Cloud_Account_ConnectionStatus.from_dict(status.as_dict())
         else:
-            self._status = RwCloudYang.CloudAccount_ConnectionStatus(
+            self._status = RwCloudYang.YangData_RwProject_Project_Cloud_Account_ConnectionStatus(
                     status="failure",
                     details="Error when calling CAL validate cloud creds"
                     )
 
-        self._log.info("Got cloud account validation response: %s", self._status)
+        if self._status.status == 'failure':
+            self._log.error("Cloud account validation failed. Acct: %s, response: %s",
+                            self.name, self._status)
 
+    @asyncio.coroutine
     def start_validate_credentials(self, loop):
         if self._validate_task is not None:
             self._validate_task.cancel()
             self._validate_task = None
 
-        self._validate_task = asyncio.ensure_future(
+        self._validate_task = yield from asyncio.ensure_future(
                 self.validate_cloud_account_credentials(loop),
                 loop=loop
                 )
-

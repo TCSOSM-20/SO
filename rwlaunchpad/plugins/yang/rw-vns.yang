@@ -31,11 +31,6 @@ module rw-vns
   namespace "http://riftio.com/ns/riftware-1.0/rw-vns";
   prefix "rw-vns";
 
-
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import rw-cli-ext {
     prefix "rwcli";
   }
@@ -87,6 +82,10 @@ module rw-vns
 
   import rw-sdn {
     prefix "rw-sdn";
+  }
+
+  import rw-project-mano {
+    prefix "rw-project-mano";
   }
 
   revision 2015-10-05 {

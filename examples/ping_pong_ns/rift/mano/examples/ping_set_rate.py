@@ -32,8 +32,8 @@ def ping_set_rate(yaml_cfg, logger):
 
     def set_rate(mgmt_ip, port, rate):
         curl_cmd = '''curl -D /dev/stdout \
-    -H "Accept: application/vnd.yang.data+xml" \
-    -H "Content-Type: application/vnd.yang.data+json" \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json" \
     -X POST \
     -d "{{ \\"rate\\":{ping_rate} }}" \
     http://{ping_mgmt_ip}:{ping_mgmt_port}/api/v1/ping/rate
@@ -53,7 +53,6 @@ def ping_set_rate(yaml_cfg, logger):
 
         # Check if it is pong vnf
         if 'ping_vnfd' in vnfr['name']:
-            vnf_type = 'ping'
             port = 18888
             set_rate(vnfr['mgmt_ip_address'], port, rate)
             break

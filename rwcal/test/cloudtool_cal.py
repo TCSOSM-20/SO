@@ -167,7 +167,7 @@ def vm_create_subcommand(driver, account, cmdargs):
             for network in netlist.networkinfo_list:
                  print(network)    
 
-            vm = RwcalYang.VMInfoItem()
+            vm = RwcalYang.YangData_RwProject_Project_VimResources_VminfoList()
             vm.vm_name = vm_name
             vm.flavor_id = size.id
             vm.image_id  = image.id
@@ -176,7 +176,7 @@ def vm_create_subcommand(driver, account, cmdargs):
             nets = dict()
             for network in netlist.networkinfo_list:
                 if network.network_name != "public":
-                    nwitem = RwcalYang.VMInfoItem_NetworkList()			
+                    nwitem = RwcalYang.YangData_RwProject_Project_VimResources_VminfoList_NetworkList()			
                     nwitem.network_id = network.network_id		    
                     nets[network.network_name] = nwitem
                      
@@ -422,7 +422,7 @@ def image_subcommand(driver, account, cmdargs):
         
         print("creating image \"%s\" using %s ..." % \
               (cmdargs.image_name, cmdargs.file_name))
-        img = RwcalYang.ImageInfoItem()
+        img = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         img.name = cmdargs.image_name
         img.location = cmdargs.file_name
         img.disk_format = "qcow2"
@@ -452,7 +452,7 @@ def flavor_subcommand(driver, account, cmdargs):
             print(flv)	    
     elif cmdargs.which == 'create':
         account.openstack.key          = 'admin'    
-        flavor                                     = RwcalYang.FlavorInfoItem()
+        flavor                                     = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         flavor.name                                = cmdargs.flavor_name
         flavor.vm_flavor.memory_mb                 = cmdargs.memory_size
         flavor.vm_flavor.vcpu_count                = cmdargs.vcpu_count
@@ -961,7 +961,7 @@ if __name__ == "__main__":
 
 
     if cmdargs.provider_type == 'OPENSTACK':
-        account                        = RwcalYang.CloudAccount()
+        account                        = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         account.account_type           = "openstack"
         account.openstack.key          = cmdargs.user
         account.openstack.secret       = cmdargs.passwd

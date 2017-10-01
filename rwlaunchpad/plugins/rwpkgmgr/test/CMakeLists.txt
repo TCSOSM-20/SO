@@ -18,48 +18,48 @@
 # 
 
 ##
-# utest_subscriber_dts
+# utest_pkgmgr_subscriber_dts
 ##
-rift_py3test(utest_subscriber_dts.py
+rift_py3test(utest_pkgmgr_subscriber_dts.py
   TEST_ARGS
-  ${CMAKE_CURRENT_SOURCE_DIR}/utest_subscriber_dts.py
+  ${CMAKE_CURRENT_SOURCE_DIR}/utest_pkgmgr_subscriber_dts.py
   )
 
 ##
-# utest_publisher_dts
+# utest_pkgmgr_publisher_dts
 ##
-rift_py3test(utest_publisher_dts.test_download_publisher
+rift_py3test(utest_pkgmgr_publisher_dts.test_download_publisher
   TEST_ARGS
-  ${CMAKE_CURRENT_SOURCE_DIR}/utest_publisher_dts.py TestCase.test_download_publisher
+  ${CMAKE_CURRENT_SOURCE_DIR}/utest_pkgmgr_publisher_dts.py TestCase.test_download_publisher
   )
 
-rift_py3test(utest_publisher_dts.test_publish
+rift_py3test(utest_pkgmgr_publisher_dts.test_publish
   TEST_ARGS
-  ${CMAKE_CURRENT_SOURCE_DIR}/utest_publisher_dts.py TestCase.test_publish
+  ${CMAKE_CURRENT_SOURCE_DIR}/utest_pkgmgr_publisher_dts.py TestCase.test_publish
   )
 
-rift_py3test(utest_publisher_dts.test_url_download
+rift_py3test(utest_pkgmgr_publisher_dts.test_url_download
   TEST_ARGS
-  ${CMAKE_CURRENT_SOURCE_DIR}/utest_publisher_dts.py TestCase.test_url_download
+  ${CMAKE_CURRENT_SOURCE_DIR}/utest_pkgmgr_publisher_dts.py TestCase.test_url_download
   )
 
-rift_py3test(utest_publisher_dts.test_url_download_unreachable_ip
+rift_py3test(utest_pkgmgr_publisher_dts.test_url_download_unreachable_ip
   TEST_ARGS
-  ${CMAKE_CURRENT_SOURCE_DIR}/utest_publisher_dts.py TestCase.test_url_download_unreachable_ip
+  ${CMAKE_CURRENT_SOURCE_DIR}/utest_pkgmgr_publisher_dts.py TestCase.test_url_download_unreachable_ip
   )
 
-rift_py3test(utest_publisher_dts.test_cancelled
+rift_py3test(utest_pkgmgr_publisher_dts.test_cancelled
   TEST_ARGS
-  ${CMAKE_CURRENT_SOURCE_DIR}/utest_publisher_dts.py TestCase.test_cancelled
+  ${CMAKE_CURRENT_SOURCE_DIR}/utest_pkgmgr_publisher_dts.py TestCase.test_cancelled
   )
 
-add_custom_target(utest_publisher_dts.py
+add_custom_target(utest_pkgmgr_publisher_dts.py
   DEPENDS
-    utest_publisher_dts.test_download_publisher
-    utest_publisher_dts.test_publish
-    utest_publisher_dts.test_url_download
-    utest_publisher_dts.test_url_download_unreachable_ip
-    utest_publisher_dts.test_cancelled
+    utest_pkgmgr_publisher_dts.test_download_publisher
+    utest_pkgmgr_publisher_dts.test_publish
+    utest_pkgmgr_publisher_dts.test_url_download
+    utest_pkgmgr_publisher_dts.test_url_download_unreachable_ip
+    utest_pkgmgr_publisher_dts.test_cancelled
   )
 
 ##
@@ -102,6 +102,6 @@ add_custom_target(utest_filesystem_proxy_dts.py
 add_custom_target(rwpkgmgmt_test
   DEPENDS
     utest_filesystem_proxy_dts.py
-    utest_publisher_dts.py
-    utest_subscriber_dts.py
+    utest_pkgmgr_publisher_dts.py
+    utest_pkgmgr_subscriber_dts.py
   )

@@ -144,7 +144,7 @@ class MockPlugin(GObject.Object, RwSdn.Topology):
                 )
             )
 
-        account = RwsdnalYang.SDNAccount()
+        account = RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList()
         account.name = 'mock'
         account.account_type = 'mock'
         account.mock.username = 'rift'

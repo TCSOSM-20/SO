@@ -19,23 +19,19 @@
 
 cmake_minimum_required(VERSION 2.8)
 
-set(PKG_NAME rwcal)
-set(PKG_VERSION 1.0)
-set(PKG_RELEASE 1)
-set(PKG_LONG_NAME ${PKG_NAME}-${PKG_VERSION})
-
 set(subdirs src plugins test)
 rift_add_subdirs(SUBDIR_LIST ${subdirs})
 
 install(FILES include/riftware/rwcal-api.h
   DESTINATION usr/include/riftware
-  COMPONENT ${PKG_LONG_NAME})
+  COMPONENT ${INSTALL_COMPONENT}
+  )
 
 install(
     PROGRAMS
     etc/userdata-template
   DESTINATION etc
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   )
 
 
@@ -49,12 +45,12 @@ rift_python_install_tree(
     rift/cal/utils.py    
     rift/cal/rwcal_status.py
   PYTHON3_ONLY
-  COMPONENT rwcal-1.0)
+  COMPONENT ${INSTALL_COMPONENT})
 
 install(
   PROGRAMS
     rift/cal/cloudsim
   DESTINATION usr/bin
-  COMPONENT rwcal-1.0
+  COMPONENT ${INSTALL_COMPONENT}
   )
 

@@ -12,106 +12,106 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
-#
 
+from . import nsmpluginbase
+from . import openmano_nsm
 import asyncio
-import abc
 
-
-class NsmPluginBase(object):
+class RwNsPlugin(nsmpluginbase.NsmPluginBase):
     """
-        Abstract base class for the NSM plugin.
-        There will be single instance of this plugin for each plugin type.
+        RW Implentation of the NsmPluginBase
     """
-
-    def __init__(self, dts, log, loop, nsm, plugin_name, dts_publisher):
+    def __init__(self, dts, log, loop, publisher, ro_account, project):
         self._dts = dts
         self._log = log
         self._loop = loop
-        self._nsm = nsm
-        self._plugin_name = plugin_name
-        self._dts_publisher = dts_publisher
+        self._project = project
 
-    @property
-    def dts(self):
-        return self._dts
-
-    @property
-    def log(self):
-        return self._log
-
-    @property
-    def loop(self):
-        return self._loop
-
-    @property
-    def nsm(self):
-        return self._nsm
-
-    @abc.abstractmethod
     def set_state(self, nsr_id, state):
         pass
 
-    @abc.abstractmethod
-    def create_nsr(self, nsr):
-        """ Create an NSR """
+    def create_nsr(self, nsr_msg, nsd, key_pairs=None, ssh_key=None):
+        """
+        Create Network service record
+        """
         pass
 
-    @abc.abstractmethod
     @asyncio.coroutine
-    def deploy(self, nsr_msg):
+    def deploy(self, nsr):
         pass
 
-    @abc.abstractmethod
     @asyncio.coroutine
-    def instantiate_ns(self, nsr, xact):
-        """ Instantiate the network service """
-        pass
+    def instantiate_ns(self, nsr, config_xact):
+        """
+        Instantiate NSR with the passed nsr id
+        """
+        yield from nsr.instantiate(config_xact)
 
-    @abc.abstractmethod
     @asyncio.coroutine
     def instantiate_vnf(self, nsr, vnfr, scaleout=False):
-        """ Instantiate the virtual network function """
-        pass
+        """
+        Instantiate NSR with the passed nsr id
+        """
+        yield from vnfr.instantiate(nsr)
 
-    @abc.abstractmethod
     @asyncio.coroutine
-    def instantiate_vl(self, nsr, vl):
-        """ Instantiate the virtual link"""
-        pass
+    def instantiate_vl(self, nsr, vlr):
+        """
+        Instantiate NSR with the passed nsr id
+        """
+        yield from vlr.instantiate()
 
-    @abc.abstractmethod
-    @asyncio.coroutine
-    def get_nsr(self, nsr_path):
-        """ Get the NSR """
-        pass
-
-    @abc.abstractmethod
-    @asyncio.coroutine
-    def get_vnfr(self, vnfr_path):
-        """ Get the VNFR """
-        pass
-
-    @abc.abstractmethod
-    @asyncio.coroutine
-    def get_vlr(self, vlr_path):
-        """ Get the VLR """
-        pass
-
-    @abc.abstractmethod
     @asyncio.coroutine
     def terminate_ns(self, nsr):
-        """Terminate the network service """
+        """
+        Terminate the network service
+        """
         pass
 
-    @abc.abstractmethod
     @asyncio.coroutine
-    def terminate_vnf(self, vnfr):
-        """Terminate the VNF """
-        pass
+    def terminate_vnf(self, nsr, vnfr, scalein=False):
+        """
+        Terminate the VNF
+        """
+        yield from vnfr.terminate()
 
-    @abc.abstractmethod
     @asyncio.coroutine
     def terminate_vl(self, vlr):
-        """Terminate the Virtual Link Record"""
-        pass
+        """
+        Terminate the virtual link
+        """
+        yield from vlr.terminate()
+
+    @asyncio.coroutine
+    def update_vnfr(self, vnfr):
+        """ Update the virtual network function record """
+        yield from vnfr.update_vnfm()
+
+class NsmPlugins(object):
+    """ NSM Plugins """
+    def __init__(self):
+        self._plugin_classes = {
+                "openmano": openmano_nsm.OpenmanoNsPlugin,
+                }
+
+    @property
+    def plugins(self):
+        """ Plugin info """
+        return self._plugin_classes
+
+    def __getitem__(self, name):
+        """ Get item """
+        return self._plugin_classes[name]
+
+    def register(self, plugin_name, plugin_class, *args):
+        """ Register a plugin to this Nsm"""
+        self._plugin_classes[plugin_name] = plugin_class
+
+    def deregister(self, plugin_name, plugin_class, *args):
+        """ Deregister a plugin to this Nsm"""
+        if plugin_name in self._plugin_classes:
+            del self._plugin_classes[plugin_name]
+
+    def class_by_plugin_name(self, name):
+        """ Get class by plugin name """
+        return self._plugin_classes[name]

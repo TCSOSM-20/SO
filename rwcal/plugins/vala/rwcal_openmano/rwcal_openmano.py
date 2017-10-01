@@ -78,7 +78,7 @@ class RwcalOpenmanoPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Validation Code and Details String
         """
-        status = RwcalYang.CloudConnectionStatus(
+        status = RwcalYang.YangData_Rwcal_ConnectionStatus(
                 status="success",
                 details=""
                 )
@@ -151,7 +151,7 @@ class RwcalOpenmanoPlugin(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_vm_list(self, account):
-        return RwcalYang.VimResources()
+        return RwcalYang.YangData_RwProject_Project_VimResources()
 
     @rwstatus
     def do_create_flavor(self, account, flavor):
@@ -199,7 +199,7 @@ class RwcalOpenmanoPlugin(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_port_list(self, account):
-        return RwcalYang.VimResources()
+        return RwcalYang.YangData_RwProject_Project_VimResources()
 
     @rwstatus
     def do_create_network(self, account, network):
@@ -215,7 +215,7 @@ class RwcalOpenmanoPlugin(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_network_list(self, account):
-        return RwcalYang.VimResources()
+        return RwcalYang.YangData_RwProject_Project_VimResources()
 
     @rwstatus(ret_on_failure=[""])
     def do_create_virtual_link(self, account, link_params):
@@ -227,6 +227,10 @@ class RwcalOpenmanoPlugin(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[None])
     def do_get_virtual_link(self, account, link_id):
+        raise NotImplementedError()
+
+    @rwstatus(ret_on_failure=[None])
+    def do_get_virtual_link_by_name(self, account, link_name):
         raise NotImplementedError()
 
     @rwstatus(ret_on_failure=[""])
@@ -245,10 +249,12 @@ class RwcalOpenmanoPlugin(GObject.Object, RwCal.Cloud):
     def do_delete_vdu(self, account, vdu_id):
         raise NotImplementedError()
 
-    @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    @rwcalstatus(ret_on_failure=[None])
+    def do_get_vdu(self, account, vdu_id, mgmt_network):
+        # mgmt_network - Added due to need for mgmt network.
+        # TO DO: Investigate the need for aws.
         raise NotImplementedError()
 
-    @rwstatus(ret_on_failure=[""])
+    @rwcalstatus(ret_on_failure=[None])
     def do_get_vdu_list(self, account):
         raise NotImplementedError()

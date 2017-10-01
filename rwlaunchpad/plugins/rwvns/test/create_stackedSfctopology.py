@@ -223,7 +223,7 @@ class MySfcTopology(MySfcNetwork):
 
 
 if __name__ == "__main__":
-    model = RwYang.Model.create_libncx()
+    model = RwYang.Model.create_libyang()
     model.load_schema_ypbc(RwTl.get_schema())
     # create logger 
     logger = logging.getLogger('SFC Network Topology')

@@ -51,7 +51,7 @@ def test_start_lp_remote(remote_ip):
 
     cmd_template = ("ssh_root {remote_ip} -q -o BatchMode=yes -o "
     " UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -- "
-    " \"rm -rf /tmp/corosync; cd {rift_install}; {rift_root}/rift-shell -e -- {rift_install}/usr/bin/rwmain -m /tmp/manifest.xml\"").format(
+    " \"rm -rf /tmp/corosync; cd {rift_install}; {rift_root}/rift-shell -- {rift_install}/usr/bin/rwmain -m /tmp/manifest.xml\"").format(
       remote_ip=remote_ip,
       rift_root=rift_root,
       rift_install=rift_install)

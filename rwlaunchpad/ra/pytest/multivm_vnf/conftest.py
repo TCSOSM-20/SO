@@ -1,5 +1,5 @@
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,13 +23,13 @@ import subprocess
 import tempfile
 
 from gi.repository import (
-    NsdYang,
+    ProjectNsdYang as NsdYang,
     NsrYang,
     RwNsrYang,
     RwVnfrYang,
     VnfrYang,
     VldYang,
-    RwVnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     RwLaunchpadYang,
     RwBaseYang
 )

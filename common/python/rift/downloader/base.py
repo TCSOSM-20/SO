@@ -107,8 +107,7 @@ class DownloadMeta:
         self.progress_percent = 0
         self.bytes_downloaded = 0
         self.bytes_per_second = 0
-
-
+        self.status = None
         self.start_time = 0
         self.stop_time = 0
         self.detail = ""

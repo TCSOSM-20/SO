@@ -34,6 +34,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 from . import base
+from .local_file import LocalFileAdapter as LocalFileAdapter
 
 class UrlDownloader(base.AbstractDownloader):
     """Handles downloads of URL with some basic retry strategy.
@@ -105,6 +106,7 @@ class UrlDownloader(base.AbstractDownloader):
         retries = Retry(total=2, backoff_factor=1)
         session.mount("http://", HTTPAdapter(max_retries=retries))
         session.mount("https://", HTTPAdapter(max_retries=retries))
+        session.mount("file://", LocalFileAdapter())
 
         return session
 
@@ -196,7 +198,7 @@ class UrlDownloader(base.AbstractDownloader):
         self.meta.update_data_with_head(response.headers)
         self.meta.start_download()
 
-        self.download_started()
+        self.download_progress()
 
         url_options["stream"] = True,
         request = self.session.get(self.url, **url_options)
@@ -218,7 +220,7 @@ class UrlDownloader(base.AbstractDownloader):
                 chunk = self.check_and_decompress(chunk)
 
                 self._fh.write(chunk)
-                self.download_progress()
+                #self.download_progress()
 
         self.meta.end_download()
         self.close()

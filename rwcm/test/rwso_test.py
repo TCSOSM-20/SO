@@ -18,13 +18,13 @@
 
 
 import asyncio
+import gi
 import logging
 import os
 import sys
 import types
 import unittest
 import uuid
-
 import xmlrunner
 
 import gi.repository.CF as cf
@@ -33,6 +33,8 @@ import gi.repository.RwMain as rwmain
 import gi.repository.RwManifestYang as rwmanifest
 import gi.repository.RwConmanYang as conmanY
 import gi.repository.RwLaunchpadYang as launchpadyang
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 import rift.tasklets
 
@@ -183,14 +185,14 @@ class RWSOTestCase(unittest.TestCase):
         return ret
 
     def get_cloud_account_msg(self):
-        cloud_account = launchpadyang.CloudAccount()
+        cloud_account = launchpadyang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         cloud_account.name = "cloudy"
         cloud_account.account_type = "mock"
         cloud_account.mock.username = "rainy"
         return cloud_account
 
     def get_compute_pool_msg(self, name, pool_type):
-        pool_config = rmgryang.ResourcePools()
+        pool_config = rmgryang.YangData_RwProject_Project_ResourceMgrConfig_ResourcePools()
         pool = pool_config.pools.add()
         pool.name = name
         pool.resource_type = "compute"
@@ -202,7 +204,7 @@ class RWSOTestCase(unittest.TestCase):
         return pool_config
 
     def get_network_pool_msg(self, name, pool_type):
-        pool_config = rmgryang.ResourcePools()
+        pool_config = rmgryang.YangData_RwProject_Project_ResourceMgrConfig_ResourcePools()
         pool = pool_config.pools.add()
         pool.name = name
         pool.resource_type = "network"
@@ -216,15 +218,15 @@ class RWSOTestCase(unittest.TestCase):
 
     def get_network_reserve_msg(self, xpath):
         event_id = str(uuid.uuid4())
-        msg = rmgryang.VirtualLinkEventData()
+        msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData()
         msg.event_id = event_id
         msg.request_info.name = "mynet"
         msg.request_info.subnet = "1.1.1.0/24"
-        return msg, xpath.format(event_id)
+        return msg, xpath.format(quoted_key(event_id))
 
     def get_compute_reserve_msg(self,xpath):
         event_id = str(uuid.uuid4())
-        msg = rmgryang.VDUEventData()
+        msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData()
         msg.event_id = event_id
         msg.request_info.name = "mynet"
         msg.request_info.image_id  = "This is a image_id"
@@ -234,17 +236,17 @@ class RWSOTestCase(unittest.TestCase):
         c1 = msg.request_info.connection_points.add()
         c1.name = "myport1"
         c1.virtual_link_id = "This is a network_id"
-        return msg, xpath.format(event_id)
+        return msg, xpath.format(quoted_key(event_id))
 
     def test_create_resource_pools(self):
         self.log.debug("STARTING - test_create_resource_pools")
         tinfo = self.new_tinfo('poolconfig')
         dts = rift.tasklets.DTS(tinfo, self.schema, self.loop)
-        pool_xpath = "C,/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
-        pool_records_xpath = "D,/rw-resource-mgr:resource-pool-records"
+        pool_xpath = "C,/rw-project:project/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
+        pool_records_xpath = "D,/rw-project:project/rw-resource-mgr:resource-pool-records"
         account_xpath = "C,/rw-launchpad:cloud-account"
-        compute_xpath = "D,/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data[event-id='{}']"
-        network_xpath = "D,/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data[event-id='{}']"
+        compute_xpath = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data[event-id={}]"
+        network_xpath = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data[event-id={}]"
 
         @asyncio.coroutine
         def configure_cloud_account():

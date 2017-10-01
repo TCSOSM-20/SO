@@ -49,7 +49,7 @@ class NcClient(object):
         self.loop = loop
         self._nc_mgr = None
 
-        self._model = RwYang.Model.create_libncx()
+        self._model = RwYang.Model.create_libyang()
 
     @asyncio.coroutine
     def connect(self, timeout=240):

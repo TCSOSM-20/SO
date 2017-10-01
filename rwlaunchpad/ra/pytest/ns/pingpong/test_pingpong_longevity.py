@@ -18,11 +18,14 @@
 # Creation Date: 2016/01/04
 #
 
+import gi
 import pytest
-import rift.vcs.vcs
 import time
 
-import gi
+import rift.vcs.vcs
+
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 @pytest.fixture(scope='module')
 def rwnsr_proxy(mgmt_session):
@@ -32,11 +35,11 @@ def test_launchpad_longevity(mgmt_session, mgmt_domain_name, rwnsr_proxy):
     time.sleep(60)
     rift.vcs.vcs.wait_until_system_started(mgmt_session)
 
-    nsr_opdata = rwnsr_proxy.get('/ns-instance-opdata')
+    nsr_opdata = rwnsr_proxy.get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
     for nsr in nsr_opdata.nsr:
-        xpath = ("/ns-instance-opdata"
-                 "/nsr[ns-instance-config-ref='%s']"
-                 "/operational-status") % (nsr.ns_instance_config_ref)
+        xpath = ("/rw-project:project[rw-project:name='default']/ns-instance-opdata"
+                 "/nsr[ns-instance-config-ref=%s]"
+                 "/operational-status") % (quoted_key(nsr.ns_instance_config_ref))
         operational_status = rwnsr_proxy.get(xpath)
         assert operational_status == 'running'
 

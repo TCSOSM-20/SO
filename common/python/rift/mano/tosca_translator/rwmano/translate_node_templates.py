@@ -167,6 +167,7 @@ class TranslateNodeTemplates(object):
         self.log.debug(_("Metadata {0}").format(metadata))
         self.metadata = metadata
 
+
     def _recursive_handle_properties(self, resource):
         '''Recursively handle the properties of the depends_on_nodes nodes.'''
         # Use of hashtable (dict) here should be faster?
@@ -227,8 +228,9 @@ class TranslateNodeTemplates(object):
                     vnf_type_to_vdus_map[vnf_type].append(node.name)
             for policy in template.policies:
                 policies.append(policy.name)
-            for req in template.substitution_mappings.requirements:
-                vnf_type_substitution_mapping[template.substitution_mappings.node_type].append(req)
+            if template.substitution_mappings.requirements:
+                for req in template.substitution_mappings.requirements:
+                    vnf_type_substitution_mapping[template.substitution_mappings.node_type].append(req)
             if template.substitution_mappings.capabilities:
                 for capability in template.substitution_mappings.capabilities:
                     sub_list = template.substitution_mappings.capabilities[capability]
@@ -273,7 +275,6 @@ class TranslateNodeTemplates(object):
                             metadata=self.metadata)
                 mano_node.vnf_type = vnf_type
                 self.mano_resources.append(mano_node)
-                print("Adding a new node")
 
             for node in self.tosca.nodetemplates:
                 if 'VDU' in node.type:
@@ -317,6 +318,7 @@ class TranslateNodeTemplates(object):
                                          vnf_name=vnf_node)
                         self.mano_policies.append(policy_node)
 
+        vnfd_resources = []
         for node in self.mano_resources:
             self.log.debug(_("Handle properties for {0} of type {1}").
                            format(node.name, node.type_))
@@ -338,6 +340,22 @@ class TranslateNodeTemplates(object):
                            format(node.name, node.type_))
             node.update_image_checksum(self.tosca.path)
 
+        for node in list(self.mano_resources):
+            if node.type == "vnfd":
+                vnfd_resources.append(node)
+                self.mano_resources.remove(node)
+
+        vnfd_resources.sort(key=lambda x: x.member_vnf_id, reverse=True)
+        vnf_type_duplicate_map = {}
+        for node in reversed(vnfd_resources):
+            if node.vnf_type in vnf_type_duplicate_map:
+                for policy in self.mano_policies:
+                    if hasattr(policy, '_vnf_name') and policy._vnf_name == node.name:
+                        policy._vnf_name = vnf_type_duplicate_map[node.vnf_type]
+                continue
+            vnf_type_duplicate_map[node.vnf_type] = node.name
+
+        self.mano_resources.extend(vnfd_resources)
         for node in self.mano_resources:
             # Handle vnf and vdu dependencies first
             if node.type == "vnfd":

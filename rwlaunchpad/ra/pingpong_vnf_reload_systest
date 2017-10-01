@@ -26,7 +26,7 @@ SCRIPT_TEST="py.test -x -v -p no:cacheprovider -k 'not Teardown or test_stop_lau
             ${PYTEST_DIR}/system/ns/test_onboard.py \
             ${PYTEST_DIR}/system/ns/pingpong/test_records.py"
 
-REBOOT_SCRIPT_TEST="py.test -x -v -p no:cacheprovider -k 'test_wait_for_launchpad_started or test_wait_for_pingpong_configured or test_wait_for_pingpong_configured or Teardown' \
+REBOOT_SCRIPT_TEST="py.test -x -v -p no:cacheprovider -k 'test_wait_for_nsr_started or test_wait_for_nsr_configured or Teardown' \
                     ${PYTEST_DIR}/system/test_launchpad.py \
                     ${PYTEST_DIR}/system/ns/test_onboard.py \
                     ${PYTEST_DIR}/system/ns/pingpong/test_records.py"

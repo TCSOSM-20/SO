@@ -8,5 +8,5 @@ install(
     openmano
     openmano_cleanup.sh
   DESTINATION usr/bin
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
 )

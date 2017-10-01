@@ -40,8 +40,23 @@ import rift.rwcal.cloudsim.net
 
 from rift.vcs.ext import ClassProperty
 
+
 logger = logging.getLogger(__name__)
 
+IDP_PORT_NUMBER = "8009"
+
+def get_launchpad_address():
+    # Search for externally accessible IP address with netifaces
+    gateways = netifaces.gateways()
+    # Check for default route facing interface and then get its ip address
+    if 'default' in gateways:
+        interface = gateways['default'][netifaces.AF_INET][1]
+        launchpad_ip_address = netifaces.ifaddresses(interface)[netifaces.AF_INET][0]['addr']
+    else:
+        # no default gateway.  Revert to 127.0.0.1
+        launchpad_ip_address = "127.0.0.1"
+
+    return launchpad_ip_address
 
 class NsmTasklet(rift.vcs.core.Tasklet):
     """
@@ -52,6 +67,7 @@ class NsmTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a NsmTasklet object.
@@ -64,6 +80,7 @@ class NsmTasklet(rift.vcs.core.Tasklet):
                                          config_ready=config_ready,
                                          recovery_action=recovery_action,
                                          data_storetype=data_storetype,
+                                         ha_startup_mode=ha_startup_mode,
                                         )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwnsmtasklet')
@@ -79,6 +96,7 @@ class VnsTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a VnsTasklet object.
@@ -91,6 +109,7 @@ class VnsTasklet(rift.vcs.core.Tasklet):
                                          config_ready=config_ready,
                                          recovery_action=recovery_action,
                                          data_storetype=data_storetype,
+                                         ha_startup_mode=ha_startup_mode,
                                         )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwvnstasklet')
@@ -106,6 +125,7 @@ class VnfmTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a VnfmTasklet object.
@@ -118,6 +138,7 @@ class VnfmTasklet(rift.vcs.core.Tasklet):
                                           config_ready=config_ready,
                                           recovery_action=recovery_action,
                                           data_storetype=data_storetype,
+                                          ha_startup_mode=ha_startup_mode,
                                          )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwvnfmtasklet')
@@ -133,6 +154,7 @@ class ResMgrTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a ResMgrTasklet object.
@@ -145,6 +167,7 @@ class ResMgrTasklet(rift.vcs.core.Tasklet):
                                             config_ready=config_ready,
                                             recovery_action=recovery_action,
                                             data_storetype=data_storetype,
+                                            ha_startup_mode=ha_startup_mode,
                                            )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwresmgrtasklet')
@@ -160,6 +183,7 @@ class ImageMgrTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a Image Manager Tasklet object.
@@ -173,6 +197,7 @@ class ImageMgrTasklet(rift.vcs.core.Tasklet):
                 config_ready=config_ready,
                 recovery_action=recovery_action,
                 data_storetype=data_storetype,
+                ha_startup_mode=ha_startup_mode,
                 )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwimagemgrtasklet')
@@ -188,6 +213,7 @@ class MonitorTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a MonitorTasklet object.
@@ -201,6 +227,7 @@ class MonitorTasklet(rift.vcs.core.Tasklet):
                                              config_ready=config_ready,
                                              recovery_action=recovery_action,
                                              data_storetype=data_storetype,
+                                             ha_startup_mode=ha_startup_mode,
                                             )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwmonitor')
@@ -211,6 +238,7 @@ class RedisServer(rift.vcs.NativeProcess):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ANY_VM.value,
                  ):
         super(RedisServer, self).__init__(
                 name=name,
@@ -218,6 +246,7 @@ class RedisServer(rift.vcs.NativeProcess):
                 config_ready=config_ready,
                 recovery_action=recovery_action,
                 data_storetype=data_storetype,
+                ha_startup_mode=ha_startup_mode,
                 )
 
     @property
@@ -235,6 +264,7 @@ class MonitoringParameterTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a MonitoringParameterTasklet object.
@@ -248,6 +278,7 @@ class MonitoringParameterTasklet(rift.vcs.core.Tasklet):
                                              config_ready=config_ready,
                                              recovery_action=recovery_action,
                                              data_storetype=data_storetype,
+                                             ha_startup_mode=ha_startup_mode,
                                             )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwmonparam')
@@ -264,6 +295,7 @@ class AutoscalerTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a MonitoringParameterTasklet object.
@@ -277,6 +309,7 @@ class AutoscalerTasklet(rift.vcs.core.Tasklet):
                                              config_ready=config_ready,
                                              recovery_action=recovery_action,
                                              data_storetype=data_storetype,
+                                             ha_startup_mode=ha_startup_mode,
                                             )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwautoscaler')
@@ -291,6 +324,7 @@ class StagingManagerTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a StagingMangerTasklet object.
@@ -304,25 +338,11 @@ class StagingManagerTasklet(rift.vcs.core.Tasklet):
                                              config_ready=config_ready,
                                              recovery_action=recovery_action,
                                              data_storetype=data_storetype,
+                                             ha_startup_mode=ha_startup_mode,
                                             )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwstagingmgr')
     plugin_name = ClassProperty('rwstagingmgr')
-
-def get_ui_ssl_args():
-    """Returns the SSL parameter string for launchpad UI processes"""
-
-    try:
-        use_ssl, certfile_path, keyfile_path = certs.get_bootstrap_cert_and_key()
-    except certs.BootstrapSslMissingException:
-        logger.error('No bootstrap certificates found.  Disabling UI SSL')
-        use_ssl = False
-
-    # If we're not using SSL, no SSL arguments are necessary
-    if not use_ssl:
-        return ""
-
-    return "--enable-https --keyfile-path=%s --certfile-path=%s" % (keyfile_path, certfile_path)
 
 
 class UIServer(rift.vcs.NativeProcess):
@@ -330,6 +350,8 @@ class UIServer(rift.vcs.NativeProcess):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
+                 external_address=None,
                  ):
         super(UIServer, self).__init__(
                 name=name,
@@ -337,11 +359,40 @@ class UIServer(rift.vcs.NativeProcess):
                 config_ready=config_ready,
                 recovery_action=recovery_action,
                 data_storetype=data_storetype,
+                ha_startup_mode=ha_startup_mode,
                 )
+        self._external_address = external_address
 
     @property
     def args(self):
-        return get_ui_ssl_args()
+        return self._get_ui_args()
+
+    def _get_ui_args(self):
+        """Returns the SSL parameter string for launchpad UI processes"""
+
+        try:
+            use_ssl, certfile_path, keyfile_path = certs.get_bootstrap_cert_and_key()
+        except certs.BootstrapSslMissingException:
+            logger.error('No bootstrap certificates found.  Disabling UI SSL')
+            use_ssl = False
+
+        # If we're not using SSL, no SSL arguments are necessary
+        if not use_ssl:
+            return ""
+
+        # If an external address is set, take that value for launchpad IP
+        # address, else use the internal IP address used for default route
+        launchpad_ip_address = self._external_address
+        if not launchpad_ip_address:
+            launchpad_ip_address = get_launchpad_address()
+
+        return "--enable-https" +\
+               " --keyfile-path={}".format(keyfile_path) +\
+               " --certfile-path={}".format(certfile_path) +\
+               " --launchpad-address={}".format(launchpad_ip_address) +\
+               " --idp-port-number={}".format(IDP_PORT_NUMBER) +\
+               " --callback-address={}".format(launchpad_ip_address)
+
 
 class ConfigManagerTasklet(rift.vcs.core.Tasklet):
     """
@@ -352,6 +403,7 @@ class ConfigManagerTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a ConfigManagerTasklet object.
@@ -364,10 +416,41 @@ class ConfigManagerTasklet(rift.vcs.core.Tasklet):
                                                    config_ready=config_ready,
                                                    recovery_action=recovery_action,
                                                    data_storetype=data_storetype,
+                                                   ha_startup_mode=ha_startup_mode,
                                                   )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwconmantasklet')
     plugin_name = ClassProperty('rwconmantasklet')
+
+
+class ProjectMgrManoTasklet(rift.vcs.core.Tasklet):
+    """
+    This class represents a Resource Manager tasklet.
+    """
+
+    def __init__(self, name='Project-Manager-Mano', uid=None,
+                 config_ready=True,
+                 recovery_action=core.RecoveryType.FAILCRITICAL.value,
+                 data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
+                 ):
+        """
+        Creates a ProjectMgrManoTasklet object.
+
+        Arguments:
+            name  - the name of the tasklet
+            uid   - a unique identifier
+        """
+        super(ProjectMgrManoTasklet, self).__init__(name=name, uid=uid,
+                                                    config_ready=config_ready,
+                                                    recovery_action=recovery_action,
+                                                    data_storetype=data_storetype,
+                                                    ha_startup_mode=ha_startup_mode,
+                                                   )
+
+    plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwprojectmano')
+    plugin_name = ClassProperty('rwprojectmano')
+
 
 class PackageManagerTasklet(rift.vcs.core.Tasklet):
     """
@@ -378,6 +461,7 @@ class PackageManagerTasklet(rift.vcs.core.Tasklet):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         """
         Creates a PackageManager object.
@@ -390,6 +474,7 @@ class PackageManagerTasklet(rift.vcs.core.Tasklet):
                                                    config_ready=config_ready,
                                                    recovery_action=recovery_action,
                                                    data_storetype=data_storetype,
+                                                   ha_startup_mode=ha_startup_mode,
                                                   )
 
     plugin_directory = ClassProperty('./usr/lib/rift/plugins/rwpkgmgr')
@@ -400,6 +485,7 @@ class GlanceServer(rift.vcs.NativeProcess):
                  config_ready=True,
                  recovery_action=core.RecoveryType.FAILCRITICAL.value,
                  data_storetype=core.DataStore.NOSTORE.value,
+                 ha_startup_mode=core.HaStartup.ONLY_ACTIVE.value,
                  ):
         super(GlanceServer, self).__init__(
                 name=name,
@@ -407,6 +493,7 @@ class GlanceServer(rift.vcs.NativeProcess):
                 config_ready=config_ready,
                 recovery_action=recovery_action,
                 data_storetype=data_storetype,
+                ha_startup_mode=ha_startup_mode,
                 )
 
     @property
@@ -415,71 +502,88 @@ class GlanceServer(rift.vcs.NativeProcess):
 
 
 class Demo(rift.vcs.demo.Demo):
-    def __init__(self, no_ui=False, ha_mode=None, mgmt_ip_list=[], test_name=None):
-        procs = [
-            ConfigManagerTasklet(),
-            GlanceServer(),
-            rift.vcs.DtsRouterTasklet(),
-            rift.vcs.MsgBrokerTasklet(),
-            rift.vcs.RestPortForwardTasklet(),
-            rift.vcs.RestconfTasklet(),
-            rift.vcs.RiftCli(),
-            rift.vcs.uAgentTasklet(),
-            rift.vcs.Launchpad(),
-            ]
-
-        standby_procs = [
-            RedisServer(),
-            rift.vcs.DtsRouterTasklet(),
-            rift.vcs.MsgBrokerTasklet(),
-            ]
+    def __init__(self, no_ui=False, 
+                       data_store=None, 
+                       mgmt_ip_list=[], 
+                       test_name=None, 
+                       start_auth_svc=None, 
+                       start_pam_svc=None,
+                       external_address=None):
 
         datastore = core.DataStore.BDB.value
-        if ha_mode:
-            procs.append(RedisServer())
+        if data_store == "Redis":
             datastore = core.DataStore.REDIS.value
+        elif data_store == "None":
+            datastore = core.DataStore.NOSTORE.value
+            
+        restart_db_active = {"recovery_action" : core.RecoveryType.RESTART.value, \
+                             "data_storetype"  : datastore,                       \
+                             "ha_startup_mode" : core.HaStartup.ONLY_ACTIVE.value}
+
+        failcrit_db_active = {"recovery_action" : core.RecoveryType.FAILCRITICAL.value, \
+                              "data_storetype"  : datastore,                            \
+                              "ha_startup_mode" : core.HaStartup.ONLY_ACTIVE.value}
+
+        failcrit_db_any = {"recovery_action" : core.RecoveryType.FAILCRITICAL.value, \
+                           "data_storetype"  : datastore,                            \
+                           "ha_startup_mode" : core.HaStartup.ANY_VM.value}
+
+        procs = [
+            ConfigManagerTasklet(**failcrit_db_active),
+            GlanceServer(**failcrit_db_active),
+            rift.vcs.DtsRouterTasklet(**failcrit_db_any),
+            rift.vcs.MsgBrokerTasklet(**failcrit_db_any),
+            rift.vcs.RestconfTasklet(**failcrit_db_active),
+            rift.vcs.RiftCli(**failcrit_db_active, as_console=True),
+            rift.vcs.uAgentTasklet(**failcrit_db_any),
+            rift.vcs.Launchpad(**failcrit_db_active),
+            rift.vcs.IdentityManagerTasklet(**failcrit_db_active),
+            rift.vcs.ProjectManagerTasklet(**failcrit_db_active),
+            rift.vcs.HAManager(**failcrit_db_any),
+            rift.vcs.OpenIDCProviderTasklet(**failcrit_db_active),
+            rift.vcs.AuthExtUserTasklet(**failcrit_db_active),
+            rift.vcs.OTTAuthTasklet(**failcrit_db_active),
+            NsmTasklet(**failcrit_db_active),
+            VnfmTasklet(**failcrit_db_active),
+            VnsTasklet(**failcrit_db_active),
+            ResMgrTasklet(**failcrit_db_active),
+            ImageMgrTasklet(**failcrit_db_active),
+            AutoscalerTasklet(**failcrit_db_active),
+            StagingManagerTasklet(**failcrit_db_active),
+            PackageManagerTasklet(**failcrit_db_active),
+            MonitoringParameterTasklet(**failcrit_db_active),
+            ProjectMgrManoTasklet(**failcrit_db_active)
+        ]
+
+        if datastore == core.DataStore.REDIS.value:
+            procs.append(RedisServer(**failcrit_db_any))
 
         if not no_ui:
-            procs.append(UIServer())
+            procs.append(UIServer(external_address=external_address))
 
-        restart_procs = [
-              VnfmTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              VnsTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              # MonitorTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              MonitoringParameterTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              NsmTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              ResMgrTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              ImageMgrTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              AutoscalerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              PackageManagerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-              StagingManagerTasklet(recovery_action=core.RecoveryType.RESTART.value, data_storetype=datastore),
-            ]
+        if start_auth_svc:
+            procs.append(rift.vcs.WebAuthSvcTasklet(**failcrit_db_active))
+
+        if start_pam_svc:
+            procs.append(rift.vcs.PAMAuthTasklet()) 
+
+        restart_procs = []
 
         if not mgmt_ip_list or len(mgmt_ip_list) == 0:
-            mgmt_ip_list.append("127.0.0.1")
+            mgmt_ip_list.append(get_launchpad_address())
 
         colony = rift.vcs.core.Colony(name='top', uid=1)
-
-        lead_lp_vm = rift.vcs.VirtualMachine(
-              name='vm-launchpad-1',
-              ip=mgmt_ip_list[0],
-              procs=procs,
-              restart_procs=restart_procs,
-            )
-        lead_lp_vm.leader = True
-        colony.append(lead_lp_vm)
-
-        if ha_mode:
-            stby_lp_vm = rift.vcs.VirtualMachine(
-                  name='launchpad-vm-2',
-                  ip=mgmt_ip_list[1],
-                  procs=standby_procs,
-                  start=False,
-                )
-            # WA to Agent mode_active flag reset
-            stby_lp_vm.add_tasklet(rift.vcs.uAgentTasklet(), mode_active=False)
-            colony.append(stby_lp_vm)
-
+        leader = 0
+        for mgmt_ip in mgmt_ip_list:
+            vm = rift.vcs.VirtualMachine(name='mgmt-vm-lp',
+                                         ip=mgmt_ip,
+                                         procs=procs,
+                                         restart_procs=restart_procs,start=False,)
+            if (leader == 0):
+                vm.leader = True
+                leader = 1
+            colony.append(vm)
+        
         sysinfo = rift.vcs.SystemInfo(
                     mode='ethsim',
                     zookeeper=rift.vcs.manifest.RaZookeeper(master_ip=mgmt_ip_list[0]),
@@ -518,15 +622,38 @@ def main(argv=sys.argv[1:]):
     # Create a parser which includes all generic demo arguments
     parser = rift.vcs.demo.DemoArgParser()
     parser.add_argument("--no-ui", action='store_true')
+    parser.add_argument("--start-auth-svc", 
+            action='store_true',
+            help="Start the Web Based Authentication service simualtor.")
+    parser.add_argument("--start-pam-svc", 
+            action='store_true',
+            help="Start the PAM Authentication service.")
+    parser.add_argument("--external-address", 
+            type=str, 
+            help="External IP address or hostname using which the host can "+
+                 "be reached.")
+    if rift.vcs.mgmt.default_agent_mode() == 'CONFD':
+        parser.add_argument("--use-osm-model",
+                action='store_true',
+                help="Load only OSM specific models and hide the Rift Specific Augments")
+
     args = parser.parse_args(argv)
 
     # Disable loading any kernel modules for the launchpad VM
     # since it doesn't need it and it will fail within containers
     os.environ["NO_KERNEL_MODS"] = "1"
 
+    # Get external_address from env if args not set
+    if args.external_address is None:
+        args.external_address = os.getenv("RIFT_EXTERNAL_ADDRESS")
+
+    os.environ["RIFT_EXTERNAL_ADDRESS"] = \
+        args.external_address if args.external_address else get_launchpad_address()
+
     cleanup_dir_name = None
-    if os.environ["INSTALLDIR"] in ["/", "/home/rift", "/home/rift/.install",
-        "/usr/rift/build/fc20_debug/install/usr/rift", "/usr/rift"]:
+    if os.environ["INSTALLDIR"] in ["/usr/rift",
+        "/usr/rift/build/ub16_debug/install/usr/rift",
+        "/usr/rift/build/fc20_debug/install/usr/rift"]:
         cleanup_dir_name = os.environ["INSTALLDIR"] + "/var/rift/"
 
     if args.test_name and not cleanup_dir_name:
@@ -548,8 +675,8 @@ def main(argv=sys.argv[1:]):
         for f in os.listdir(cleanup_dir_name):
             if f.endswith(".aof") or f.endswith(".rdb"):
                 os.remove(os.path.join(cleanup_dir_name, f))
-    
-        # Remove the persistant DTS recovery files 
+
+        # Remove the persistant DTS recovery files
         for f in os.listdir(cleanup_dir_name):
             if f.endswith(".db"):
                 os.remove(os.path.join(cleanup_dir_name, f))
@@ -561,35 +688,46 @@ def main(argv=sys.argv[1:]):
     except Exception as e:
         print ("Error while cleanup: {}".format(str(e)))
 
-    ha_mode = args.ha_mode
+    datastore = args.datastore
     mgmt_ip_list = [] if not args.mgmt_ip_list else args.mgmt_ip_list
 
     #load demo info and create Demo object
-    demo = Demo(args.no_ui, ha_mode, mgmt_ip_list, args.test_name)
+    demo = Demo(args.no_ui, 
+                datastore,
+                mgmt_ip_list, 
+                args.test_name, 
+                args.start_auth_svc, 
+                args.start_pam_svc,
+                args.external_address)
+
+    if 'use_osm_model' in args and args.use_osm_model:
+        northbound_listing = ["platform_schema_listing.txt",
+                              "platform_mgmt_schema_listing.txt",
+                              "cli_launchpad_schema_listing.txt"]
+        args.use_xml_mode = True
+
+    else:
+        northbound_listing = ["platform_schema_listing.txt",
+                              "platform_mgmt_schema_listing.txt",
+                              "cli_launchpad_schema_listing.txt",
+                              "cli_launchpad_rift_specific_schema_listing.txt"]
 
     # Create the prepared system from the demo
-    system = rift.vcs.demo.prepared_system_from_demo_and_args(demo, args,
-              northbound_listing="cli_launchpad_schema_listing.txt",
-              netconf_trace_override=True)
+    system = rift.vcs.demo.prepared_system_from_demo_and_args(
+        demo, args,
+        northbound_listing=northbound_listing,
+        netconf_trace_override=True)
 
-    # Search for externally accessible IP address with netifaces
-    gateways = netifaces.gateways()
-    # Check for default route facing interface and then get its ip address
-    if 'default' in gateways:
-        interface = gateways['default'][netifaces.AF_INET][1]
-        confd_ip = netifaces.ifaddresses(interface)[netifaces.AF_INET][0]['addr']
-    else:
-        # no default gateway.  Revert to 127.0.0.1
-        confd_ip = "127.0.0.1"
+    confd_ip = get_launchpad_address()
     # TODO: This need to be changed when launchpad starts running on multiple VMs
     rift.vcs.logger.configure_sink(config_file=None, confd_ip=confd_ip)
 
     # Start the prepared system
     system.start()
 
-
 if __name__ == "__main__":
     resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY) )
+    os.system('/usr/rift/bin/UpdateHostsFile')
     try:
         main()
     except rift.vcs.demo.ReservationError:

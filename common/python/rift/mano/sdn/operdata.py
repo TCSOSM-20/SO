@@ -16,12 +16,18 @@
 #
 
 import asyncio
+import gi
+
 import rift.tasklets
 
 from gi.repository import(
         RwSdnYang,
+        RwsdnalYang,
         RwDts as rwdts,
+        RwTypes,
         )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 
 class SDNAccountNotFound(Exception):
@@ -29,12 +35,15 @@ class SDNAccountNotFound(Exception):
 
 
 class SDNAccountDtsOperdataHandler(object):
-    def __init__(self, dts, log, loop):
+    def __init__(self, dts, log, loop, project):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
 
         self.sdn_accounts = {}
+        self._oper = None
+        self._rpc = None
 
     def add_sdn_account(self, account):
         self.sdn_accounts[account.name] = account
@@ -59,23 +68,39 @@ class SDNAccountDtsOperdataHandler(object):
 
         return saved_sdn_accounts
 
+    @asyncio.coroutine
+    def create_notification(self, account):
+        xpath = "N,/rw-sdn:sdn-notif"
+        ac_status = RwSdnYang.YangNotif_RwSdn_SdnNotif()
+        ac_status.name = account.name
+        ac_status.message = account.connection_status.details
+
+        yield from self._dts.query_create(xpath, rwdts.XactFlag.ADVISE, ac_status)
+        self._log.info("Notification called by creating dts query: %s", ac_status)
+
+
+    @asyncio.coroutine
     def _register_show_status(self):
+        self._log.debug("Registering for show for project {}".format(self._project))
         def get_xpath(sdn_name=None):
-            return "D,/rw-sdn:sdn/account{}/connection-status".format(
-                    "[name='%s']" % sdn_name if sdn_name is not None else ''
-                    )
+            return self._project.add_project("D,/rw-sdn:sdn/rw-sdn:account{}/rw-sdn:connection-status".
+                                             format(
+                                                 "[rw-sdn:name=%s]" % quoted_key(sdn_name)
+                                                 if sdn_name is not None else ''))
 
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
-            self._log.debug("Got show SDN connection status request: %s", ks_path.create_string())
-            path_entry = RwSdnYang.SDNAccount.schema().keyspec_to_entry(ks_path)
+            xpath = ks_path.to_xpath(RwSdnYang.get_schema())
+            self._log.debug("Got show SDN connection status request: %s", xpath)
+            path_entry = RwSdnYang.YangData_RwProject_Project_Sdn_Account.schema().keyspec_to_entry(ks_path)
             sdn_account_name = path_entry.key00.name
 
             try:
                 saved_accounts = self.get_saved_sdn_accounts(sdn_account_name)
                 for account in saved_accounts:
                     connection_status = account.connection_status
-                    self._log.debug("Responding to SDN connection status request: %s", connection_status)
+                    self._log.debug("Responding to SDN connection status request: %s",
+                                    connection_status)
                     xact_info.respond_xpath(
                             rwdts.XactRspCode.MORE,
                             xpath=get_xpath(account.name),
@@ -88,19 +113,26 @@ class SDNAccountDtsOperdataHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        yield from self._dts.register(
+        self._oper = yield from self._dts.register(
                 xpath=get_xpath(),
                 handler=rift.tasklets.DTS.RegistrationHandler(
                     on_prepare=on_prepare),
                 flags=rwdts.Flag.PUBLISHER,
                 )
 
+    @asyncio.coroutine
     def _register_validate_rpc(self):
+        self._log.debug("Registering for rpc for project {}".format(self._project))
         def get_xpath():
             return "/rw-sdn:update-sdn-status"
 
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
+            if self._project and not self._project.rpc_check(msg, xact_info=xact_info):
+                return
+
+            self._log.debug("Got update SDN connection status request: %s", msg)
+
             if not msg.has_field("sdn_account"):
                 raise SDNAccountNotFound("SDN account name not provided")
 
@@ -108,21 +140,39 @@ class SDNAccountDtsOperdataHandler(object):
             try:
                 account = self.sdn_accounts[sdn_account_name]
             except KeyError:
-                raise SDNAccountNotFound("SDN account name %s not found" % sdn_account_name)
+                errmsg = "SDN account name %s not found" % sdn_account_name
+                self._log.error(errmsg)
+                xpath = ks_path.to_xpath(RwSdnYang.get_schema())
+                xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
+                                           xpath,
+                                           errmsg)
+                xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                return
 
             account.start_validate_credentials(self._loop)
 
+            yield from self.create_notification(account)
+
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        yield from self._dts.register(
-                xpath=get_xpath(),
-                handler=rift.tasklets.DTS.RegistrationHandler(
-                    on_prepare=on_prepare
-                    ),
-                flags=rwdts.Flag.PUBLISHER,
-                )
+        self._rpc = yield from self._dts.register(
+            xpath=get_xpath(),
+            handler=rift.tasklets.DTS.RegistrationHandler(
+                on_prepare=on_prepare
+            ),
+            flags=rwdts.Flag.PUBLISHER,
+        )
 
     @asyncio.coroutine
     def register(self):
         yield from self._register_show_status()
         yield from self._register_validate_rpc()
+
+    def deregister(self):
+        if self._oper:
+            self._oper.deregister()
+            self._oper = None
+
+        if self._rpc:
+            self._rpc.deregister()
+            self._rpc = None

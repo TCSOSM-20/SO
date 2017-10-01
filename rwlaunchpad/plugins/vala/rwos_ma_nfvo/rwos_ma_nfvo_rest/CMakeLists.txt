@@ -17,4 +17,4 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwos_ma_nfvo_rest rwos_ma_nfvo_rest.py)
+rift_install_gobject_python_plugin(rwos_ma_nfvo_rest rwos_ma_nfvo_rest.py COMPONENT ${INSTALL_COMPONENT})

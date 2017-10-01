@@ -481,6 +481,18 @@ class CalProxyApp(tornado.web.Application):
                         ),
                     ),
 
+            (r"/api/get_virtual_link_by_name", CalRequestHandler,
+                    mk_attrs(
+                        cal_method="get_virtual_link_by_name",
+                        input_params=[
+                            RPCParam("link_name"),
+                            ],
+                        output_params=[
+                            RPCParam("response", "VirtualLinkInfoParams"),
+                            ],
+                        ),
+                    ),
+
             (r"/api/get_virtual_link_list", CalRequestHandler,
                     mk_attrs(
                         cal_method="get_virtual_link_list",

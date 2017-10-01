@@ -329,7 +329,7 @@ class OpenstackGlanceClient(object):
         create_args = dict(
             location=image_url,
             name=image_name,
-            is_public="True",
+            is_public="False",
             disk_format=disk_format,
             container_format=container_format,
             )

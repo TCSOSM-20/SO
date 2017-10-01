@@ -17,4 +17,4 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwsdn_mock rwsdn_mock.py)
+rift_install_gobject_python_plugin(rwsdn_mock rwsdn_mock.py COMPONENT ${INSTALL_COMPONENT})

@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,14 +27,16 @@ module rw-vnfr
     prefix "manotypes";
   }
 
-  import rw-pb-ext { prefix "rwpb"; }
-
   import vnfr {
     prefix "vnfr";
   }
 
-  import vnfd {
-    prefix "vnfd";
+  import vnfd-base {
+    prefix "vnfd-base";
+  }
+
+  import project-vnfd {
+    prefix "project-vnfd";
   }
 
   import rw-cloud {
@@ -53,6 +55,19 @@ module rw-vnfr
     prefix "inet";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  import mano-rift-groupings {
+    prefix "mano-rift";
+  }
+
+  revision 2017-02-28 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-09-10 {
     description
       "Initial revision. This YANG file augments
@@ -61,13 +76,37 @@ module rw-vnfr
       "Derived from earlier versions of base YANG files";
   }
 
+  typedef vdur-operational-event-types {
+    type enumeration {
+      enum instantiate-rcvd;
+      enum vm-allocation-requested;
+      enum running;
+      enum terminate-rcvd;
+      enum vm-terminate-requested;
+      enum terminated;
+    }
+  }
+
+  typedef vnfr-operational-event-types {
+    type enumeration {
+      enum instantiate-rcvd;
+      enum vl-inited;
+      enum vnf-inited;
+      enum running;
+      enum terminate-rcvd;
+      enum vnf-terminated;
+      enum vl-terminated;
+      enum terminated;
+    }
+  }
+
   grouping vnfr-operational-events {
     list operational-events {
       key "id";
       description
         "Recent operational events for VNFR
-        Though the model does not impose any restrictions on the numbe of events, 
-        the max operational events will be limited to the most recent 10"; 
+        Though the model does not impose any restrictions on the numbe of events,
+        the max operational events will be limited to the most recent 10";
 
       leaf id {
         description "The id of the instance";
@@ -82,17 +121,7 @@ module rw-vnfr
       }
       leaf event {
         description "The event";
-        type enumeration {
-          rwpb:enum-type "VnfrOperationalEvent";
-          enum instantiate-rcvd;
-          enum vl-inited;
-          enum vnf-inited;
-          enum running;
-          enum terminate-rcvd;
-          enum vnf-terminated;
-          enum vl-terminated;
-          enum terminated;
-        }
+        type vnfr-operational-event-types;
       }
       leaf description {
         description
@@ -107,8 +136,8 @@ module rw-vnfr
       key "id";
       description
         "Recent operational events for VDUR
-        Though the model does not impose any restrictions on the numbe of events, 
-        the max operational events will be limited to the most recent 10"; 
+        Though the model does not impose any restrictions on the numbe of events,
+        the max operational events will be limited to the most recent 10";
 
       leaf id {
         description "The id of the instance";
@@ -123,15 +152,7 @@ module rw-vnfr
       }
       leaf event {
         description "The event";
-        type enumeration {
-          rwpb:enum-type "VdurOperationalEvent";
-          enum instantiate-rcvd;
-          enum vm-allocation-requested;
-          enum running;
-          enum terminate-rcvd;
-          enum vm-terminate-requested;
-          enum terminated;
-        }
+        type vdur-operational-event-types;
       }
       leaf description {
         description
@@ -141,25 +162,14 @@ module rw-vnfr
     }
   }
 
-  augment /vnfr:vnfr-catalog/vnfr:vnfr {
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr {
     uses manotypes:action-param;
     uses manotypes:control-param;
 
-    leaf cloud-account {
+    leaf datacenter {
       description
-        "The cloud account to use when requesting resources for
-         this vnf";
-      type leafref {
-        path "/rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
-      }
-    }
-
-    leaf om-datacenter {
-      description
-          "Openmano datacenter name to use when instantiating
-          the network service.  This is only used when openmano
-          is selected as the cloud account.  This should be superceded
-          by multiple cloud accounts when that becomes available.";
+          "Datacenter name to use when instantiating
+          the network service.";
       type string;
     }
 
@@ -184,48 +194,9 @@ module rw-vnfr
           type uint64;
         }
       }
-      
+
       uses manotypes:nfvi-metrics;
     }
-
-    list component {
-      description
-          "This section defines the RIFT.ware
-           virtual components";
-      key "component-name";
-      rwpb:msg-new VcsComponentOp;
-      rwpb:application-request-point;
-
-      leaf component-name {
-        description "";
-        type string;
-      }
-
-      leaf component-type {
-        description "";
-        type rwvcstypes:component_type;
-        mandatory true;
-      }
-
-      choice component {
-        case rwvcs-rwcollection {
-          uses rwvcstypes:rwvcs-rwcollection;
-        }
-        case rwvcs-rwvm {
-          uses rwvcstypes:rwvcs-rwvm;
-        }
-        case rwvcs-rwproc {
-          uses rwvcstypes:rwvcs-rwproc;
-        }
-        case native-proc {
-          uses rwvcstypes:native-proc;
-        }
-        case rwvcs-rwtasklet {
-          uses rwvcstypes:rwvcs-rwtasklet;
-        }
-      }
-    } // list component
-
     uses vnfr-operational-events;
 
     leaf operational-status-details {
@@ -235,7 +206,7 @@ module rw-vnfr
     }
   }
 
-  augment /vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vdur {
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vdur {
     leaf vm-pool {
       description
         "The pool from which this vm was allocated from";
@@ -246,21 +217,6 @@ module rw-vnfr
       uses manotypes:nfvi-metrics;
     }
 
-    leaf vcs-component-ref {
-      description
-          "This defines the software components using the
-           RIFT.ware Virtual Component System (VCS). This
-           also allows specifying a state machine during
-           the VM startup.
-           NOTE: This is an significant addition to MANO,
-           since MANO doesn't clearly specify a method to
-           identify various software components in a VM.
-           Also using a state machine is not something that
-           is well described in MANO.";
-      type leafref {
-        path "/vnfr:vnfr-catalog/vnfr:vnfr/rw-vnfr:component/rw-vnfr:component-name";
-      }
-    }
 
     uses vdur-operational-events;
 
@@ -270,6 +226,7 @@ module rw-vnfr
       type string;
     }
   }
+
   grouping vnfd-ref-count {
     list vnfd-ref-count {
       key "vnfd-id-ref";
@@ -278,7 +235,7 @@ module rw-vnfr
       leaf vnfd-id-ref {
         description "Reference to VNFD";
         type leafref {
-          path "/vnfd:vnfd-catalog/vnfd:vnfd/vnfd:id";
+          path "../../../project-vnfd:vnfd-catalog/project-vnfd:vnfd/project-vnfd:id";
         }
       }
       leaf instance-ref-count {
@@ -292,28 +249,323 @@ module rw-vnfr
       }
     }
   }
-  augment /vnfr:vnfr-catalog {
+
+  grouping vnfd-config-parameter {
+    container config-parameter {
+      description
+        "List of VNF config parameter requests and sources";
+      list config-parameter-source {
+        description "The list of parameters exposed by this VNF";
+        key "name";
+
+        leaf name {
+          description "Name of the source";
+          type string {
+            length "1..128";
+          }
+        }
+
+        leaf description {
+          description " Description of the source";
+          type string;
+        }
+
+        choice source {
+          case descriptor {
+            leaf descriptor {
+              description
+                "Location of this source as an xpath.
+                 For example:
+                   ../../../mgmt-interface/port";
+              type string;
+            }
+          }
+
+          case attribute {
+            leaf attribute {
+              description
+                "Location of this source as runtime attribute.
+                 The value is <xpath>, <attribute_name>
+                 For example:
+                   ../../../mgmt-interface, ip-address
+                   which retruns the ip-address assigned to the
+                   mgmt-interface after VNF instantiation.";
+              type string;
+            }
+          }
+
+          case primitive-ref {
+            leaf config-primitive-name-ref {
+              description
+                "A leafref to configuration primitive.
+                 This refers to a config parameter whose
+                 output parameter is referred in out-parameter.";
+              type leafref {
+                path "../../../vnfr:vnf-configuration/vnfr:config-primitive/vnfr:name";
+              }
+            }
+
+            leaf parameter-ref {
+              description
+                "Name of the output parameter in the config primitiive";
+              type leafref {
+                path
+                  "../../../vnfr:vnf-configuration/vnfr:config-primitive[vnfr:name=current()/../config-primitive-name-ref]/vnfr:parameter/vnfr:name";
+              }
+            }
+          }
+
+          case value {
+            leaf value {
+              description
+                "Pre-defined value to be used for this source";
+              type string;
+            }
+          }
+        }
+
+        list parameter {
+          key "config-primitive-name-ref";
+
+          leaf config-primitive-name-ref {
+            description
+              "Name of the configuration primitive where this
+             request will used";
+            type leafref {
+              path "../../../../vnfr:vnf-configuration/vnfr:config-primitive/vnfr:name";
+            }
+          }
+
+          leaf config-primitive-parameter-ref {
+            description
+              "Parameter name of the config primitive";
+            type leafref {
+              path "../../../../vnfr:vnf-configuration/vnfr:config-primitive[vnfr:name=current()/../config-primitive-name-ref]/vnfr:parameter/vnfr:name";
+            }
+          }
+        }
+      }
+
+      list config-parameter-request {
+        description "The list of requests for this VNF";
+        key "name";
+
+        leaf name {
+          description "Name of this parameter request";
+          type string {
+            length "1..128";
+          }
+        }
+
+        leaf description {
+          description "Description of this request";
+          type string;
+        }
+
+        list parameter {
+          key "config-primitive-name-ref";
+
+          leaf config-primitive-name-ref {
+            description
+              "Name of the configuration primitive where this
+             request will used";
+            type leafref {
+              path "../../../../vnfr:vnf-configuration/vnfr:config-primitive/vnfr:name";
+            }
+          }
+
+          leaf config-primitive-parameter-ref {
+            description
+              "Parameter name of the config primitive";
+            type leafref {
+              path "../../../../vnfr:vnf-configuration/vnfr:config-primitive[vnfr:name=current()/../config-primitive-name-ref]/vnfr:parameter/vnfr:name";
+            }
+          }
+        }
+      }
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog {
     uses vnfd-ref-count;
   }
 
-  container vnfr-console {
-    config false;
-    list vnfr {
-      key "id";
-      leaf id {
-        description "Identifier for the VNFR.";
-        type yang:uuid;
-      }
-      list vdur {
-        description "List of Virtual Deployment Units";
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:mgmt-interface {
+    leaf ssh-key {
+      description
+        "Whether SSH keys need to be generated and passed
+             to the RO and VCA during instantiation.";
+      type boolean;
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:vdu/vnfr:vm-flavor {
+		uses manotypes:vm-flavor-name;
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:vdu/vnfr:interface {
+    leaf static-ip-address {
+      description "Static IP address for the connection point";
+      type inet:ip-address;
+    }
+
+    leaf floating-ip-needed{
+      type boolean;
+      default "false";
+      description 
+        "Sole purpose of this field is to facilitate translation of VNFD 
+              to other VNFMs";
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vdur/vnfr:interface {
+    leaf static-ip-address {
+      description "Static IP address for the connection point";
+      type inet:ip-address;
+    }
+
+    leaf floating-ip-needed{
+      type boolean;
+      default "false";
+      description 
+        "Sole purpose of this field is to facilitate translation of VNFD 
+              to other VNFMs";
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vdur/vnfr:vm-flavor {
+		uses manotypes:vm-flavor-name;
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd {
+    leaf meta {
+      description
+        "Any meta-data needed by the UI";
+      type string;
+    }
+
+    uses vnfd-config-parameter;
+  }
+
+  augment /rw-project:project {
+    container vnfr-console {
+      config false;
+      list vnfr {
         key "id";
         leaf id {
-          description "Unique id for the VDU";
+          description "Identifier for the VNFR.";
           type yang:uuid;
         }
-        leaf console-url {
-          description "Console URL for this VDU, if available";
-          type inet:uri;
+        list vdur {
+          description "List of Virtual Deployment Units";
+          key "id";
+          leaf id {
+            description "Unique id for the VDU";
+            type yang:uuid;
+          }
+          leaf console-url {
+            description "Console URL for this VDU, if available";
+            type inet:uri;
+          }
+        }
+      }
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:http-endpoint {
+    uses mano-rift:http-end-point-additions;
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:http-endpoint {
+    uses mano-rift:http-end-point-additions;
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:vdu/vnfr:supplemental-boot-data {
+    uses mano-rift:custom-meta-data;
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vdur/vnfr:supplemental-boot-data {
+    uses mano-rift:custom-meta-data;
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:vdu/vnfr:volumes {
+    uses mano-rift:volume-info-additions;
+    uses mano-rift:custom-meta-data;
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:vdu/vnfr:volumes/vnfr:volume-source {
+    case volume {
+      leaf volume-ref {
+        description "Reference for pre-existing volume in VIM";
+        type string;
+      }
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnf-configuration/vnfr:config-primitive/vnfr:parameter {
+    leaf out {
+      description "If this is an output of the primitive execution";
+      type boolean;
+      default false;
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:vnf-configuration/vnfr:config-primitive/vnfr:parameter {
+    leaf out {
+      description "If this is an output of the primitive execution";
+      type boolean;
+      default false;
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnf-configuration/vnfr:initial-config-primitive/vnfr:primitive-type {
+    case primitive-ref {
+      leaf config-primitive-ref {
+        description
+          "Reference to a config primitive name.
+           NOTE: The config primitive referred should have
+                 all the input parameters predefined either
+                 with default values or dependency references.";
+        type leafref {
+          path "../../vnfr:config-primitive/vnfr:name";
+        }
+      }
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:vnf-configuration/vnfr:initial-config-primitive/vnfr:primitive-type {
+    case primitive-ref {
+      leaf config-primitive-ref {
+        description
+          "Reference to a config primitive name.
+           NOTE: The config primitive referred should have
+                 all the input parameters predefined either
+                 with default values or dependency references.";
+        type leafref {
+          path "../../vnfr:config-primitive/vnfr:name";
+        }
+      }
+    }
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vdur/vnfr:volumes {
+    uses mano-rift:volume-info-additions;
+    uses mano-rift:custom-meta-data;
+  }
+
+  augment /rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr/vnfr:vnfd/vnfr:internal-vld {
+    list virtual-connection-points {
+      description
+          "A list of virtual-connection points associated with Virtual Link.
+         These connection points are not directly associated with any VDUs";
+      key name;
+      uses vnfd-base:common-connection-point;
+
+      leaf-list associated-cps {
+        description
+            "A List of connection points associated with virtual connection point";
+        type leafref {
+          path "../../vnfr:internal-connection-point/vnfr:id-ref";
         }
       }
     }

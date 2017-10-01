@@ -31,8 +31,6 @@ target_link_libraries(rwcal_api PRIVATE
   rw_vx_plugin
   peas-1.0)
 
-add_dependencies(rwcal_api rwmanifest_yang.headers)
+install(TARGETS rwcal_api LIBRARY DESTINATION usr/lib COMPONENT ${INSTALL_COMPONENT})
 
-install(TARGETS rwcal_api LIBRARY DESTINATION usr/lib COMPONENT ${PKG_LONG_NAME})
-
-install(PROGRAMS rwvim.py DESTINATION usr/bin COMPONENT ${PKG_LONG_NAME})
+install(PROGRAMS rwvim.py DESTINATION usr/bin COMPONENT ${INSTALL_COMPONENT})

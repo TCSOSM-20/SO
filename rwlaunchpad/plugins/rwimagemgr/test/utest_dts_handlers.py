@@ -45,6 +45,7 @@ import rift.test.dts
 
 from rift.tasklets.rwimagemgr import tasklet
 from rift.tasklets.rwimagemgr import upload
+from rift.mano.utils.project import ManoProject, DEFAULT_PROJECT
 
 from rift.test.dts import async_test
 
@@ -75,17 +76,19 @@ class RwImageRPCTestCase(rift.test.dts.AbstractDTSTest):
     def configure_test(self, loop, test_id):
         self.log.debug("STARTING - %s", self.id())
         self.tinfo = self.new_tinfo(self.id())
-        self.dts = rift.tasklets.DTS(self.tinfo, self.schema, self.loop)
+
+        self.project = ManoProject(self.log, name=DEFAULT_PROJECT)
+        self.project._dts = rift.tasklets.DTS(self.tinfo, self.schema, self.loop)
+        self.project.cloud_accounts = {'mock'}
 
         self.task_creator_mock = create_upload_task_creator_mock()
         self.job_controller_mock = create_job_controller_mock()
         self.rpc_handler = tasklet.ImageDTSRPCHandler(
-                self.log, self.loop, self.dts, {'mock', None}, object(), self.task_creator_mock,
+                self.project, object(), self.task_creator_mock,
                 self.job_controller_mock
                 )
         self.show_handler = tasklet.ImageDTSShowHandler(
-                self.log, self.loop, self.dts, self.job_controller_mock
-                )
+                                self.project, self.job_controller_mock)
 
         self.tinfo_c = self.new_tinfo(self.id() + "_client")
         self.dts_c = rift.tasklets.DTS(self.tinfo_c, self.schema, self.loop)
@@ -103,7 +106,7 @@ class RwImageRPCTestCase(rift.test.dts.AbstractDTSTest):
             self.task_creator_mock.create_tasks_from_onboarded_create_rpc.return_value = [upload_task]
             self.job_controller_mock.create_job.return_value = 2
             type(self.job_controller_mock).pb_msg = unittest.mock.PropertyMock(
-                    return_value=RwImageMgmtYang.UploadJobs.from_dict({
+                    return_value=RwImageMgmtYang.YangData_RwProject_Project_UploadJobs.from_dict({
                         "job": [
                             {
                                 "id": 2,
@@ -114,12 +117,13 @@ class RwImageRPCTestCase(rift.test.dts.AbstractDTSTest):
                     })
                   )
 
-            create_job_msg = RwImageMgmtYang.CreateUploadJob.from_dict({
+            create_job_msg = RwImageMgmtYang.YangInput_RwImageMgmt_CreateUploadJob.from_dict({
                 "cloud_account": [upload_task.cloud_account],
                 "onboarded_image": {
                     "image_name": upload_task.image_name,
                     "image_checksum": upload_task.image_checksum,
-                }
+                },
+                "project_name": self.project.name,
             })
 
             query_iter = yield from self.dts_c.query_rpc(
@@ -138,7 +142,7 @@ class RwImageRPCTestCase(rift.test.dts.AbstractDTSTest):
                     )
 
             query_iter = yield from self.dts_c.query_read(
-                    "D,/rw-image-mgmt:upload-jobs",
+                    self.project.add_project("D,/rw-image-mgmt:upload-jobs"),
                     )
 
             for fut_resp in query_iter:

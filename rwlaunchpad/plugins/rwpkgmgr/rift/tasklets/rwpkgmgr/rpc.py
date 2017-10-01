@@ -19,6 +19,7 @@
 
 import abc
 import asyncio
+import gi
 import tempfile
 
 from gi.repository import (
@@ -59,7 +60,8 @@ class EndpointDiscoveryRpcHandler(mano_dts.AbstractRpcHandler):
         
         url = yield from self.proxy.endpoint(
                 msg.package_type if msg.has_field('package_type') else "",
-                msg.package_id)
+                msg.package_id, 
+                msg.project_name if msg.has_field('project_name') else None)
 
         rpc_op = RPC_PKG_ENDPOINT.from_dict({"endpoint": url})
 
@@ -104,22 +106,36 @@ class PackageOperationsRpcHandler(mano_dts.AbstractRpcHandler):
     3. Return a tracking ID for the client to monitor the entire status
 
     """
-    def __init__(self, log, dts, loop, proxy, publisher):
+    def __init__(self, log, dts, loop, proxy, tasklet):
         """
         Args:
             proxy: Any impl of .proxy.AbstractPackageManagerProxy
-            publisher: Instance of DownloadStatusPublisher
+            publisher: Instance of tasklet to find the DownloadStatusPublisher
+                       for a specific project
         """
         super().__init__(log, dts, loop)
         self.proxy = proxy
-        self.publisher = publisher
+        self.tasklet = tasklet
 
     @property
     def xpath(self):
         return "/rw-pkg-mgmt:package-file-add"
 
+    def get_publisher(self, msg):
+        try:
+            proj = self.tasklet.projects[msg.project_name]
+        except Exception as e:
+            err = "Project or project name not found {}: {}". \
+                  format(msg.as_dict(), e)
+            self.log.error (err)
+            raise Exception (err)
+
+        return proj.job_handler
+
     @asyncio.coroutine
     def callback(self, ks_path, msg):
+        publisher = self.get_publisher(msg)
+
         if not msg.external_url:
             # For now we will only support External URL download
             raise Exception ("No download URL provided")
@@ -138,22 +154,23 @@ class PackageOperationsRpcHandler(mano_dts.AbstractRpcHandler):
                 auth=auth,
                 file_obj=filename,
                 proxy=self.proxy,
-                log=self.log)
+                log=self.log,
+                project=msg.project_name)
 
-        download_id = yield from self.publisher.register_downloader(url_downloader)
+        download_id = yield from publisher.register_downloader(url_downloader)
 
         rpc_op = RPC_PACKAGE_ADD_ENDPOINT.from_dict({"task_id": download_id})
 
         return rpc_op
 
 class PackageCopyOperationsRpcHandler(mano_dts.AbstractRpcHandler):
-    def __init__(self, log, dts, loop, proxy, publisher):
+    def __init__(self, log, dts, loop, project, proxy, publisher):
         """
         Args:
             proxy: Any impl of .proxy.AbstractPackageManagerProxy
             publisher: CopyStatusPublisher object
         """
-        super().__init__(log, dts, loop)
+        super().__init__(log, dts, loop, project)
         self.proxy = proxy
         self.publisher = publisher
 
@@ -164,7 +181,7 @@ class PackageCopyOperationsRpcHandler(mano_dts.AbstractRpcHandler):
     @asyncio.coroutine
     def callback(self, ks_path, msg):
         import uuid 
-        copier = pkg_downloader.PackageFileCopier.from_rpc_input(msg, proxy=self.proxy, log=self.log)
+        copier = pkg_downloader.PackageFileCopier.from_rpc_input(msg, self.project, proxy=self.proxy, log=self.log)
 
         transaction_id, dest_package_id = yield from self.publisher.register_copier(copier)
         rpc_op = RPC_PACKAGE_COPY_ENDPOINT.from_dict({
@@ -199,7 +216,9 @@ class PackageDeleteOperationsRpcHandler(mano_dts.AbstractRpcHandler):
                 msg.package_type,
                 msg.package_id,
                 msg.package_path, 
-                package_file_type)
+                package_file_type,
+                msg.project_name,
+                )
         except Exception as e:
             self.log.exception(e)
             rpc_op.status = str(False)

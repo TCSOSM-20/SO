@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,10 +23,6 @@ module vnffgd
   namespace "urn:ietf:params:xml:ns:yang:nfvo:vnffgd";
   prefix "vnffgd";
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import ietf-inet-types {
     prefix "inet";
   }
@@ -39,6 +35,15 @@ module vnffgd
     prefix "manotypes";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2014-10-27 {
     description
       "Initial revision. This YANG file defines 
@@ -47,37 +52,39 @@ module vnffgd
       "Derived from earlier versions of base YANG files";
   }
 
-  container vnffgd-catalog {
+  augment "/rw-project:project" {
+    container vnffgd-catalog {
 
-    list vnffgd {
-      key "id";
+      list vnffgd {
+        key "id";
 
-      leaf name {
-        description "VNF Forwarding Graph Descriptor name.";
-        type string;
+        leaf name {
+          description "VNF Forwarding Graph Descriptor name.";
+          type string;
+        }
+
+        leaf id {
+          description "Identifier for the VNFFGD.";
+          type yang:uuid;
+        }
+
+        leaf provider {
+          description "Provider of the VNFFGD.";
+          type string;
+        }
+
+        leaf description {
+          description "Description of the VNFFGD.";
+          type string;
+        }
+
+        leaf version {
+          description "Version of the VNFFGD";
+          type string;
+        }
+
+        //TODO: Add more content here
       }
-
-      leaf id {
-        description "Identifier for the VNFFGD.";
-        type yang:uuid;
-      }
-
-      leaf provider {
-        description "Provider of the VNFFGD.";
-        type string;
-      }
-
-      leaf description {
-        description "Description of the VNFFGD.";
-        type string;
-      }
-
-      leaf version {
-        description "Version of the VNFFGD";
-        type string;
-      }
-
-      //TODO: Add more content here
     }
   }
 }

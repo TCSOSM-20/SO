@@ -23,7 +23,7 @@ install(
   PROGRAMS
     launchpad.py
     DESTINATION demos
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   )
 
 install(
@@ -31,7 +31,7 @@ install(
     pytest/lp_test.py
   DESTINATION
     usr/rift/systemtest/pytest/launchpad
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   )
 
 install(
@@ -39,14 +39,14 @@ install(
     launchpad_recovery
   DESTINATION
     usr/rift/systemtest/launchpad
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   )
 
 install(
   PROGRAMS
     launchpad
   DESTINATION usr/bin
-  COMPONENT rwcal-1.0
+  COMPONENT ${INSTALL_COMPONENT}
   )
 
 rift_py3test(utest_rwmonitor

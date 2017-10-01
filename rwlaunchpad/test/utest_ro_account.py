@@ -20,22 +20,30 @@ import sys
 import types
 import unittest
 import uuid
+import os
+import xmlrunner
+
+#Setting RIFT_VAR_ROOT if not already set for unit test execution
+if "RIFT_VAR_ROOT" not in os.environ:
+    os.environ['RIFT_VAR_ROOT'] = os.path.join(os.environ['RIFT_INSTALL'], 'var/rift/unittest')
 
 import rift.test.dts
 import rift.tasklets.rwnsmtasklet.cloud as cloud
+import rift.tasklets.rwnsmtasklet.rwnsmplugin as rwnsmplugin
 import rift.tasklets.rwnsmtasklet.openmano_nsm as openmano_nsm
+from rift.mano.utils.project import ManoProject
 import rw_peas
 
 import gi
-gi.require_version('RwDtsYang', '1.0')
+gi.require_version('RwDts', '1.0')
 from gi.repository import (
-        RwLaunchpadYang as launchpadyang,
+        RwRoAccountYang as roaccountyang,
         RwDts as rwdts,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         RwVnfrYang,
         RwNsrYang,
-        RwNsdYang,
-        VnfrYang
+        RwProjectNsdYang as RwNsdYang,
+        VnfrYang,
         )
 
 
@@ -44,8 +52,15 @@ class DescriptorPublisher(object):
         self.log = log
         self.loop = loop
         self.dts = dts
-
         self._registrations = []
+
+    @asyncio.coroutine
+    def update(self, xpath, desc):
+        self._registrations[-1].update_element(xpath, desc)
+    
+    @asyncio.coroutine
+    def delete(self, xpath):
+        self._registrations[-1].delete_element(xpath)
 
     @asyncio.coroutine
     def publish(self, w_path, path, desc):
@@ -65,11 +80,13 @@ class DescriptorPublisher(object):
                 )
 
         self.log.debug("Registering path: %s, obj:%s", w_path, desc)
+        
         reg = yield from self.dts.register(
                 w_path,
                 handler,
                 flags=rwdts.Flag.PUBLISHER | rwdts.Flag.NO_PREP_READ
                 )
+        
         self._registrations.append(reg)
         self.log.debug("Registered path : %s", w_path)
         yield from ready_event.wait()
@@ -84,7 +101,7 @@ class DescriptorPublisher(object):
 class RoAccountDtsTestCase(rift.test.dts.AbstractDTSTest):
     @classmethod
     def configure_schema(cls):
-       return launchpadyang.get_schema()
+       return roaccountyang.get_schema()
 
     @classmethod
     def configure_timeout(cls):
@@ -94,6 +111,7 @@ class RoAccountDtsTestCase(rift.test.dts.AbstractDTSTest):
         self.log.debug("STARTING - %s", test_id)
         self.tinfo = self.new_tinfo(str(test_id))
         self.dts = rift.tasklets.DTS(self.tinfo, self.schema, self.loop)
+        self.project = ManoProject(self.log)
 
         self.tinfo_sub = self.new_tinfo(str(test_id) + "_sub")
         self.dts_sub = rift.tasklets.DTS(self.tinfo_sub, self.schema, self.loop)
@@ -105,59 +123,44 @@ class RoAccountDtsTestCase(rift.test.dts.AbstractDTSTest):
 
     @rift.test.dts.async_test
     def test_orch_account_create(self):
-        orch = cloud.ROAccountPluginSelector(self.dts, self.log, self.loop, None)
-
-        yield from orch.register()
-
+        ro_cfg_sub = cloud.ROAccountConfigSubscriber(self.dts, self.log, self.loop, self.project, None)
+        yield from ro_cfg_sub.register()
+        
+        ro_plugin = ro_cfg_sub.get_ro_plugin(account_name=None)
         # Test if we have a default plugin in case no RO is specified.
-        assert type(orch.ro_plugin) is cloud.RwNsPlugin
-        mock_orch_acc = launchpadyang.ResourceOrchestrator.from_dict(
-                {'name': 'rift-ro', 'account_type': 'rift_ro', 'rift_ro': {'rift_ro': True}})
+        assert type(ro_plugin) is rwnsmplugin.RwNsPlugin
 
         # Test rift-ro plugin CREATE
-        w_xpath = "C,/rw-launchpad:resource-orchestrator"
-        xpath = w_xpath
-        yield from self.publisher.publish(w_xpath, xpath, mock_orch_acc)
-        yield from asyncio.sleep(5, loop=self.loop)
-
-        assert type(orch.ro_plugin) is cloud.RwNsPlugin
+        w_xpath = self.project.add_project("C,/rw-ro-account:ro-account/rw-ro-account:account")
+        xpath = w_xpath + "[rw-ro-account:name='openmano']"
 
         # Test Openmano plugin CREATE
-        mock_orch_acc = launchpadyang.ResourceOrchestrator.from_dict(
+        mock_orch_acc = roaccountyang.YangData_RwProject_Project_RoAccount_Account.from_dict(
                 {'name': 'openmano',
-                 'account_type': 'openmano',
+                 'ro_account_type': 'openmano',
                  'openmano': {'tenant_id': "abc",
                               "port": 9999,
                               "host": "10.64.11.77"}})
+        
         yield from self.publisher.publish(w_xpath, xpath, mock_orch_acc)
         yield from asyncio.sleep(5, loop=self.loop)
-
-        assert type(orch.ro_plugin) is openmano_nsm.OpenmanoNsPlugin
-        assert orch.ro_plugin._cli_api._port  == mock_orch_acc.openmano.port
-        assert orch.ro_plugin._cli_api._host  == mock_orch_acc.openmano.host
+        
+        ro_plugin = ro_cfg_sub.get_ro_plugin(account_name='openmano')
+        assert type(ro_plugin) is openmano_nsm.OpenmanoNsPlugin
 
         # Test update
         mock_orch_acc.openmano.port = 9789
         mock_orch_acc.openmano.host = "10.64.11.78"
-        yield from self.dts.query_update("C,/rw-launchpad:resource-orchestrator",
-                rwdts.XactFlag.ADVISE, mock_orch_acc)
-        assert orch.ro_plugin._cli_api._port  == mock_orch_acc.openmano.port
-        assert orch.ro_plugin._cli_api._host  == mock_orch_acc.openmano.host
+        yield from self.publisher.update(xpath, mock_orch_acc)
+        yield from asyncio.sleep(5, loop=self.loop)
 
-        # Test update when a live instance exists
-        # Exception should be thrown
-        orch.handle_nsr(None, rwdts.QueryAction.CREATE)
-        mock_orch_acc.openmano.port = 9788
+        #Since update means delete followed by a insert get the new ro_plugin.
+        ro_plugin = ro_cfg_sub.get_ro_plugin(account_name='openmano')
+        assert ro_plugin._cli_api._port  == mock_orch_acc.openmano.port
+        assert ro_plugin._cli_api._host  == mock_orch_acc.openmano.host
 
-        with self.assertRaises(Exception):
-            yield from self.dts.query_update("C,/rw-launchpad:resource-orchestrator",
-                    rwdts.XactFlag.ADVISE, mock_orch_acc)
-
-        # Test delete
-        yield from self.dts.query_delete("C,/rw-launchpad:resource-orchestrator",
-                flags=rwdts.XactFlag.ADVISE)
-        assert orch.ro_plugin == None
-
+        # Test delete to be implemented. right now facing some dts issues.
+        # Use DescriptorPublisher delete for deletion 
 
 def main(argv=sys.argv[1:]):
 
@@ -166,7 +169,7 @@ def main(argv=sys.argv[1:]):
     # when this is called from the interpreter).
     unittest.main(
             argv=[__file__] + argv,
-            testRunner=None#xmlrunner.XMLTestRunner(output=os.environ["RIFT_MODULE_TEST"])
+            testRunner=xmlrunner.XMLTestRunner(output=os.environ["RIFT_MODULE_TEST"])
             )
 
 if __name__ == '__main__':

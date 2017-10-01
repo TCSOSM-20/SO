@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -31,10 +31,6 @@ module rw-nsm
   namespace "http://riftio.com/ns/riftware-1.0/rw-nsm";
   prefix "rw-nsm";
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import rw-cli-ext {
     prefix "rwcli";
   }
@@ -43,30 +39,38 @@ module rw-nsm
     prefix "inet";
   }
 
-  import rw-nsd {
-    prefix "rw-nsd";
+  import rw-project-nsd {
+    prefix "rw-project-nsd";
   }
-  import nsd {
-    prefix "nsd";
+
+  import project-nsd {
+    prefix "project-nsd";
   }
+
   import rw-nsr {
     prefix "rw-nsr";
   }
+
   import vld {
     prefix "vld";
   }
+
   import rw-vlr {
     prefix "rw-vlr";
   }
+
   import rw-vns {
     prefix "rw-vns";
   }
-  import rw-vnfd {
-    prefix "rw-vnfd";
+
+  import rw-project-vnfd {
+    prefix "rw-project-vnfd";
   }
-  import vnfd {
-    prefix "vnfd";
+
+  import project-vnfd {
+    prefix "project-vnfd";
   }
+
   import rw-vnfr {
     prefix "rw-vnfr";
   }
@@ -91,6 +95,19 @@ module rw-nsm
     prefix "rw-config-agent";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-10-07 {
     description
       "Initial revision.";
@@ -110,24 +127,12 @@ module rw-nsm
     leaf cm-username {
       description "RO endpoint username";
       type string;
-      default "admin";
+      default "@rift";
     }
     leaf cm-password {
       description "RO endpoint password";
       type string;
-      default "admin";
-    }
-  }
-
-  container ro-config {
-    description "Resource Orchestrator endpoint ip address";
-    rwpb:msg-new "roConfig";
-    rwcli:new-mode "ro-config";
-
-    container cm-endpoint {
-      description "Service Orchestrator endpoint ip address";
-      rwpb:msg-new "SoEndpoint";
-      uses cm-endpoint;
+      default "rift";
     }
   }
 }

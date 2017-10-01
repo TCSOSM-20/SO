@@ -136,7 +136,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
         Returns:
             Validation Code and Details String
         """
-        status = RwcalYang.CloudConnectionStatus()
+        status = RwcalYang.YangData_Rwcal_ConnectionStatus()
         url = 'http://{}:{}/openvim/'.format(account.openvim.host,account.openvim.port)
         try:
             r=requests.get(url,timeout=3)
@@ -183,14 +183,14 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
         Returns:
             The TenantInfoItem
         """
-        tenant = RwcalYang.TenantInfoItem()
+        tenant = RwcalYang.YangData_RwProject_Project_VimResources_TenantinfoList()
         tenant.tenant_name = tenant_info['name']
         tenant.tenant_id = tenant_info['id']
         return tenant
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_tenant_list(self, account):
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         with self._use_driver(account) as drv:
             tenants = drv.get_tenant_list()
         for tenant in tenants:
@@ -256,7 +256,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
 
     @staticmethod
     def _fill_image_info(img_info):
-        img = RwcalYang.ImageInfoItem()
+        img = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         img.name = img_info['name']
         img.id = img_info['id']
         img.location = img_info['path']
@@ -274,7 +274,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_image_list(self, account):
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         with self._use_driver(account) as drv:
             images = drv.get_image_list()
         for img in images:
@@ -304,7 +304,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_vm_list(self, account):
-        return RwcalYang.VimResources()
+        return RwcalYang.YangData_RwProject_Project_VimResources()
 
     def _fill_flavor_create_attributes(flavor):
         flavor_dict = dict()
@@ -345,7 +345,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
 
     @staticmethod
     def _fill_flavor_info(flavor_info):
-        flavor = RwcalYang.FlavorInfoItem()
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         flavor.name                       = flavor_info['name']
         flavor.id                         = flavor_info['id']
         RwcalOpenmanoVimConnector._fill_epa_attributes(flavor, flavor_info)
@@ -360,7 +360,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_flavor_list(self, account):
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         with self._use_driver(account) as drv:
             flavors = drv.get_flavor_list()
         for flav in flavors:
@@ -398,7 +398,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_port_list(self, account):
-        return RwcalYang.VimResources()
+        return RwcalYang.YangData_RwProject_Project_VimResources()
 
     @rwstatus
     def do_create_network(self, account, network):
@@ -412,7 +412,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
             drv.delete_network(network_id)
 
     def _fill_network_info(self, network_info):
-        network                  = RwcalYang.NetworkInfoItem()
+        network                  = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList()
         network.network_name     = network_info['name']
         network.network_id       = network_info['id']
         if ('provider:physical' in network_info) and (network_info['provider:physical']):
@@ -430,7 +430,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_network_list(self, account):
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         with self._use_driver(account) as drv:
             networks = drv.get_network_list()
         for network in networks:
@@ -472,7 +472,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
             c_point.vdu_id = port_info['device_id']
 
     def _fill_virtual_link_info(self, drv, network_info):
-        link = RwcalYang.VirtualLinkInfoParams()
+        link = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList()
         link.name     = network_info['name']
         link.virtual_link_id       = network_info['id']
         if network_info['admin_state_up']:
@@ -501,9 +501,13 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
             network = drv.get_network(link_id)
         return self._fill_virtual_link_info(drv,network)
 
+    @rwstatus(ret_on_failure=[None])
+    def do_get_virtual_link_by_name(self, account, link_name):
+        raise NotImplementedError()
+        
     @rwstatus(ret_on_failure=[""])
     def do_get_virtual_link_list(self, account):
-        response = RwcalYang.VNFResources()
+        response = RwcalYang.YangData_RwProject_Project_VnfResources()
         with self._use_driver(account) as drv:
             networks = drv.get_network_list()
         for network in networks:
@@ -527,7 +531,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
         """ 
             Select a existing flavor if it matches the request or create new flavor
         """
-        flavor = RwcalYang.FlavorInfoItem()
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         flavor.name = str(uuid.uuid4())
         epa_types = ['vm_flavor', 'guest_epa', 'host_epa', 'host_aggregate', 'hypervisor_epa', 'vswitch_epa']
         epa_dict = {k: v for k, v in vdu_init.as_dict().items() if k in epa_types}
@@ -605,7 +609,7 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
 
     @staticmethod
     def _fill_vdu_info(drv,account,vm_info):
-        vdu = RwcalYang.VDUInfoParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList()
         vdu.name = vm_info['name']
         vdu.vdu_id = vm_info['id']
         mgmt_net_id = None
@@ -645,15 +649,17 @@ class RwcalOpenmanoVimConnector(GObject.Object, RwCal.Cloud):
            RwcalOpenmanoVimConnector._fill_epa_attributes(vdu, flavor)
         return vdu
 
-    @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    @rwcalstatus(ret_on_failure=[None])
+    def do_get_vdu(self, account, vdu_id, mgmt_network):
+        # mgmt_network - Added due to need for mgmt network.
+        # TO DO: Investigate the need here.
         with self._use_driver(account) as drv:
             vm_info = drv.get_vminstance(vdu_id)
         return  RwcalOpenmanoVimConnector._fill_vdu_info(drv,account,vm_info)
 
-    @rwstatus(ret_on_failure=[""])
+    @rwcalstatus(ret_on_failure=[None])
     def do_get_vdu_list(self, account):
-        vnf_resource = RwcalYang.VNFResources()
+        vnf_resource = RwcalYang.YangData_RwProject_Project_VnfResources()
         with self._use_driver(account) as drv:
             vms = drv.get_vminstance_list()
         for vm in vms:

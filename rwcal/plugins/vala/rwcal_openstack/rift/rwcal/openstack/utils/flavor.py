@@ -733,9 +733,9 @@ class FlavorUtils(object):
            flavor_info: A dictionary object return by novaclient library listing flavor attributes
 
         Returns:
-               vm_flavor = RwcalYang.FlavorInfoItem_VmFlavor()
+               vm_flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList_VmFlavor()
         """
-        vm_flavor = RwcalYang.FlavorInfoItem_VmFlavor()
+        vm_flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList_VmFlavor()
 
         if 'vcpus' in flavor_info and flavor_info['vcpus']:
             vm_flavor.vcpu_count = flavor_info['vcpus']
@@ -756,9 +756,11 @@ class FlavorUtils(object):
            flavor_info: A dictionary object return by novaclient library listing flavor attributes
 
         Returns:
-           guest_epa = RwcalYang.FlavorInfoItem_GuestEpa()
+           guest_epa = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList_GuestEpa()
         """
-        guest_epa = RwcalYang.FlavorInfoItem_GuestEpa()
+        guest_epa = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList_GuestEpa()
+        if 'extra_specs' not in flavor_info or flavor_info['extra_specs'] is None:
+            return guest_epa
         for attr in flavor_info['extra_specs']:
             if attr == 'hw:cpu_policy':
                 cpu_pinning_policy = self._epa.guest.extra_spec_to_mano_cpu_pinning_policy(flavor_info['extra_specs']['hw:cpu_policy'])
@@ -830,9 +832,11 @@ class FlavorUtils(object):
            flavor_info: A dictionary object return by novaclient library listing flavor attributes
 
         Returns:
-           host_epa  = RwcalYang.FlavorInfoItem_HostEpa()
+           host_epa  = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList_HostEpa()
         """
-        host_epa  = RwcalYang.FlavorInfoItem_HostEpa()
+        host_epa  = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList_HostEpa()
+        if 'extra_specs' not in flavor_info or flavor_info['extra_specs'] is None:
+            return host_epa
         for attr in flavor_info['extra_specs']:
             if attr == 'capabilities:cpu_info:model':
                 cpu_model = self._epa.host.extra_specs_to_mano_cpu_model(flavor_info['extra_specs']['capabilities:cpu_info:model'])
@@ -879,12 +883,14 @@ class FlavorUtils(object):
            flavor_info: A dictionary object return by novaclient library listing flavor attributes
 
         Returns:
-           A list of objects host_aggregate of type RwcalYang.FlavorInfoItem_HostAggregate()
+           A list of objects host_aggregate of type RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList_HostAggregate()
         """
         host_aggregates = list()
+        if 'extra_specs' not in flavor_info or flavor_info['extra_specs'] is None:
+            return host_aggregates
         for attr in flavor_info['extra_specs']:
             if attr.startswith('aggregate_instance_extra_specs:'):
-                aggregate = RwcalYang.FlavorInfoItem_HostAggregate()
+                aggregate = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList_HostAggregate()
                 aggregate.metadata_key = ":".join(attr.split(':')[1::])
                 aggregate.metadata_value = flavor_info['extra_specs'][attr]
                 host_aggregates.append(aggregate)
@@ -898,10 +904,10 @@ class FlavorUtils(object):
            flavor_info: A dictionary object returned by novaclient library listing flavor attributes
 
         Returns: 
-           Protobuf GI Object of type RwcalYang.FlavorInfoItem()
+           Protobuf GI Object of type RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
 
         """
-        flavor = RwcalYang.FlavorInfoItem()
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         if 'name' in flavor_info and flavor_info['name']:
             flavor.name  = flavor_info['name']
         if 'id' in flavor_info and flavor_info['id']:
@@ -1228,14 +1234,14 @@ class FlavorUtils(object):
         """
         Match EPA attributes
         Arguments:
-           resource_info: Protobuf GI object RwcalYang.FlavorInfoItem()
+           resource_info: Protobuf GI object RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
                           Following attributes would be accessed
                           - vm_flavor
                           - guest_epa
                           - host_epa
                           - host_aggregate
 
-           request_params: Protobuf GI object RwcalYang.VDUInitParams(). 
+           request_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams(). 
                           Following attributes would be accessed
                           - vm_flavor
                           - guest_epa
@@ -1288,8 +1294,8 @@ class FlavorUtils(object):
     def match_resource_flavor(self, vdu_init, flavor_list):
         """
         Arguments:
-           vdu_init: Protobuf GI object RwcalYang.VDUInitParams(). 
-           flavor_list: List of Protobuf GI object RwcalYang.FlavorInfoItem()
+           vdu_init: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams(). 
+           flavor_list: List of Protobuf GI object RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
 
         Returns:
            Flavor_ID -- If match is found between vdu_init and one of flavor_info from flavor_list

@@ -155,6 +155,8 @@ class CinderDriver(object):
           """
           try:
               vol = self._ci_drv.volumes.get(volume_id)
+          except ciclient.exceptions.NotFound:
+              return None
           except Exception as e:
               self.log.error("Get volume operation failed. Exception: %s", str(e))
               raise

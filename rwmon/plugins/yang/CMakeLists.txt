@@ -26,7 +26,7 @@ set(source_yang_files rwmon.yang)
 rift_add_yang_target(
   TARGET rwmon_yang
   YANG_FILES ${source_yang_files}
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   DEPENDS
     mano-types_yang
   LIBRARIES

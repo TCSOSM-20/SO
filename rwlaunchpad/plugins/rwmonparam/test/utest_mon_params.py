@@ -54,7 +54,7 @@ class MonParamsPingStatsTest(AsyncioTornadoTest):
             'ping-response-rx-count': 10
             }
 
-    mon_param_msg = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MonitoringParam()
+    mon_param_msg = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MonitoringParam()
     mon_param_msg.from_dict({
             'id': '1',
             'name': 'ping-request-tx-count',
@@ -67,7 +67,7 @@ class MonParamsPingStatsTest(AsyncioTornadoTest):
             'units': 'packets'
             })
 
-    endpoint_msg = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_HttpEndpoint()
+    endpoint_msg = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_HttpEndpoint()
     endpoint_msg.from_dict({
         'path': ping_path,
         'polling_interval_secs': 1,
@@ -231,7 +231,7 @@ class MonParamsPingStatsHttpsTest(AsyncioTornadoHttpsTest):
             'ping-response-rx-count': 10
             }
 
-    mon_param_msg = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_MonitoringParam()
+    mon_param_msg = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_MonitoringParam()
     mon_param_msg.from_dict({
             'id': '1',
             'name': 'ping-request-tx-count',
@@ -244,7 +244,7 @@ class MonParamsPingStatsHttpsTest(AsyncioTornadoHttpsTest):
             'units': 'packets'
             })
 
-    endpoint_msg = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_HttpEndpoint()
+    endpoint_msg = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_HttpEndpoint()
     endpoint_msg.from_dict({
         'path': ping_path,
         'https': 'true',
@@ -918,6 +918,34 @@ class PortLatencyTest(unittest.TestCase):
           value = kv_querier.query(tornado.escape.json_encode(self.system_response))
           self.assertEqual(value, 12112)
 
+
+class vCPEStatTest(unittest.TestCase):
+    system_response = {"timestamp":1473455051,
+ "applicationLoad":[
+{ "service":"RIF", "instance":1, "gtpMessagesPerSec":0},
+{"service":"CPE", "instance":1, "tps":0},
+{"service":"DPE", "instance":1, "uplinkThroughput4G":0, "downlinkThroughput4G":0, "numDefaultBearers":0, "numDedicatedBearers":0 },
+{"service":"VEM", "instance":1 },
+{"service":"CDF", "instance":1, "tps":0},
+{"service":"S6A", "instance":1, "tps":0},
+{"service":"SDB", "instance":1, "queriesPerSec":0 }],
+ "resourceLoad":[
+{ "service":"RIF", "instance":1, "cpu":0, "mem":18, "compCpu":0 },
+{ "service":"CPE", "instance":1, "cpu":0, "mem":26, "compCpu":0 },
+{ "service":"DPE", "instance":1, "cpu":0, "mem":31, "compCpu":0 },
+{ "service":"VEM", "instance":1, "cpu":1, "mem":34, "compCpu":0 },
+{ "service":"CDF", "instance":1, "cpu":0, "mem":18, "compCpu":0 },
+{ "service":"S6A", "instance":1, "cpu":1, "mem":21, "compCpu":0 },
+{ "service":"SDB", "instance":1, "memUsedByData":255543560, "swapUtil":0, "swapTotal":3689934848, "swapUsed":0,"memUtil":0, "memTotal":12490944512, "memFree":10986942464, "cpu":2}] } 
+
+    
+    def test_object_path_value_querier(self):
+          kv_querier = mon_params.ObjectPathValueQuerier(logger, "$.applicationLoad[@.service is 'DPE'].uplinkThroughput4G")
+          value = kv_querier.query(tornado.escape.json_encode(self.system_response))
+          self.assertEqual(value, 0)
+          kv_querier = mon_params.ObjectPathValueQuerier(logger, "$.resourceLoad[@.service is 'DPE'].mem")
+          value = kv_querier.query(tornado.escape.json_encode(self.system_response))
+          self.assertEqual(value, 31)
 
 
 class XMLReponseTest(unittest.TestCase):

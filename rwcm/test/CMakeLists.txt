@@ -26,7 +26,8 @@ install(
     start_cm_system.py
     README.start_cm
   DESTINATION ${CONMAN_INSTALL}
-  COMPONENT ${PKG_LONG_NAME})
+  COMPONENT ${INSTALL_COMPONENT}
+)
   
 # set(NS_NAME ping_pong_nsd)
 # install(
@@ -35,5 +36,6 @@ install(
 #     ${NS_NAME}/ping_vnfd_1_scriptconf_template.cfg
 #     ${NS_NAME}/pong_vnfd_11_scriptconf_template.cfg
 #   DESTINATION ${CONMAN_INSTALL}/${NS_NAME}
-#   COMPONENT ${PKG_LONG_NAME})
+#   COMPONENT ${INSTALL_COMPONENT}
+# )
 

@@ -1,5 +1,5 @@
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -22,14 +22,19 @@ set(source_yang_files
   ietf-l2-topology.yang
   ietf-network-topology.yang
   ietf-network.yang
+  nsd-base.yang rw-nsd-base.yang
   nsd.yang rw-nsd.yang
+  project-nsd.yang rw-project-nsd.yang
   nsr.yang rw-nsr.yang
   pnfd.yang
   rw-topology.yang
   vld.yang rw-vld.yang
   vlr.yang rw-vlr.yang
+  vnfd-base.yang rw-vnfd-base.yang
   vnfd.yang rw-vnfd.yang
+  project-vnfd.yang rw-project-vnfd.yang
   vnfr.yang rw-vnfr.yang
+  mano-rift-groupings.yang
   vnffgd.yang
   )
 
@@ -37,23 +42,38 @@ rift_add_yang_target(
   TARGET mano-types_yang
   YANG_FILES
     mano-types.yang
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
+  LIBRARIES
+    rwprojectmano_yang_gen
   )
 
 rift_add_yang_target(
   TARGET mano_yang
   YANG_FILES ${source_yang_files}
   GIR_PATHS ${CMAKE_CURRENT_BINARY_DIR}
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   LIBRARIES
     rwmanifest_yang_gen
     rwschema_yang_gen
     rwcloud_yang_gen
+    rwro_account_yang_gen
+    rwsdn_yang_gen
     rwconfig_agent_yang_gen
     mano-types_yang_gen
+    rwprojectmano_yang_gen
   DEPENDS
     rwcloud_yang
+    rwro_account_yang
+    rwsdn_yang
     rwconfig_agent_yang
+    rwprojectmano_yang
+  ASSOCIATED_FILES
+    project-vnfd.role.xml
+    project-nsd.role.xml
+    vnfr.role.xml
+    rw-vnfr.role.xml
+    vlr.role.xml
+    nsr.role.xml
   )
 
 #rift_gen_yang_tree(mano-pyang-trees

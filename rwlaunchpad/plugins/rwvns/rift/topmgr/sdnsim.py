@@ -15,15 +15,19 @@
 #   limitations under the License.
 #
 
-from . import core
+import gi
 import logging
+
+from . import core
 
 import xml.etree.ElementTree as etree
 from gi.repository import RwTopologyYang as RwTl
 
-import gi
 gi.require_version('RwYang', '1.0')
 from gi.repository import RwYang
+
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +36,7 @@ logger = logging.getLogger(__name__)
 class SdnSim(core.Topology):
     def __init__(self):
         super(SdnSim, self).__init__()
-        self._model = RwYang.Model.create_libncx()
+        self._model = RwYang.Model.create_libyang()
         self._model.load_schema_ypbc(RwTl.get_schema())
 
     def get_network_list(self, account):
@@ -57,7 +61,7 @@ class SdnSim(core.Topology):
                 for nw in nwtop.network:
                    nw.server_provided = False
                    logger.debug("...Network id %s", nw.network_id)
-                   #nw_xpath = ("D,/nd:network[network-id=\'{}\']").format(nw.network_id)
+                   #nw_xpath = ("D,/nd:network[network-id={}]").format(quoted_key(nw.network_id))
                    #xact_info.respond_xpath(rwdts.XactRspCode.MORE,
                    #                 nw_xpath, nw)
         elif 'xml' in topology_source:

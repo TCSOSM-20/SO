@@ -42,11 +42,12 @@ class KeystoneVersionDiscover(object):
     """
     supported_versions = [(2, ), (3, )]
     
-    def __init__(self, auth_url, logger = None):
+    def __init__(self, auth_url, cert_validate, logger = None):
         """
         Constructor for class
         Arguments
            auth_url(string): Keystone Auth URL
+           cert_validate (boolean): Boolean to indicate if certificate validation is required
            logger (instance of logging.Logger)
         """
 
@@ -57,7 +58,7 @@ class KeystoneVersionDiscover(object):
             self.log = logger
 
         try:
-            self._discover = discover.Discover(auth_url=auth_url)
+            self._discover = discover.Discover(auth_url=auth_url, insecure = not cert_validate)
         except Exception as e:
             self.log.exception(str(e))
             self._discover = None

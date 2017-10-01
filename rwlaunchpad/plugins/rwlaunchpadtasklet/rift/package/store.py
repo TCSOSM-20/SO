@@ -1,5 +1,5 @@
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,9 +52,9 @@ class PackageFilesystemStore(object):
     @property
     def root_dir(self):
         return self._root_dir
-    
 
     def _get_package_dir(self, package_id):
+        self._log.debug("Package dir {}, {}".format(self._root_dir, package_id))
         return os.path.join(self._root_dir, package_id)
 
     def _get_package_files(self, package_id):
@@ -129,7 +129,7 @@ class PackageFilesystemStore(object):
 
         return pkg
 
-    def store_package(self, pkg):
+    def store_package(self, pkg, project=None):
         """ Store a DescriptorPackage to disk
 
         Arguments:
@@ -142,7 +142,6 @@ class PackageFilesystemStore(object):
             raise PackageExistsError("Package %s already exists", pkg.descriptor_id)
 
         package_dir = self._get_package_dir(pkg.descriptor_id)
-
         try:
             os.makedirs(package_dir, exist_ok=True)
         except OSError as e:
@@ -167,6 +166,8 @@ class PackageFilesystemStore(object):
             PackageNotFoundError - The package could not be found
             PackageStoreError - The package could not be deleted
         """
+
+        self.refresh()
 
         if descriptor_id not in self._package_dirs:
             raise PackageNotFoundError("Package %s does not exists", descriptor_id)
@@ -199,20 +200,21 @@ class PackageFilesystemStore(object):
 
 class NsdPackageFilesystemStore(PackageFilesystemStore):
     DEFAULT_ROOT_DIR = os.path.join(
-            os.environ["RIFT_ARTIFACTS"],
+            os.environ["RIFT_VAR_ROOT"],
             "launchpad", "packages", "nsd"
             )
 
-    def __init__(self, log, root_dir=DEFAULT_ROOT_DIR):
+    def __init__(self, log, root_dir=DEFAULT_ROOT_DIR, project=None):
+        root_dir = root_dir if not project else os.path.join(root_dir, project)
         super().__init__(log, root_dir)
 
 
 class VnfdPackageFilesystemStore(PackageFilesystemStore):
     DEFAULT_ROOT_DIR = os.path.join(
-            os.environ["RIFT_ARTIFACTS"],
+            os.environ["RIFT_VAR_ROOT"],
             "launchpad", "packages", "vnfd"
             )
 
-    def __init__(self, log, root_dir=DEFAULT_ROOT_DIR):
+    def __init__(self, log, root_dir=DEFAULT_ROOT_DIR, project=None):
+        root_dir = root_dir if not project else os.path.join(root_dir, project)
         super().__init__(log, root_dir)
-

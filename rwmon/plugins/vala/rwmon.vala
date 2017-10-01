@@ -21,9 +21,9 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus nfvi_metrics(
-      Rwcal.CloudAccount account,
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
       string vm_id,
-      out Rwmon.NfviMetrics metrics);
+      out Rwmon.YangData_RwProject_Project_NfviMetrics metrics);
 
     /**
      * nfvi_vcpu_metrics
@@ -37,9 +37,9 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus nfvi_vcpu_metrics(
-      Rwcal.CloudAccount account,
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
       string vm_id,
-      out Rwmon.NfviMetrics_Vcpu metrics);
+      out Rwmon.YangData_RwProject_Project_NfviMetrics_Vcpu metrics);
 
     /**
      * nfvi_memory_metrics
@@ -53,9 +53,9 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus nfvi_memory_metrics(
-      Rwcal.CloudAccount account,
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
       string vm_id,
-      out Rwmon.NfviMetrics_Memory metrics);
+      out Rwmon.YangData_RwProject_Project_NfviMetrics_Memory metrics);
 
     /**
      * nfvi_storage_metrics
@@ -69,9 +69,9 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus nfvi_storage_metrics(
-      Rwcal.CloudAccount account,
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
       string vm_id,
-      out Rwmon.NfviMetrics_Storage metrics);
+      out Rwmon.YangData_RwProject_Project_NfviMetrics_Storage metrics);
 
     /**
      * nfvi_metrics_available
@@ -85,7 +85,7 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus nfvi_metrics_available(
-      Rwcal.CloudAccount account,
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
       out bool present);
 
     /**
@@ -102,9 +102,9 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus alarm_create(
-      Rwcal.CloudAccount account,
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
       string vim_id,
-      ref Rwmon.Alarm alarm);
+      ref Rwmon.YangData_RwProject_Project_Alarm alarm);
 
     /**
      * alarm_update
@@ -119,8 +119,8 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus alarm_update(
-      Rwcal.CloudAccount account,
-      Rwmon.Alarm alarm);
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
+      Rwmon.YangData_RwProject_Project_Alarm alarm);
 
     /**
      * alarm_delete
@@ -131,7 +131,7 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus alarm_delete(
-      Rwcal.CloudAccount account,
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
       string alarm_id);
 
     /**
@@ -143,7 +143,7 @@ namespace RwMon {
      * @return RwStatus
      */
     public abstract RwTypes.RwStatus alarm_list(
-      Rwcal.CloudAccount account,
-      out Rwmon.Alarm[] alarms);
+      Rwcal.YangData_RwProject_Project_CloudAccounts_CloudAccountList account,
+      out Rwmon.YangData_RwProject_Project_Alarm[] alarms);
   }
 }

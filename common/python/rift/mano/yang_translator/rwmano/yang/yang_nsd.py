@@ -22,6 +22,7 @@ from rift.mano.yang_translator.rwmano.syntax.tosca_resource \
     import ToscaResource
 from rift.mano.yang_translator.rwmano.yang.yang_vld import YangVld
 from collections import OrderedDict
+import re
 
 TARGET_CLASS_NAME = 'YangNsd'
 
@@ -40,11 +41,11 @@ class YangNsd(ToscaResource):
                     INITIAL_CFG,) = \
                    ('scaling_group_descriptor', 'service_primitive',
                     'user_defined_script', 'scaling_config_action',
-                    'trigger', 'ns_config_primitive_name_ref',
+                    'trigger', 'ns_service_primitive_name_ref',
                     'constituent_vnfd', 'vnfd_member',
                     'min_instance_count', 'max_instance_count',
                     'input_parameter_xpath', 'config_actions',
-                    'initial_config_primitive',)
+                    'initial_config_primitive', )
 
     def __init__(self,
                  log,
@@ -63,6 +64,7 @@ class YangNsd(ToscaResource):
         self.conf_prims = []
         self.scale_grps = []
         self.initial_cfg = []
+        self.service_primitive = []
         self.placement_groups = []
         self.vnf_id_to_vnf_map = {}
         self.vnfd_files = vnfd_files
@@ -73,6 +75,7 @@ class YangNsd(ToscaResource):
         self.forwarding_paths = {}
         self.substitution_mapping_forwarder = []
         self.vnfd_sfc_map = None
+        self.duplicate_vnfd_name_list = []
 
     def handle_yang(self, vnfds):
         self.log.debug(_("Process NSD desc {0}: {1}").
@@ -85,7 +88,7 @@ class YangNsd(ToscaResource):
                 self.inputs.append({
                     self.NAME:
                     self.map_yang_name_to_tosca(
-                        val.replace('/nsd:nsd-catalog/nsd:nsd/nsd:', ''))})
+                        val.replace('/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd/nsd:', ''))})
             if len(param):
                 self.log.warn(_("{0}, Did not process the following for "
                                 "input param {1}: {2}").
@@ -155,12 +158,12 @@ class YangNsd(ToscaResource):
                 if key in dic:
                     icp[key] = dic.pop(key)
 
-            params = {}
+            params = []
             if self.PARAM in dic:
                 for p in dic.pop(self.PARAM):
                     if (self.NAME in p and
                         self.VALUE in p):
-                        params[p[self.NAME]] = p[self.VALUE]
+                        params.append({self.NAME: p[self.NAME], self.VALUE:p[self.VALUE]})
                     else:
                         # TODO (pjoseph): Need to add support to read the
                         # config file and get the value from that
@@ -174,6 +177,31 @@ class YangNsd(ToscaResource):
                               format(self, dic))
             self.log.debug(_("{0}, Initial config {1}").format(self, icp))
             self.initial_cfg.append({self.PROPERTIES : icp})
+
+        def process_service_primitive(dic):
+            prop = {}
+            params = []
+            for key in [self.NAME, self.USER_DEF_SCRIPT]:
+                if key in dic:
+                    prop[key] = dic.pop(key)
+
+            if self.PARAM in dic:
+                for p in dic.pop(self.PARAM):
+                    p_entry = {}
+                    for name, value in p.items():
+                        p_entry[name] = value
+                    params.append(p_entry)
+
+            if len(params):
+                    prop[self.PARAM] = params
+
+            conf_prim = {self.NAME: prop[self.NAME], self.DESC : 'TestDescription'}
+            if self.USER_DEF_SCRIPT in prop:
+                conf_prim[self.USER_DEF_SCRIPT] = prop[self.USER_DEF_SCRIPT]
+                self.conf_prims.append(conf_prim)
+
+            self.service_primitive.append({self.PROPERTIES : prop})
+
 
         def process_vld(vld, dic):
             vld_conf = {}
@@ -415,14 +443,22 @@ class YangNsd(ToscaResource):
         dic = deepcopy(self.yang)
         try:
             for key in self.REQUIRED_FIELDS:
-                self.props[key] = dic.pop(key)
+                if key in dic:
+                    self.props[key] = dic.pop(key)
 
             self.id = self.props[self.ID]
 
             # Process constituent VNFDs
+
+            vnfd_name_list = []
+            member_vnf_index_list = []
             if self.CONST_VNFD in dic:
                 for cvnfd in dic.pop(self.CONST_VNFD):
-                    process_const_vnfd(cvnfd)
+                    if cvnfd[self.VNFD_ID_REF] not in member_vnf_index_list:
+                        member_vnf_index_list.append(cvnfd[self.VNFD_ID_REF])
+                        process_const_vnfd(cvnfd)
+                    else:
+                        self.duplicate_vnfd_name_list.append(self.vnf_id_to_vnf_map[cvnfd[self.VNFD_ID_REF]])
 
             # Process VLDs
             if self.VLD in dic:
@@ -435,32 +471,22 @@ class YangNsd(ToscaResource):
                 process_vnffgd(dic[self.VNFFGD], dic)
 
 
-            #if self.
-
-            # Process config primitives
-            if self.CONF_PRIM in dic:
-                for cprim in dic.pop(self.CONF_PRIM):
-                    conf_prim = {self.NAME: cprim.pop(self.NAME), self.DESC : 'TestDescription'}
-                    if self.USER_DEF_SCRIPT in cprim:
-                        conf_prim[self.USER_DEF_SCRIPT] = \
-                                        cprim.pop(self.USER_DEF_SCRIPT)
-                        self.conf_prims.append(conf_prim)
-                    else:
-                        err_msg = (_("{0}, Only user defined script supported "
-                                     "in config-primitive for now {}: {}").
-                                   format(self, conf_prim, cprim))
-                        self.log.error(err_msg)
-                        raise ValidationError(message=err_msg)
-
-            # Process scaling group
-            if self.SCALE_GRP in dic:
-                for sg_dic in dic.pop(self.SCALE_GRP):
-                    process_scale_grp(sg_dic)
+            
 
             # Process initial config primitives
             if self.INITIAL_CFG in dic:
                 for icp_dic in dic.pop(self.INITIAL_CFG):
                     process_initial_config(icp_dic)
+
+            # NS service prmitive
+            if self.CONF_PRIM in dic:
+                for icp_dic in dic.pop(self.CONF_PRIM):
+                    process_service_primitive(icp_dic)
+
+            # Process scaling group
+            if self.SCALE_GRP in dic:
+                for sg_dic in dic.pop(self.SCALE_GRP):
+                    process_scale_grp(sg_dic)
 
             # Process the input params
             if self.INPUT_PARAM_XPATH in dic:
@@ -556,10 +582,13 @@ class YangNsd(ToscaResource):
             self.VENDOR: self.props[self.VENDOR],
             self.VERSION: self.props[self.VERSION],
         }
+        if self.LOGO in self.props:
+            tosca[self.METADATA][self.LOGO] = self.props[self.LOGO]
+
         if len(self.vnfd_files) > 0:
             tosca[self.IMPORT] = []
             imports = []
-            for vnfd_file in self.vnfd_files:
+            for vnfd_file in set(self.vnfd_files):
                 tosca[self.IMPORT].append('"{0}.yaml"'.format(vnfd_file))
 
         tosca[self.TOPOLOGY_TMPL] = {}
@@ -578,6 +607,7 @@ class YangNsd(ToscaResource):
         tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL] = {}
 
         # Add the VNFDs and VLDs
+        vnf_type_vld_list = []
         for idx, vnfd in self.vnfds.items():
             #vnfd.generate_vnf_template(tosca, idx)
             node = {
@@ -591,27 +621,43 @@ class YangNsd(ToscaResource):
             if vnfd.name in self.vnf_to_vld_map:
                 vld_list = self.vnf_to_vld_map[vnfd.name]
                 node[self.REQUIREMENTS] = []
+
                 for vld_idx in range(0, len(vld_list)):
-                    vld_link_name = "{0}{1}".format("virtualLink", vld_idx + 1)
-                    vld_prop = {}
-                    vld_prop[vld_link_name] = vld_list[vld_idx]
-                    node[self.REQUIREMENTS].append(vld_prop)
-                    if vnfd.name in self._vnf_vld_conn_point_map:
-                        vnf_vld_list = self._vnf_vld_conn_point_map[vnfd.name]
-                        for vnf_vld in vnf_vld_list:
-                            vnfd.generate_vld_link(vld_link_name, vnf_vld[1])
+                    if  vnfd.vnf_type not in vnf_type_vld_list:
+                        vld_link_name = "{0}{1}".format("virtualLink", vld_idx + 1)
+                        vld_prop = {}
+                        vld_prop[vld_link_name] = vld_list[vld_idx]
+                        node[self.REQUIREMENTS].append(vld_prop)
+                        if  vnfd.vnf_type not in vnf_type_vld_list:
+                            vnf_type_vld_list.append(vnfd.vnf_type)
+                            if vnfd.name in self._vnf_vld_conn_point_map:
+                                vnf_vld_list = set(self._vnf_vld_conn_point_map[vnfd.name])
+                                for vnf_vld in vnf_vld_list:
+                                    vnfd.generate_vld_link(vld_link_name, vnf_vld[1])
 
             for sub_mapping in self.substitution_mapping_forwarder:
                 if sub_mapping[0] == vnfd.name:
                     vnfd.generate_forwarder_sub_mapping(sub_mapping)
 
-            for vnfd_name, cp_name in self.vnfd_sfc_map.items():
-                if vnfd.name == vnfd_name:
-                    vnfd.generate_sfc_link(cp_name)
+            if self.vnfd_sfc_map:
+                for vnfd_name, cp_name in self.vnfd_sfc_map.items():
+                    if vnfd.name == vnfd_name:
+                        vnfd.generate_sfc_link(cp_name)
 
 
 
             tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vnfd.name] = node
+
+        v_idx = len(self.vnfds) + 1 + len(self.duplicate_vnfd_name_list)
+        for vnfd_name in self.duplicate_vnfd_name_list:
+            node = tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vnfd_name]
+            new_node = deepcopy(node)
+            st = re.sub(r'\d+$', '', vnfd_name.rstrip('_vnfd'))
+
+            new_node[self.PROPERTIES][self.ID] = v_idx
+            node_name = "{}{}_vnfd".format(st, v_idx)
+            tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][node_name] = new_node
+            v_idx += 1
 
         for vld_node_name in self.vlds:
             tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL][vld_node_name] = self.vlds[vld_node_name]
@@ -672,6 +718,23 @@ class YangNsd(ToscaResource):
                         self.INITIAL_CFG: icpt
                     })
 
+        if len(self.service_primitive) > 0:
+            if self.POLICIES not in tosca[self.TOPOLOGY_TMPL]:
+                tosca[self.TOPOLOGY_TMPL][self.POLICIES] = []
+
+            for icp in self.service_primitive:
+                if len(tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL]) > 0:
+                    node_name = list(tosca[self.TOPOLOGY_TMPL][self.NODE_TMPL].keys())[0]
+                    icpt = {
+                        self.TYPE: self.T_NS_PRIMITIVE,
+                        self.TARGETS : "[{0}]".format(node_name)
+                    }
+                    icpt.update(icp)
+                    tosca[self.TOPOLOGY_TMPL][self.POLICIES].append({
+                        'ns_service_primitives': icpt
+                    })
+
+
         if len(self.placement_groups) > 0:
             if self.POLICIES not in tosca[self.TOPOLOGY_TMPL]:
                 tosca[self.TOPOLOGY_TMPL][self.POLICIES] = []
@@ -700,6 +763,25 @@ class YangNsd(ToscaResource):
                         self.NAME: script,
                         self.DEST: "{}/{}".format(self.SCRIPT_DIR, script),
                     })
+
+        for prim in self.service_primitive:
+            if 'properties' in prim:
+                if 'user_defined_script' in prim['properties']:
+                    script = os.path.basename(prim['properties']['user_defined_script'])
+                    files.append({
+                        self.TYPE: 'script',
+                        self.NAME: script,
+                        self.DEST: "{}/{}".format(self.SCRIPT_DIR, script),
+                    })
+
+        if 'logo' in self.props:
+            icon = os.path.basename(self.props['logo'])
+            files.append({
+                self.TYPE: 'icons',
+                self.NAME: icon,
+                self.DEST: "{}/{}".format(self.ICON_DIR, icon),
+            })
+
 
         # TODO (pjoseph): Add support for config scripts,
         # charms, etc

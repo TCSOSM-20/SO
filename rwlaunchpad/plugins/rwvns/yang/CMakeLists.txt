@@ -1,5 +1,5 @@
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -26,12 +26,9 @@ set(source_yang_files rwsdnal.yang)
 rift_add_yang_target(
   TARGET rwsdnal_yang
   YANG_FILES ${source_yang_files}
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   LIBRARIES
-    rwschema_yang_gen
-    rwyang
-    rwlog
-    rwlog-mgmt_yang_gen
     mano-types_yang_gen
+    rwprojectmano_yang_gen
 )
 

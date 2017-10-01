@@ -17,12 +17,15 @@
 
 import requests
 
+from rift.mano.utils.project import DEFAULT_PROJECT
 from rift.package import convert
 from gi.repository import (
-    NsdYang,
-    RwNsdYang,
-    VnfdYang,
-    RwVnfdYang,
+    ProjectNsdYang as NsdYang,
+    RwNsdYang as RwNsdYang,
+    RwProjectNsdYang as RwProjectNsdYang,
+    ProjectVnfdYang as VnfdYang,
+    RwVnfdYang as RwVnfdYang,
+    RwProjectVnfdYang as RwProjectVnfdYang,
 )
 
 
@@ -37,17 +40,21 @@ class UpdateError(Exception):
 class DescriptorOnboarder(object):
     """ This class is responsible for onboarding descriptors using Restconf"""
     DESC_ENDPOINT_MAP = {
-            NsdYang.YangData_Nsd_NsdCatalog_Nsd: "nsd-catalog/nsd",
+            NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd: "nsd-catalog/nsd",
             RwNsdYang.YangData_Nsd_NsdCatalog_Nsd: "nsd-catalog/nsd",
-            VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd: "vnfd-catalog/vnfd",
-            RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd: "vnfd-catalog/vnfd",
+            RwProjectNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd: "nsd-catalog/nsd",
+            VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd: "vnfd-catalog/vnfd",
+            RwProjectVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd: "vnfd-catalog/vnfd", 
+            RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd: "vnfd-catalog/vnfd"
             }
 
     DESC_SERIALIZER_MAP = {
-            NsdYang.YangData_Nsd_NsdCatalog_Nsd: convert.NsdSerializer(),
+            NsdYang.YangData_RwProject_Project_NsdCatalog_Nsd: convert.NsdSerializer(),
             RwNsdYang.YangData_Nsd_NsdCatalog_Nsd: convert.RwNsdSerializer(),
-            VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd: convert.VnfdSerializer(),
-            RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd: convert.RwVnfdSerializer(),
+            RwProjectNsdYang.YangData_RwProject_Project_NsdCatalog_Nsd: convert.RwNsdSerializer(),
+            VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd: convert.VnfdSerializer(),
+            RwProjectVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd: convert.RwVnfdSerializer(),
+            RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd: convert.RwVnfdSerializer()
             }
 
     HEADERS = {"content-type": "application/vnd.yang.data+json"}
@@ -65,41 +72,43 @@ class DescriptorOnboarder(object):
         self.timeout = DescriptorOnboarder.TIMEOUT_SECS
 
     @classmethod
-    def _get_headers(cls, auth):
+    def _get_headers(cls):
         headers = cls.HEADERS.copy()
-        if auth is not None:
-            headers['authorization'] = auth
 
         return headers
 
-    def _get_url(self, descriptor_msg):
+    def _get_url(self, descriptor_msg, project=None):
         if type(descriptor_msg) not in DescriptorOnboarder.DESC_SERIALIZER_MAP:
             raise TypeError("Invalid descriptor message type")
 
+        if project is None:
+            project = DEFAULT_PROJECT
+
         endpoint = DescriptorOnboarder.DESC_ENDPOINT_MAP[type(descriptor_msg)]
+        ep = "project/{}/{}".format(project, endpoint)
 
         url = "{}://{}:{}/api/config/{}".format(
                 "https" if self._use_ssl else "http",
                 self._host,
                 self.port,
-                endpoint,
+                ep,
                 )
 
         return url
 
-    def _make_request_args(self, descriptor_msg, auth=None):
+    def _make_request_args(self, descriptor_msg, auth=None, project=None):
         if type(descriptor_msg) not in DescriptorOnboarder.DESC_SERIALIZER_MAP:
             raise TypeError("Invalid descriptor message type")
 
         serializer = DescriptorOnboarder.DESC_SERIALIZER_MAP[type(descriptor_msg)]
-        json_data = serializer.to_json_string(descriptor_msg)
-        url = self._get_url(descriptor_msg)
+        json_data = serializer.to_json_string(descriptor_msg, project_ns=True)
+        url = self._get_url(descriptor_msg, project=project)
 
         request_args = dict(
             url=url,
             data=json_data,
-            headers=self._get_headers(auth),
-            auth=DescriptorOnboarder.AUTH,
+            headers=self._get_headers(),
+            auth=DescriptorOnboarder.AUTH if auth is None else auth,
             verify=False,
             cert=(self._ssl_cert, self._ssl_key) if self._use_ssl else None,
             timeout=self.timeout,
@@ -107,7 +116,7 @@ class DescriptorOnboarder(object):
 
         return request_args
 
-    def update(self, descriptor_msg, auth=None):
+    def update(self, descriptor_msg, auth=None, project=None):
         """ Update the descriptor config
 
         Arguments:
@@ -134,7 +143,7 @@ class DescriptorOnboarder(object):
             self._log.error(msg)
             raise UpdateError(msg) from e
 
-    def onboard(self, descriptor_msg, auth=None):
+    def onboard(self, descriptor_msg, auth=None, project=None):
         """ Onboard the descriptor config
 
         Arguments:
@@ -145,24 +154,27 @@ class DescriptorOnboarder(object):
             OnboardError - The descriptor config update failed
         """
 
-        request_args = self._make_request_args(descriptor_msg, auth)
+        request_args = self._make_request_args(descriptor_msg, auth, project)
         try:
             response = requests.post(**request_args)
             response.raise_for_status()
         except requests.exceptions.ConnectionError as e:
             msg = "Could not connect to restconf endpoint: %s" % str(e)
             self._log.error(msg)
+            self._log.exception(msg)
             raise OnboardError(msg) from e
         except requests.exceptions.HTTPError as e:
             msg = "POST request to %s error: %s" % (request_args["url"], response.text)
             self._log.error(msg)
+            self._log.exception(msg)
             raise OnboardError(msg) from e
         except requests.exceptions.Timeout as e:
             msg = "Timed out connecting to restconf endpoint: %s", str(e)
             self._log.error(msg)
+            self._log.exception(msg)
             raise OnboardError(msg) from e
 
-    def get_updated_descriptor(self, descriptor_msg, auth=None): 
+    def get_updated_descriptor(self, descriptor_msg, project_name, auth=None): 
         """ Get updated descriptor file 
 
         Arguments:
@@ -178,15 +190,16 @@ class DescriptorOnboarder(object):
 
         endpoint = DescriptorOnboarder.DESC_ENDPOINT_MAP[type(descriptor_msg)]
 
-        url = "{}://{}:{}/api/config/{}/{}".format(
+        url = "{}://{}:{}/api/config/project/{}/{}/{}".format(
                 "https" if self._use_ssl else "http",
                 self._host,
                 self.port,
+                project_name,
                 endpoint,
                 descriptor_msg.id
                 )
 
-        hdrs = self._get_headers(auth)
+        hdrs = self._get_headers()
         hdrs.update({'Accept': 'application/json'})
         request_args = dict(
             url=url,

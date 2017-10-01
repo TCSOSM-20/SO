@@ -1,6 +1,6 @@
 
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -19,7 +19,15 @@ import time
 
 from enum import Enum
 
-from gi.repository import NsdYang, NsrYang
+import gi
+gi.require_version('NsdBaseYang', '1.0')
+gi.require_version('ProjectNsdYang', '1.0')
+gi.require_version('NsrYang', '1.0')
+from gi.repository import (
+    NsdBaseYang,
+    ProjectNsdYang as NsdYang,
+    NsrYang
+    )
 
 
 class ScalingGroupIndexExists(Exception):
@@ -104,7 +112,7 @@ class ScalingGroup(object):
 
     def create_record_msg(self):
         """ Returns a NSR Scaling group record """
-        msg = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ScalingGroupRecord(
+        msg = NsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr_ScalingGroupRecord(
                 scaling_group_name_ref=self.name,
                 )
 
@@ -151,10 +159,10 @@ class ScalingGroup(object):
 
     def trigger_map(self, trigger):
         trig_map = {
-            NsdYang.ScalingTrigger.PRE_SCALE_IN   : 'pre_scale_in',
-            NsdYang.ScalingTrigger.POST_SCALE_IN  : 'post_scale_in',
-            NsdYang.ScalingTrigger.PRE_SCALE_OUT  : 'pre_scale_out',
-            NsdYang.ScalingTrigger.POST_SCALE_OUT : 'post_scale_out',
+            NsdBaseYang.ScalingTrigger.PRE_SCALE_IN   : 'pre_scale_in',
+            NsdBaseYang.ScalingTrigger.POST_SCALE_IN  : 'post_scale_in',
+            NsdBaseYang.ScalingTrigger.PRE_SCALE_OUT  : 'pre_scale_out',
+            NsdBaseYang.ScalingTrigger.POST_SCALE_OUT : 'post_scale_out',
         }
 
         try:
@@ -259,7 +267,7 @@ class ScalingGroupInstance(object):
         return self._vnfrs.values()
 
     def create_record_msg(self):
-        msg = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr_ScalingGroupRecord_Instance(
+        msg = NsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr_ScalingGroupRecord_Instance(
                 instance_id=self._instance_id,
                 create_time=self._create_time,
                 op_status=self._op_status,

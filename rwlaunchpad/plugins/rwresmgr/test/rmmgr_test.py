@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -16,19 +16,17 @@
 #   limitations under the License.
 #
 
-
 import asyncio
+import gi
 import logging
 import os
+import random
 import sys
 import types
 import unittest
 import uuid
-import random
-
 import xmlrunner
 
-import gi
 gi.require_version('CF', '1.0')
 gi.require_version('RwDts', '1.0')
 gi.require_version('RwMain', '1.0')
@@ -38,6 +36,8 @@ gi.require_version('RwcalYang', '1.0')
 gi.require_version('RwTypes', '1.0')
 gi.require_version('RwCal', '1.0')
 
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 import gi.repository.CF as cf
 import gi.repository.RwDts as rwdts
@@ -72,7 +72,7 @@ def create_mock_resource_temaplate():
     resource_requests = {'compute': {}, 'network': {}}
 
     ###### mycompute-0
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = str(uuid.uuid3(uuid.NAMESPACE_DNS, 'image-0'))
     msg.vm_flavor.vcpu_count = 4
     msg.vm_flavor.memory_mb = 8192
@@ -80,7 +80,7 @@ def create_mock_resource_temaplate():
     resource_requests['compute']['mycompute-0'] = msg
 
     ###### mycompute-1
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = str(uuid.uuid3(uuid.NAMESPACE_DNS, 'image-1'))
     msg.vm_flavor.vcpu_count = 2
     msg.vm_flavor.memory_mb = 8192
@@ -88,11 +88,11 @@ def create_mock_resource_temaplate():
     resource_requests['compute']['mycompute-1'] = msg
 
     ####### mynet-0
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     resource_requests['network']['mynet-0'] = msg
 
     ####### mynet-1
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     resource_requests['network']['mynet-1'] = msg
 
     return resource_requests
@@ -103,7 +103,7 @@ def create_cloudsim_resource_template():
     resource_requests = {'compute': {}, 'network': {}}
 
     ###### mycompute-0
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = "1"
     msg.vm_flavor.vcpu_count = 4
     msg.vm_flavor.memory_mb = 8192
@@ -111,7 +111,7 @@ def create_cloudsim_resource_template():
     resource_requests['compute']['mycompute-0'] = msg
 
     ###### mycompute-1
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = "1"
     msg.vm_flavor.vcpu_count = 2
     msg.vm_flavor.memory_mb = 8192
@@ -119,11 +119,11 @@ def create_cloudsim_resource_template():
     resource_requests['compute']['mycompute-1'] = msg
 
     ####### mynet-0
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     resource_requests['network']['mynet-0'] = msg
 
     ####### mynet-1
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     resource_requests['network']['mynet-1'] = msg
 
     return resource_requests
@@ -133,7 +133,7 @@ def create_mock_resource_temaplate():
     resource_requests = {'compute': {}, 'network': {}}
 
     ###### mycompute-0
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = str(uuid.uuid3(uuid.NAMESPACE_DNS, 'image-0'))
     msg.vm_flavor.vcpu_count = 4
     msg.vm_flavor.memory_mb = 8192
@@ -141,7 +141,7 @@ def create_mock_resource_temaplate():
     resource_requests['compute']['mycompute-0'] = msg
 
     ###### mycompute-1
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = str(uuid.uuid3(uuid.NAMESPACE_DNS, 'image-1'))
     msg.vm_flavor.vcpu_count = 2
     msg.vm_flavor.memory_mb = 8192
@@ -149,11 +149,11 @@ def create_mock_resource_temaplate():
     resource_requests['compute']['mycompute-1'] = msg
 
     ####### mynet-0
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     resource_requests['network']['mynet-0'] = msg
 
     ####### mynet-1
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     resource_requests['network']['mynet-1'] = msg
 
     return resource_requests
@@ -164,7 +164,7 @@ def create_openstack_static_template():
     resource_requests = {'compute': {}, 'network': {}}
 
     ###### mycompute-0
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = openstack_info['image_id']
     msg.vm_flavor.vcpu_count = 4
     msg.vm_flavor.memory_mb = 8192
@@ -172,7 +172,7 @@ def create_openstack_static_template():
     resource_requests['compute']['mycompute-0'] = msg
 
     ###### mycompute-1
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = openstack_info['image_id']
     msg.vm_flavor.vcpu_count = 2
     msg.vm_flavor.memory_mb = 4096
@@ -180,14 +180,14 @@ def create_openstack_static_template():
     resource_requests['compute']['mycompute-1'] = msg
 
     ####### mynet-0
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     msg.provider_network.physical_network = 'PHYSNET1'
     msg.provider_network.overlay_type = 'VLAN'
     msg.provider_network.segmentation_id = 17
     resource_requests['network']['mynet-0'] = msg
 
     ####### mynet-1
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     msg.provider_network.physical_network = 'PHYSNET1'
     msg.provider_network.overlay_type = 'VLAN'
     msg.provider_network.segmentation_id = 18
@@ -201,7 +201,7 @@ def create_openstack_dynamic_template():
     resource_requests = {'compute': {}, 'network': {}}
 
     ###### mycompute-0
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = openstack_info['image_id']
     msg.vm_flavor.vcpu_count = 2
     msg.vm_flavor.memory_mb = 4096
@@ -213,7 +213,7 @@ def create_openstack_dynamic_template():
     resource_requests['compute']['mycompute-0'] = msg
 
     ###### mycompute-1
-    msg = rmgryang.VDUEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_RequestInfo()
     msg.image_id  = openstack_info['image_id']
     msg.vm_flavor.vcpu_count = 4
     msg.vm_flavor.memory_mb = 8192
@@ -225,14 +225,14 @@ def create_openstack_dynamic_template():
     resource_requests['compute']['mycompute-1'] = msg
 
     ####### mynet-0
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     #msg.provider_network.overlay_type = 'VXLAN'
     #msg.provider_network.segmentation_id = 71
 
     resource_requests['network']['mynet-0'] = msg
 
     ####### mynet-1
-    msg = rmgryang.VirtualLinkEventData_RequestInfo()
+    msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData_RequestInfo()
     #msg.provider_network.overlay_type = 'VXLAN'
     #msg.provider_network.segmentation_id = 73
     resource_requests['network']['mynet-1'] = msg
@@ -252,9 +252,9 @@ resource_requests = {
 
 def get_cal_account(account_type):
     """
-    Creates an object for class RwcalYang.CloudAccount()
+    Creates an object for class RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
     """
-    account = RwcalYang.CloudAccount()
+    account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
     if account_type == 'mock':
         account.name          = 'mock_account'
         account.account_type  = "mock"
@@ -314,14 +314,14 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
         return 360
 
     def get_cloud_account_msg(self, acct_type):
-        cloud_account = RwCloudYang.CloudAccount()
+        cloud_account = RwCloudYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         acct = get_cal_account(acct_type)
         cloud_account.from_dict(acct.as_dict())
         cloud_account.name = acct.name
         return cloud_account
 
     def get_compute_pool_msg(self, name, pool_type, cloud_type):
-        pool_config = rmgryang.ResourcePools()
+        pool_config = rmgryang.YangData_RwProject_Project_ResourceMgrConfig_ResourcePools()
         pool = pool_config.pools.add()
         pool.name = name
         pool.resource_type = "compute"
@@ -350,7 +350,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
         return pool_config
 
     def get_network_pool_msg(self, name, pool_type, cloud_type):
-        pool_config = rmgryang.ResourcePools()
+        pool_config = rmgryang.YangData_RwProject_Project_ResourceMgrConfig_ResourcePools()
         pool = pool_config.pools.add()
         pool.name = name
         pool.resource_type = "network"
@@ -380,7 +380,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     def get_network_reserve_msg(self, name, cloud_type, xpath):
         event_id = str(uuid.uuid4())
-        msg = rmgryang.VirtualLinkEventData()
+        msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData()
         msg.event_id = event_id
         msg.request_info.name = name
         attributes = ['physical_network', 'name', 'overlay_type', 'segmentation_id']
@@ -391,11 +391,11 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
                     setattr(msg.request_info.provider_network, attr,
                             getattr(resource_requests[cloud_type]['network'][name].provider_network ,attr))
 
-        return msg, xpath.format(event_id)
+        return msg, xpath.format(quoted_key(event_id))
 
     def get_compute_reserve_msg(self, name, cloud_type, xpath, vlinks):
         event_id = str(uuid.uuid4())
-        msg = rmgryang.VDUEventData()
+        msg = rmgryang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData()
         msg.event_id = event_id
         msg.request_info.name = name
         msg.request_info.image_id = resource_requests[cloud_type]['compute'][name].image_id
@@ -428,11 +428,11 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
             c1.virtual_link_id = link
 
         self.log.info("Sending message :%s", msg)
-        return msg, xpath.format(event_id)
+        return msg, xpath.format(quoted_key(event_id))
 
     @asyncio.coroutine
     def configure_cloud_account(self, dts, acct_type):
-        account_xpath = "C,/rw-cloud:cloud/account"
+        account_xpath = "C,/rw-project:project/rw-cloud:cloud/account"
         msg = self.get_cloud_account_msg(acct_type)
         self.log.info("Configuring cloud-account: %s",msg)
         yield from dts.query_create(account_xpath,
@@ -441,7 +441,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def configure_compute_resource_pools(self, dts, resource_type, cloud_type):
-        pool_xpath = "C,/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
+        pool_xpath = "C,/rw-project:project/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
         msg = self.get_compute_pool_msg("virtual-compute", resource_type, cloud_type)
         self.log.info("Configuring compute-resource-pool: %s",msg)
         yield from dts.query_create(pool_xpath,
@@ -451,7 +451,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def configure_network_resource_pools(self, dts, resource_type, cloud_type):
-        pool_xpath = "C,/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
+        pool_xpath = "C,/rw-project:project/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools"
         msg = self.get_network_pool_msg("virtual-network", resource_type, cloud_type)
         self.log.info("Configuring network-resource-pool: %s",msg)
         yield from dts.query_create(pool_xpath,
@@ -460,7 +460,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def verify_resource_pools_config(self, dts):
-        pool_records_xpath = "D,/rw-resource-mgr:resource-pool-records"
+        pool_records_xpath = "D,/rw-project:project/rw-resource-mgr:resource-pool-records"
         self.log.debug("Verifying test_create_resource_pools results")
         res_iter = yield from dts.query_read(pool_records_xpath,)
         for result in res_iter:
@@ -491,7 +491,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def reserve_network_resources(self, name, dts, cloud_type):
-        network_xpath = "D,/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data[event-id='{}']"
+        network_xpath = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data[event-id={}]"
         msg,xpath = self.get_network_reserve_msg(name, cloud_type, network_xpath)
         self.log.debug("Sending create event to network-event xpath %s with msg: %s" % (xpath, msg))
         yield from dts.query_create(xpath, 0, msg)
@@ -500,7 +500,7 @@ class RMMgrTestCase(rift.test.dts.AbstractDTSTest):
 
     @asyncio.coroutine
     def reserve_compute_resources(self, name, dts, cloud_type, vlinks = []):
-        compute_xpath = "D,/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data[event-id='{}']"
+        compute_xpath = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data[event-id={}]"
         msg,xpath = self.get_compute_reserve_msg(name, cloud_type, compute_xpath, vlinks)
         self.log.debug("Sending create event to compute-event xpath %s with msg: %s" % (xpath, msg))
         yield from dts.query_create(xpath, 0, msg)

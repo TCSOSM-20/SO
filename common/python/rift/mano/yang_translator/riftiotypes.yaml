@@ -1148,6 +1148,20 @@ node_types:
         type: tosca.capabilities.nfv.riftio.hypervisor_epa
       host_epa:
         type: tosca.capabilities.nfv.riftio.host_epa
+      monitoring_param_2:
+        type: tosca.capabilities.nfv.riftio.monitoring_param
+      monitoring_param_3:
+        type: tosca.capabilities.nfv.riftio.monitoring_param
+      monitoring_param_4:
+        type: tosca.capabilities.nfv.riftio.monitoring_param
+      monitoring_param_5:
+        type: tosca.capabilities.nfv.riftio.monitoring_param
+      monitoring_param_6:
+        type: tosca.capabilities.nfv.riftio.monitoring_param
+      monitoring_param_7:
+        type: tosca.capabilities.nfv.riftio.monitoring_param
+      monitoring_param_8:
+        type: tosca.capabilities.nfv.riftio.monitoring_param
   tosca.nodes.nfv.riftio.CP1:
     derived_from: tosca.nodes.nfv.CP
     properties:
@@ -1427,6 +1441,11 @@ policy_types:
         type: string
         description: >-
           A user defined script
+        required: false
+      name:
+        type: string
+        description: >-
+          Name of primitive
         required: false
   tosca.policies.nfv.riftio.initial_config_primitive:
     derived_from: tosca.policies.Root

@@ -1,6 +1,6 @@
 
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -16,28 +16,38 @@
 #
 
 import asyncio
+import gi
 import rift.tasklets
 
 from gi.repository import(
         RwCloudYang,
         RwDts as rwdts,
+        RwTypes,
         )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 class CloudAccountNotFound(Exception):
     pass
 
 
 class CloudAccountDtsOperdataHandler(object):
-    def __init__(self, dts, log, loop):
+    def __init__(self, dts, log, loop, project):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
 
+        self._regh = None
+        self._rpc = None
         self.cloud_accounts = {}
 
     def add_cloud_account(self, account):
         self.cloud_accounts[account.name] = account
-        account.start_validate_credentials(self._loop)
+        asyncio.ensure_future(
+                account.start_validate_credentials(self._loop),
+                loop=self._loop
+                )
 
     def delete_cloud_account(self, account_name):
         del self.cloud_accounts[account_name]
@@ -69,26 +79,26 @@ class CloudAccountDtsOperdataHandler(object):
         self._log.info("Notification called by creating dts query: %s", ac_status)
 
 
+    @asyncio.coroutine
     def _register_show_status(self):
         def get_xpath(cloud_name=None):
             return "D,/rw-cloud:cloud/account{}/connection-status".format(
-                    "[name='%s']" % cloud_name if cloud_name is not None else ''
-                    )
+                 "[name=%s]" % quoted_key(cloud_name) if cloud_name is not None else ''
+            )
 
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
-            path_entry = RwCloudYang.CloudAccount.schema().keyspec_to_entry(ks_path)
+            path_entry = RwCloudYang.YangData_RwProject_Project_Cloud_Account.schema().keyspec_to_entry(ks_path)
             cloud_account_name = path_entry.key00.name
-            self._log.debug("Got show cloud connection status request: %s", ks_path.create_string())
 
             try:
                 saved_accounts = self.get_saved_cloud_accounts(cloud_account_name)
                 for account in saved_accounts:
                     connection_status = account.connection_status
-                    self._log.debug("Responding to cloud connection status request: %s", connection_status)
+                    xpath = self._project.add_project(get_xpath(account.name))
                     xact_info.respond_xpath(
                             rwdts.XactRspCode.MORE,
-                            xpath=get_xpath(account.name),
+                            xpath=xpath,
                             msg=account.connection_status,
                             )
             except KeyError as e:
@@ -98,13 +108,15 @@ class CloudAccountDtsOperdataHandler(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        yield from self._dts.register(
-                xpath=get_xpath(),
+        xpath = self._project.add_project(get_xpath())
+        self._regh = yield from self._dts.register(
+                xpath=xpath,
                 handler=rift.tasklets.DTS.RegistrationHandler(
                     on_prepare=on_prepare),
                 flags=rwdts.Flag.PUBLISHER,
                 )
 
+    @asyncio.coroutine
     def _register_validate_rpc(self):
         def get_xpath():
             return "/rw-cloud:update-cloud-status"
@@ -113,20 +125,28 @@ class CloudAccountDtsOperdataHandler(object):
         def on_prepare(xact_info, action, ks_path, msg):
             if not msg.has_field("cloud_account"):
                 raise CloudAccountNotFound("Cloud account name not provided")
-
             cloud_account_name = msg.cloud_account
+
+            if not self._project.rpc_check(msg, xact_info=xact_info):
+                return
+
             try:
                 account = self.cloud_accounts[cloud_account_name]
             except KeyError:
-                raise CloudAccountNotFound("Cloud account name %s not found" % cloud_account_name)
+                errmsg = "Cloud account name {} not found in project {}". \
+                         format(cloud_account_name, self._project.name)
+                xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE,
+                                           get_xpath(),
+                                           errmsg)
+                raise CloudAccountNotFound(errmsg)
 
-            account.start_validate_credentials(self._loop)
+            yield from account.start_validate_credentials(self._loop)
 
             yield from self.create_notification(account)
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        yield from self._dts.register(
+        self._rpc = yield from self._dts.register(
                 xpath=get_xpath(),
                 handler=rift.tasklets.DTS.RegistrationHandler(
                     on_prepare=on_prepare
@@ -136,5 +156,11 @@ class CloudAccountDtsOperdataHandler(object):
 
     @asyncio.coroutine
     def register(self):
+        self._log.debug("Register cloud account for project %s", self._project.name)
         yield from self._register_show_status()
         yield from self._register_validate_rpc()
+
+    def deregister(self):
+        self._log.debug("De-register cloud account for project %s", self._project.name)
+        self._rpc.deregister()
+        self._regh.deregister()

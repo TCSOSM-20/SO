@@ -20,15 +20,17 @@
 @brief System test of stopping launchpad on master and
 validating configuration on standby
 """
+import argparse
+import gi
 import os
+import subprocess
 import sys
 import time
-import argparse
-import subprocess
 
-import gi
-from gi.repository import RwVnfdYang
+from gi.repository import RwProjectVnfdYang
 from gi.repository import RwVnfrYang
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 import rift.auto.proxy
 from rift.auto.session import NetconfSession
@@ -46,10 +48,10 @@ def yield_vnfd_vnfr_pairs(proxy, nsr=None):
         Tuple: VNFD and its corresponding VNFR entry
     """
     def get_vnfd(vnfd_id):
-        xpath = "/vnfd-catalog/vnfd[id='{}']".format(vnfd_id)
-        return proxy(RwVnfdYang).get(xpath)
+        xpath = "/rw-project:project[rw-project:name='default']/vnfd-catalog/vnfd[id={}]".format(quoted_key(vnfd_id))
+        return proxy(RwProjectVnfdYang).get(xpath)
 
-    vnfr = "/vnfr-catalog/vnfr"
+    vnfr = "/rw-project:project[rw-project:name='default']/vnfr-catalog/vnfr"
     print ("START")
     vnfrs = proxy(RwVnfrYang).get(vnfr, list_obj=True)
     print ("STOP")

@@ -29,25 +29,17 @@ import unittest
 import xmlrunner
 import yaml
 
+#Setting RIFT_VAR_ROOT if not already set for unit test execution
+if "RIFT_VAR_ROOT" not in os.environ:
+    os.environ['RIFT_VAR_ROOT'] = os.path.join(os.environ['RIFT_INSTALL'], 'var/rift/unittest')
+
 import rift.package.archive
 import rift.package.package
-import rift.package.charm
 import rift.package.icon
 import rift.package.script
-import rift.package.config
 import rift.package.store
 import rift.package.checksums
 import rift.package.cloud_init
-
-
-import gi
-gi.require_version('RwpersonDbYang', '1.0')
-gi.require_version('RwYang', '1.0')
-
-from gi.repository import (
-        RwpersonDbYang,
-        RwYang,
-        )
 
 
 nsd_yaml = b"""nsd:nsd-catalog:
@@ -237,26 +229,6 @@ class TestPackage(PackageTestCase):
             self.assertEquals(yaml.load(vnfd_data), yaml.load(vnfd_yaml))
 
 
-class TestPackageCharmExtractor(PackageTestCase):
-    def add_charm_dir(self, charm_name):
-        charm_dir = "charms/trusty/{}".format(charm_name)
-        charm_file = "{}/actions.yaml".format(charm_dir)
-        charm_text = b"THIS IS A FAKE CHARM"
-        self.add_tarinfo_dir(charm_dir)
-        self.add_tarinfo(charm_file, io.BytesIO(charm_text))
-
-    def test_extract_charm(self):
-        charm_name = "charm_a"
-        self.add_charm_dir(charm_name)
-        package = self.create_vnfd_package()
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            extractor = rift.package.charm.PackageCharmExtractor(self._log, tmp_dir)
-            extractor.extract_charms(package)
-
-            charm_dir = extractor.get_extracted_charm_dir(package.descriptor_id, charm_name)
-            self.assertTrue(os.path.exists(charm_dir))
-            self.assertTrue(os.path.isdir(charm_dir))
-
 
 class TestPackageIconExtractor(PackageTestCase):
     def add_icon_file(self, icon_name):
@@ -324,35 +296,6 @@ class TestPackageCloudInitExtractor(PackageTestCase):
 
         with self.assertRaises(rift.package.cloud_init.CloudInitExtractionError):
             extractor.read_script(package, script_name)
-
-class TestPackageConfigExtractor(PackageTestCase):
-    def add_ns_config_file(self, nsd_id):
-        config_file = "ns_config/{}.yaml".format(nsd_id)
-        config_text = b""" ns_config """
-        self.add_tarinfo(config_file, io.BytesIO(config_text), mode=0o666)
-
-        return config_file
-
-    def add_vnf_config_file(self, vnfd_id, member_vnf_index):
-        config_file = "vnf_config/{}_{}.yaml".format(vnfd_id, member_vnf_index)
-        config_text = b""" vnf_config """
-        self.add_tarinfo(config_file, io.BytesIO(config_text), mode=0o666)
-
-        return config_file
-
-    def test_extract_config(self):
-        ns_config_file = self.add_ns_config_file("nsd_id")
-        vnf_config_file = self.add_vnf_config_file("vnfd_id", 1)
-        package = self.create_nsd_package()
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            extractor = rift.package.config.PackageConfigExtractor(self._log, tmp_dir)
-            extractor.extract_configs(package)
-
-            dest_ns_config_file = extractor.get_extracted_config_path(package.descriptor_id, ns_config_file)
-            dest_vnf_config_file = extractor.get_extracted_config_path(package.descriptor_id, vnf_config_file)
-            self.assertTrue(os.path.isfile(dest_ns_config_file))
-            self.assertTrue(os.path.isfile(dest_vnf_config_file))
-
 
 class TestPackageValidator(PackageTestCase):
     def setUp(self):

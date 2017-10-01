@@ -17,4 +17,4 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwcal_openmano rwcal_openmano.py)
+rift_install_gobject_python_plugin(rwcal_openmano rwcal_openmano.py COMPONENT ${INSTALL_COMPONENT})

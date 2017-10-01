@@ -1,7 +1,7 @@
 
 /*
  *
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -36,14 +36,9 @@ module rw-launchpad
     prefix "yang";
   }
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import ietf-inet-types {
     prefix "inet";
   }
-
 
   import rw-cli-ext {
     prefix "rwcli";
@@ -57,16 +52,16 @@ module rw-launchpad
     prefix "rwcal";
   }
 
-  import rw-vnfd {
-    prefix "rw-vnfd";
+  import rw-project-vnfd {
+    prefix "rw-project-vnfd";
   }
 
   import vld {
     prefix "vld";
   }
 
-  import rw-nsd {
-    prefix "rw-nsd";
+  import rw-project-nsd {
+    prefix "rw-project-nsd";
   }
 
   import rw-cloud {
@@ -102,115 +97,37 @@ module rw-launchpad
     prefix "manotypes";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
+	import rw-ro-account {
+		prefix "rw-ro-account";
+	}
+	
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-09-14 {
     description
       "Initial revision.";
   }
 
-  container datacenters {
-    description "OpenMano data centers";
-
-    rwpb:msg-new DataCenters;
-    config false;
-
-    list ro-accounts {
-      description
-          "A list of OpenMano cloud accounts that have data centers associated
-          with them";
-
-      rwpb:msg-new ROAccount;
-      key "name";
-
-      leaf name {
-        description "The name of the cloud account";
-        type leafref {
-          path "/rw-launchpad:resource-orchestrator/rw-launchpad:name";
-        }
-      }
-
-      list datacenters {
-        rwpb:msg-new DataCenter;
-        leaf uuid {
-          description "The UUID of the data center";
-          type yang:uuid;
-        }
-
-        leaf name {
-          description "The name of the data center";
-          type string;
-        }
-      }
-    }
-  }
-
-  typedef resource-orchestrator-account-type {
-    description "RO account type";
-    type enumeration {
-      enum rift-ro;
-      enum openmano;
-    }
-  }
-
-  container resource-orchestrator {
-    rwpb:msg-new ResourceOrchestrator;
-
-    leaf name {
-       type string;
-    }
-
-    leaf account-type {
-      type resource-orchestrator-account-type;
-    }
-
-    choice resource-orchestrator {
-      description
-        "The resource orchestrator to use by the Launchpad";
-      default rift-ro;
-
-      case rift-ro {
+  augment "/rw-project:project" {
+    container launchpad-config {
+      leaf public-ip {
         description
-          "Use the RIFT.io resource orchestrator";
-
-        container rift-ro {
-          leaf rift-ro {
-            type empty;
-          }
-        }
-      }
-
-      case openmano {
-        description
-          "Use OpenMano as RO";
-
-        container openmano {
-          leaf host {
-            type string;
-            default "localhost";
-          }
-
-          leaf port {
-            type uint16;
-            default 9090;
-          }
-
-          leaf tenant-id {
-            type string {
-              length "36";
-            }
-            mandatory true;
-          }
-        }
-      }
-    }
-  }
-
-  container launchpad-config {
-    leaf public-ip {
-      description
           "An IP address that can, at least, be reached by the host that the
           launchpad is running on. This is not a mandatory but is required for
           alarms to function correctly.";
-      type string;
+        type string;
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-############################################################################
+###########################################################################
 # Copyright 2016 RIFT.io Inc                                               #
 #                                                                          #
 # Licensed under the Apache License, Version 2.0 (the "License");          #
@@ -20,8 +20,8 @@ import json
 import os
 import yaml
 
-from gi.repository import NsdYang
-from gi.repository import VnfdYang
+from gi.repository import ProjectNsdYang as NsdYang
+from gi.repository import ProjectVnfdYang as VnfdYang
 
 
 class InitialConfigReadError(Exception):
@@ -117,23 +117,23 @@ class VnfInitialConfigPrimitiveReader(InitialConfigPrimitiveReader):
         super(VnfInitialConfigPrimitiveReader, self).__init__(primitive_input)
 
     def get_initial_config_primitive(self, seq, name):
-        return VnfdYang.InitialConfigPrimitive(seq=seq, name=name)
+        return VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd_VnfConfiguration_InitialConfigPrimitive(seq=seq, name=name)
 
 
-class NsInitialConfigPrimitiveReader(InitialConfigPrimitiveReader):
+class NsInitialServicePrimitiveReader(InitialConfigPrimitiveReader):
     '''Class to read the NS initial config primitives'''
 
     def __init__(self, primitive_input):
-        super(NsInitialConfigPrimitiveReader, self).__init__(primitive_input)
+        super(NsInitialServicePrimitiveReader, self).__init__(primitive_input)
 
     def get_initial_config_primitive(self, seq, name):
-        return NsdYang.NsdInitialConfigPrimitive(seq=seq, name=name)
+        return NsdYang.YangData_Nsd_NsdCatalog_Nsd_InitialServicePrimitive(seq=seq, name=name)
 
 
 class ConfigPrimitiveConvertor(object):
     PARAMETER = "parameter"
     PARAMETER_GROUP = "parameter_group"
-    CONFIG_PRIMITIVE = "service_primitive"
+    SERVICE_PRIMITIVE = "service_primitive"
     INITIAL_CONFIG_PRIMITIVE = "initial_config_primitive"
 
     def _extract_param(self, param, field="default_value"):
@@ -180,25 +180,25 @@ class ConfigPrimitiveConvertor(object):
         input_data = {}
 
         if config_primitives:
-            input_data[self.CONFIG_PRIMITIVE] = {}
+            input_data[self.SERVICE_PRIMITIVE] = {}
             for config_primitive in config_primitives:
-                input_data[self.CONFIG_PRIMITIVE][config_primitive.name] = {}
+                input_data[self.SERVICE_PRIMITIVE][config_primitive.name] = {}
                 self._extract_parameters(
                     config_primitive.parameter,
-                    input_data[self.CONFIG_PRIMITIVE][config_primitive.name])
+                    input_data[self.SERVICE_PRIMITIVE][config_primitive.name])
 
                 try:
                     self._extract_parameter_group(
                         config_primitive.parameter_group,
-                        input_data[self.CONFIG_PRIMITIVE][config_primitive.name])
+                        input_data[self.SERVICE_PRIMITIVE][config_primitive.name])
                 except AttributeError:
                     pass
 
-                if not input_data[self.CONFIG_PRIMITIVE][config_primitive.name]:
-                    del input_data[self.CONFIG_PRIMITIVE][config_primitive.name]
+                if not input_data[self.SERVICE_PRIMITIVE][config_primitive.name]:
+                    del input_data[self.SERVICE_PRIMITIVE][config_primitive.name]
 
-            if not input_data[self.CONFIG_PRIMITIVE]:
-                del input_data[self.CONFIG_PRIMITIVE]
+            if not input_data[self.SERVICE_PRIMITIVE]:
+                del input_data[self.SERVICE_PRIMITIVE]
 
 
         if initial_configs:
@@ -238,7 +238,7 @@ class ConfigPrimitiveConvertor(object):
 
         initial_conf = None
         try:
-            initial_conf = nsd.initial_config_primitive
+            initial_conf = nsd.initial_service_primitive
         except AttributeError:
             pass
 
@@ -250,7 +250,7 @@ class ConfigPrimitiveConvertor(object):
     def extract_vnfd_config(self, vnfd, format="yaml"):
         config_prim = None
         try:
-            config_prim = vnfd.vnf_configuration.service_primitive
+            config_prim = vnfd.vnf_configuration.config_primitive
         except AttributeError:
             pass
 
@@ -273,7 +273,7 @@ class ConfigPrimitiveConvertor(object):
                 pass
 
     def add_nsd_initial_config(self, nsd_init_cfg_prim_msg, input_data):
-        """ Add initial config primitives from NS Initial Config Input Data
+        """ Add initial service primitives from NS Initial Config Input Data
 
         Arguments:
             nsd_init_cfg_prim_msg - manotypes:nsd/initial_config_primitive pb msg
@@ -285,38 +285,37 @@ class ConfigPrimitiveConvertor(object):
         if self.INITIAL_CONFIG_PRIMITIVE in input_data:
             ns_input_data = input_data[self.INITIAL_CONFIG_PRIMITIVE]
 
-            reader = NsInitialConfigPrimitiveReader(ns_input_data)
+            reader = NsInitialServicePrimitiveReader(ns_input_data)
             for prim in reader.primitives:
                 nsd_init_cfg_prim_msg.append(prim)
 
     def merge_nsd_initial_config(self, nsd, input_data):
         try:
-            for config_primitive in nsd.initial_config_primitive:
+            for service_primitive in nsd.initial_service_primitive:
                 for cfg in input_data[self.INITIAL_CONFIG_PRIMITIVE]:
-                    if cfg['name'] == config_primitive.name:
+                    if cfg['name'] == service_primitive.name:
                         self.merge_params(
-                            config_primitive.parameter,
+                            service_primitive.parameter,
                             cfg[self.PARAMETER],
                             field="value")
                         break
 
         except AttributeError as e:
-            self._log.debug("Did not find initial-config-primitive for NSD {}: {}".
+            self._log.debug("Did not find initial-service-primitive for NSD {}: {}".
                             format(nsd.name, e))
 
-
     def merge_nsd_config(self, nsd, input_data):
-        for config_primitive in nsd.service_primitive:
+        for service_primitive in nsd.service_primitive:
             try:
-                cfg = input_data[self.CONFIG_PRIMITIVE][config_primitive.name]
+                cfg = input_data[self.SERVICE_PRIMITIVE][service_primitive.name]
             except KeyError:
                 continue
 
             self.merge_params(
-                    config_primitive.parameter,
+                    service_primitive.parameter,
                     cfg[self.PARAMETER])
 
-            for param_group in config_primitive.parameter_group:
+            for param_group in service_primitive.parameter_group:
                 self.merge_params(
                         param_group.parameter,
                         cfg[self.PARAMETER_GROUP][param_group.name])
@@ -339,9 +338,9 @@ class ConfigPrimitiveConvertor(object):
                 vnfd_init_cfg_prim_msg.append(prim)
 
     def merge_vnfd_config(self, vnfd, input_data):
-        for config_primitive in vnfd.vnf_configuration.service_primitive:
+        for config_primitive in vnfd.vnf_configuration.config_primitive:
             try:
-                cfg = input_data[self.CONFIG_PRIMITIVE][config_primitive.name]
+                cfg = input_data[self.SERVICE_PRIMITIVE][config_primitive.name]
             except KeyError:
                 continue
 
@@ -352,7 +351,7 @@ class ConfigPrimitiveConvertor(object):
 
 class ConfigStore(object):
     """Convenience class that fetches all the instance related data from the
-    $RIFT_ARTIFACTS/launchpad/libs directory.
+    $RIFT_VAR_ROOT/launchpad/libs directory.
     """
 
     def __init__(self, log):
@@ -363,7 +362,7 @@ class ConfigStore(object):
         self._log = log
         self.converter = ConfigPrimitiveConvertor()
 
-    def merge_vnfd_config(self, nsd_id, vnfd, member_vnf_index):
+    def merge_vnfd_config(self,project_name, nsd_id, vnfd, member_vnf_index):
         """Merges the vnfd config from the config directory.
 
         Args:
@@ -372,10 +371,11 @@ class ConfigStore(object):
                        the member index ref.
         """
         nsd_archive = os.path.join(
-            os.getenv('RIFT_ARTIFACTS'),
-            "launchpad/libs",
-            nsd_id,
-            "config")
+            os.getenv('RIFT_VAR_ROOT'),
+            "launchpad/packages/vnfd/",
+            project_name,
+            vnfd.id,
+            "vnf_config")
 
         self._log.info("Looking for config from the archive {}".format(nsd_archive))
 
@@ -404,12 +404,13 @@ class ConfigStore(object):
             input_data = yaml.load(fh)
         return input_data
 
-    def merge_nsd_config(self, nsd):
+    def merge_nsd_config(self, nsd, project_name):
         nsd_archive = os.path.join(
-            os.getenv('RIFT_ARTIFACTS'),
-            "launchpad/libs",
+            os.getenv('RIFT_VAR_ROOT'),
+            "launchpad/packages/nsd/",
+            project_name,
             nsd.id,
-            "config")
+            "ns_config")
 
         self._log.info("Looking for config from the archive {}".format(nsd_archive))
 

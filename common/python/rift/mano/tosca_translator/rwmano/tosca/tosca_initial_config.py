@@ -53,8 +53,7 @@ class ToscaInitialConfig(ManoResource):
         self.log.debug(_("{0} with tosca properties: {1}").
                        format(self, tosca_props))
         self.properties['name'] = tosca_props['name']
-        self.properties['seq'] = \
-                                tosca_props['seq']
+        self.properties['seq'] = int(tosca_props['seq'])
         self.properties['user-defined-script'] = \
                                 tosca_props['user_defined_script']
         self.scripts.append('../scripts/{}'. \
@@ -62,12 +61,11 @@ class ToscaInitialConfig(ManoResource):
 
         if 'parameter' in tosca_props:
             self.properties['parameter'] = []
-            for name, value in tosca_props['parameter'].items():
+            for parameter in tosca_props['parameter']:
                 self.properties['parameter'].append({
-                    'name': name,
-                    'value': value,
+                    'name': parameter['name'],
+                    'value': str(parameter['value']),
                 })
-
         self.log.debug(_("{0} properties: {1}").format(self, self.properties))
 
     def get_policy_props(self):

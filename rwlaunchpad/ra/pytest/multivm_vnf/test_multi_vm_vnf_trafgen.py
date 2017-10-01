@@ -22,6 +22,7 @@
 @brief Scriptable load-balancer test with multi-vm VNFs
 """
 
+import gi
 import json
 import logging
 import os
@@ -33,15 +34,17 @@ import time
 import uuid
 
 from gi.repository import (
-    NsdYang,
+    RwProjectNsdYang,
     NsrYang,
     RwNsrYang,
     VnfrYang,
     VldYang,
-    RwVnfdYang,
+    RwProjectVnfdYang,
     RwLaunchpadYang,
     RwBaseYang
 )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 import rift.auto.mano
 
@@ -78,7 +81,7 @@ def create_nsr(nsd_id, input_param_list, cloud_account_name):
     Return:
          NSR object
     """
-    nsr = RwNsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+    nsr = RwNsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
 
     nsr.id = str(uuid.uuid4())
     nsr.name = rift.auto.mano.resource_name(nsr.id)
@@ -87,7 +90,7 @@ def create_nsr(nsd_id, input_param_list, cloud_account_name):
     nsr.nsd_ref = nsd_id
     nsr.admin_status = "ENABLED"
     nsr.input_parameter.extend(input_param_list)
-    nsr.cloud_account = cloud_account_name
+    nsr.datacenter = cloud_account_name
 
     return nsr
 
@@ -110,10 +113,10 @@ class DescriptorOnboardError(Exception):
     pass
 
 
-def wait_onboard_transaction_finished(logger, transaction_id, timeout=10, host="127.0.0.1"):
+def wait_onboard_transaction_finished(logger, transaction_id, timeout=10, host="127.0.0.1", project="default"):
     logger.info("Waiting for onboard trans_id %s to complete", transaction_id)
     def check_status_onboard_status():
-        uri = 'http://%s:4567/api/upload/%s/state' % (host, transaction_id)
+        uri = 'http://%s:8008/api/operational/project/%s/create-jobs/job/%s' % (host, project, transaction_id)
         curl_cmd = 'curl --insecure {uri}'.format(
                 uri=uri
                 )
@@ -158,7 +161,7 @@ class TestMultiVmVnfTrafgenApp(object):
         trans_id = upload_descriptor(logger, trafgen_vnfd_package_file, launchpad_host)
         wait_onboard_transaction_finished(logger, trans_id, host=launchpad_host)
 
-        catalog = vnfd_proxy.get_config('/vnfd-catalog')
+        catalog = vnfd_proxy.get_config('/rw-project:project[rw-project:name="default"]/vnfd-catalog')
         vnfds = catalog.vnfd
         assert len(vnfds) == 1, "There should only be a single vnfd"
         vnfd = vnfds[0]
@@ -170,7 +173,7 @@ class TestMultiVmVnfTrafgenApp(object):
         trans_id = upload_descriptor(logger, trafsink_vnfd_package_file, launchpad_host)
         wait_onboard_transaction_finished(logger, trans_id, host=launchpad_host)
 
-        catalog = vnfd_proxy.get_config('/vnfd-catalog')
+        catalog = vnfd_proxy.get_config('/rw-project:project[rw-project:name="default"]/vnfd-catalog')
         vnfds = catalog.vnfd
         assert len(vnfds) == 2, "There should be two vnfds"
         assert "multivm_trafsink_vnfd" in [vnfds[0].name, vnfds[1].name]
@@ -180,7 +183,7 @@ class TestMultiVmVnfTrafgenApp(object):
         trans_id = upload_descriptor(logger, multi_vm_vnf_nsd_package_file, launchpad_host)
         wait_onboard_transaction_finished(logger, trans_id, host=launchpad_host)
 
-        catalog = nsd_proxy.get_config('/nsd-catalog')
+        catalog = nsd_proxy.get_config('/rw-project:project[rw-project:name="default"]/nsd-catalog')
         nsds = catalog.nsd
         assert len(nsds) == 1, "There should only be a single nsd"
         nsd = nsds[0]
@@ -202,15 +205,15 @@ class TestMultiVmVnfTrafgenApp(object):
                                                                            config_param.value,
                                                                            running_nsr_config.input_parameter))
 
-        catalog = nsd_proxy.get_config('/nsd-catalog')
+        catalog = nsd_proxy.get_config('/rw-project:project[rw-project:name="default"]/nsd-catalog')
         nsd = catalog.nsd[0]
 
         input_parameters = []
-        descr_xpath = "/nsd:nsd-catalog/nsd:nsd[nsd:id='%s']/nsd:description" % nsd.id
+        descr_xpath = "/rw-project:project/project-nsd:nsd-catalog/project-nsd:nsd[project-nsd:id=%s]/project-nsd:description" % quoted_key(nsd.id)
         descr_value = "New NSD Description"
         in_param_id = str(uuid.uuid4())
 
-        input_param_1= NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_InputParameter(
+        input_param_1= NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_InputParameter(
                                                                 xpath=descr_xpath,
                                                                 value=descr_value)
 
@@ -219,20 +222,20 @@ class TestMultiVmVnfTrafgenApp(object):
         nsr = create_nsr(nsd.id, input_parameters, cloud_account_name)
 
         logger.info("Instantiating the Network Service")
-        rwnsr_proxy.create_config('/ns-instance-config/nsr', nsr)
+        rwnsr_proxy.create_config('/rw-project:project[rw-project:name="default"]/ns-instance-config/nsr', nsr)
 
-        nsr_opdata = rwnsr_proxy.get('/ns-instance-opdata')
+        nsr_opdata = rwnsr_proxy.get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
         nsrs = nsr_opdata.nsr
 
         # Verify the input parameter configuration
-        running_config = rwnsr_proxy.get_config("/ns-instance-config/nsr[id='%s']" % nsr.id)
+        running_config = rwnsr_proxy.get_config("/rw-project:project[rw-project:name='default']/ns-instance-config/nsr[id=%s]" % quoted_key(nsr.id))
         for input_param in input_parameters:
             verify_input_parameters(running_config, input_param)
 
         assert len(nsrs) == 1
         assert nsrs[0].ns_instance_config_ref == nsr.id
 
-        xpath = "/ns-instance-opdata/nsr[ns-instance-config-ref='{}']/operational-status".format(nsr.id)
+        xpath = "/rw-project:project[rw-project:name='default']/ns-instance-opdata/nsr[ns-instance-config-ref={}]/operational-status".format(quoted_key(nsr.id))
         rwnsr_proxy.wait_for(xpath, "running", fail_on=['failed'], timeout=360)
 
 
@@ -250,11 +253,11 @@ class TestMultiVmVnfTrafgenAppTeardown(object):
         """
         logger.debug("Terminating Multi VM VNF's NSR")
 
-        nsr_path = "/ns-instance-config"
+        nsr_path = "/rw-project:project[rw-project:name='default']/ns-instance-config"
         nsr = rwnsr_proxy.get_config(nsr_path)
 
         ping_pong = nsr.nsr[0]
-        rwnsr_proxy.delete_config("/ns-instance-config/nsr[id='{}']".format(ping_pong.id))
+        rwnsr_proxy.delete_config("/rw-project:project[rw-project:name='default']/ns-instance-config/nsr[id={}]".format(quoted_key(ping_pong.id)))
         time.sleep(30)
 
 
@@ -264,19 +267,19 @@ class TestMultiVmVnfTrafgenAppTeardown(object):
         Asserts:
             The records are deleted.
         """
-        nsds = nsd_proxy.get("/nsd-catalog/nsd", list_obj=True)
+        nsds = nsd_proxy.get("/rw-project:project[rw-project:name='default']/nsd-catalog/nsd", list_obj=True)
         for nsd in nsds.nsd:
-            xpath = "/nsd-catalog/nsd[id='{}']".format(nsd.id)
+            xpath = "/rw-project:project[rw-project:name='default']/nsd-catalog/nsd[id={}]".format(quoted_key(nsd.id))
             nsd_proxy.delete_config(xpath)
 
-        vnfds = vnfd_proxy.get("/vnfd-catalog/vnfd", list_obj=True)
+        vnfds = vnfd_proxy.get("/rw-project:project[rw-project:name='default']/vnfd-catalog/vnfd", list_obj=True)
         for vnfd_record in vnfds.vnfd:
-            xpath = "/vnfd-catalog/vnfd[id='{}']".format(vnfd_record.id)
+            xpath = "/rw-project:project[rw-project:name='default']/vnfd-catalog/vnfd[id={}]".format(quoted_key(vnfd_record.id))
             vnfd_proxy.delete_config(xpath)
 
         time.sleep(5)
-        nsds = nsd_proxy.get("/nsd-catalog/nsd", list_obj=True)
+        nsds = nsd_proxy.get("/rw-project:project[rw-project:name='default']/nsd-catalog/nsd", list_obj=True)
         assert nsds is None or len(nsds.nsd) == 0
 
-        vnfds = vnfd_proxy.get("/vnfd-catalog/vnfd", list_obj=True)
+        vnfds = vnfd_proxy.get("/rw-project:project[rw-project:name='default']/vnfd-catalog/vnfd", list_obj=True)
         assert vnfds is None or len(vnfds.vnfd) == 0

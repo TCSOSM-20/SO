@@ -85,7 +85,7 @@ class ImageUtils(object):
         Returns:
         Protobuf GI Object of type RwcalYang.ImageInfoItem()
         """
-        image = RwcalYang.ImageInfoItem()
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         if 'name' in image_info and image_info['name']:
             image.name = image_info['name']
         if 'id' in image_info and image_info['id']:

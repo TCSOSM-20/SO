@@ -107,7 +107,7 @@ class ComputeResourceRequestMockEventHandler(object):
                 )
         resource_info.update(self._vdu_info)
 
-        response = RwResourceMgrYang.VDUEventData.from_dict(dict(
+        response = RwResourceMgrYang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData.from_dict(dict(
             event_id=self._event_id,
             request_info=self._request_info.as_dict(),
             resource_info=resource_info,
@@ -164,7 +164,7 @@ class NetworkResourceRequestMockEventHandler(object):
                 )
         resource_info.update(self._link_info)
 
-        response = RwResourceMgrYang.VirtualLinkEventData.from_dict(dict(
+        response = RwResourceMgrYang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData.from_dict(dict(
             event_id=self._event_id,
             request_info=self._request_info.as_dict(),
             resource_info=resource_info,
@@ -174,8 +174,8 @@ class NetworkResourceRequestMockEventHandler(object):
 
 
 class ResourceMgrMock(object):
-    VDU_REQUEST_XPATH = "D,/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data"
-    VLINK_REQUEST_XPATH = "D,/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data"
+    VDU_REQUEST_XPATH = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vdu-event/vdu-event-data"
+    VLINK_REQUEST_XPATH = "D,/rw-project:project/rw-resource-mgr:resource-mgmt/vlink-event/vlink-event-data"
 
     def __init__(self, dts, log, loop):
         self._log = log
@@ -247,7 +247,7 @@ class ResourceMgrMock(object):
         response_info = None
         response_xpath = ks_path.to_xpath(RwResourceMgrYang.get_schema()) + "/resource-info"
 
-        schema = RwResourceMgrYang.VirtualLinkEventData().schema()
+        schema = RwResourceMgrYang.YangData_RwProject_Project_ResourceMgmt_VlinkEvent_VlinkEventData().schema()
         pathentry = schema.keyspec_to_entry(ks_path)
 
         if action == rwdts.QueryAction.CREATE:
@@ -279,16 +279,14 @@ class ResourceMgrMock(object):
             return
 
         @asyncio.coroutine
-        def monitor_vdu_state(response_xpath, pathentry):
+        def monitor_vdu_state(response_xpath, event_id):
             self._log.info("Initiating VDU state monitoring for xpath: %s ", response_xpath)
             loop_cnt = 120
             while loop_cnt > 0:
                 self._log.debug("VDU state monitoring: Sleeping for 1 second ")
                 yield from asyncio.sleep(1, loop = self._loop)
                 try:
-                    response_info = self._read_virtual_compute(
-                            pathentry.key00.event_id
-                            )
+                    response_info = self._read_virtual_compute(event_id)
                 except Exception as e:
                     self._log.error(
                             "VDU state monitoring: Received exception %s "
@@ -313,7 +311,7 @@ class ResourceMgrMock(object):
             ### End of while loop. This is only possible if VDU did not reach active state
             self._log.info("VDU state monitoring: VDU at xpath :%s did not reached active state in 120 seconds. Aborting monitoring",
                            response_xpath)
-            response_info = RwResourceMgrYang.VDUEventData_ResourceInfo()
+            response_info = RwResourceMgrYang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData_ResourceInfo()
             response_info.resource_state = 'failed'
             yield from self._dts.query_update(response_xpath,
                                               rwdts.XactFlag.ADVISE,
@@ -326,7 +324,7 @@ class ResourceMgrMock(object):
         response_info = None
         response_xpath = ks_path.to_xpath(RwResourceMgrYang.get_schema()) + "/resource-info"
 
-        schema = RwResourceMgrYang.VDUEventData().schema()
+        schema = RwResourceMgrYang.YangData_RwProject_Project_ResourceMgmt_VduEvent_VduEventData().schema()
         pathentry = schema.keyspec_to_entry(ks_path)
 
         if action == rwdts.QueryAction.CREATE:
@@ -335,7 +333,7 @@ class ResourceMgrMock(object):
                     request_msg.request_info,
                     )
             if response_info.resource_state == 'pending':
-                asyncio.ensure_future(monitor_vdu_state(response_xpath, pathentry),
+                asyncio.ensure_future(monitor_vdu_state(response_xpath, pathentry.key00.event_id),
                                       loop = self._loop)
 
         elif action == rwdts.QueryAction.DELETE:

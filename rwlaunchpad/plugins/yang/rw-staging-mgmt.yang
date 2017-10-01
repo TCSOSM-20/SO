@@ -1,6 +1,6 @@
 /*
  *
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -33,10 +33,6 @@ module rw-staging-mgmt
     prefix "yang";
   }
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import rw-cli-ext {
     prefix "rwcli";
   }
@@ -51,6 +47,19 @@ module rw-staging-mgmt
 
   import mano-types {
     prefix "manotypes";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2016-06-01 {
@@ -80,6 +89,13 @@ module rw-staging-mgmt
       description "lifetime of the staging area (in seconds)";
       type uint64;
       default 3600;
+    }
+
+    leaf project-name {
+      description "Project to which this belongs";
+      type leafref {
+        path "/rw-project:project/rw-project:name";
+      }
     }
   }
 
@@ -112,25 +128,24 @@ module rw-staging-mgmt
 
   }
 
-  container staging-areas {
-    rwpb:msg-new StagingAreas;
-    description "Staging Areas";
-    config false;
+  augment "/rw-project:project" {
+    container staging-areas {
+      description "Staging Areas";
+      config false;
 
-    list staging-area {
-      rwpb:msg-new StagingArea;
-      key "area-id";
+      list staging-area {
+        key "area-id";
 
-      leaf area-id {
-        description "Staging Area ID";
-        type string;
+        leaf area-id {
+          description "Staging Area ID";
+          type string;
+        }
+
+        uses staging-area-config;
+        uses staging-area-meta;
       }
-
-      uses staging-area-config;
-      uses staging-area-meta;
     }
   }
-
 
   rpc create-staging-area {
     description "Creates a staging area for the upload.";

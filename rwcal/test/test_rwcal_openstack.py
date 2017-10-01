@@ -43,9 +43,9 @@ ssh_pwauth: True
 # Important information about openstack installation. This needs to be manually verified
 #
 openstack_info = {
-    'username'           : 'xxxx',
-    'password'           : 'xxxxxx',
-    'auth_url'           : 'http://10.66.4.19:5000/v2.0/',
+    'username'           : 'xxxxxx',
+    'password'           : 'xxxxx',
+    'auth_url'           : 'http://10.66.4.102:5000/v2.0/',
     'project_name'       : 'xxxxx',
     'mgmt_network'       : 'private',
     'reserved_flavor'    : 'm1.medium',
@@ -73,9 +73,9 @@ openstack_V3_info = {
 
 def get_cal_account():
     """
-    Creates an object for class RwcalYang.CloudAccount()
+    Creates an object for class RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
     """
-    account                          = RwcalYang.CloudAccount()
+    account                          = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
     account.name                     = "Gruntxx"
     account.account_type             = "openstack"
     account.openstack.key            = openstack_info['username']
@@ -236,9 +236,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_image_info_request(self):
         """
-        Returns request object of type RwcalYang.ImageInfoItem()
+        Returns request object of type RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         """
-        img = RwcalYang.ImageInfoItem()
+        img = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         img.name = "rift.cal.unittest.image"
         img.location = '/net/sharedfiles/home1/common/vm/rift-root-latest.qcow2'
         img.disk_format = "qcow2"
@@ -286,9 +286,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_flavor_info_request(self):
         """
-        Returns request object of type RwcalYang.FlavorInfoItem()
+        Returns request object of type RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         """
-        flavor                                     = RwcalYang.FlavorInfoItem()
+        flavor                                     = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         flavor.name                                = 'rift.cal.unittest.flavor'
         flavor.vm_flavor.memory_mb                 = 16384 # 16GB
         flavor.vm_flavor.vcpu_count                = 4
@@ -363,7 +363,7 @@ class OpenStackTest(unittest.TestCase):
         """
         Returns request object of type RwcalYang.VMInfoItem
         """
-        vm = RwcalYang.VMInfoItem()
+        vm = RwcalYang.YangData_RwProject_Project_VimResources_VminfoList()
         vm.vm_name = 'rift.cal.unittest.vm'
         vm.flavor_id = flavor_id
         vm.image_id  = image_id
@@ -695,9 +695,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_network_info_request(self):
         """
-        Returns request object of type RwcalYang.NetworkInfoItem
+        Returns request object of type RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList
         """
-        network                            = RwcalYang.NetworkInfoItem()
+        network                            = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList()
         network.network_name               = 'rift.cal.unittest.network'
         network.subnet                     = '192.168.16.0/24'
         if openstack_info['physical_network']:
@@ -762,9 +762,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_port_info_request(self, network_id, vm_id):
         """
-        Returns an object of type RwcalYang.PortInfoItem
+        Returns an object of type RwcalYang.YangData_RwProject_Project_VimResources_PortinfoList
         """
-        port = RwcalYang.PortInfoItem()
+        port = RwcalYang.YangData_RwProject_Project_VimResources_PortinfoList()
         port.port_name = 'rift.cal.unittest.port'
         port.network_id = network_id
         if vm_id != None:
@@ -887,10 +887,14 @@ class OpenStackTest(unittest.TestCase):
         """
         logger.info("Openstack-CAL-Test: Test Get VDU List APIs")
         rc, rsp = self.cal.get_vdu_list(self._acct)
-        self.assertEqual(rc, RwStatus.SUCCESS)
+        self.assertEqual(rc.status, RwStatus.SUCCESS)
         logger.info("Openstack-CAL-Test: Received %d VDUs" %(len(rsp.vdu_info_list)))
         for vdu in rsp.vdu_info_list:
-            rc, vdu2 = self.cal.get_vdu(self._acct, vdu.vdu_id)
+            rc, vdu2 = self.cal.get_vdu(self._acct, vdu.vdu_id, "")
+            self.assertEqual(rc.status, RwStatus.SUCCESS)
+            # Make changes for the third argument (currently None for mgmt_network).
+            # This is the mgmt_network published in the vdur (vdu.mgmt_network).
+            # Pass accordingly as per the use case of the test. 
             self.assertEqual(vdu2.vdu_id, vdu.vdu_id)
 
 
@@ -909,9 +913,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_virtual_link_request_info(self):
         """
-        Returns object of type RwcalYang.VirtualLinkReqParams
+        Returns object of type RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams
         """
-        vlink = RwcalYang.VirtualLinkReqParams()
+        vlink = RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams()
         vlink.name = 'rift.cal.virtual_link'
         vlink.subnet = '192.168.1.0/24'
         if openstack_info['physical_network']:
@@ -925,9 +929,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_vdu_request_info(self, virtual_link_id):
         """
-        Returns object of type RwcalYang.VDUInitParams
+        Returns object of type RwcalYang.YangData_RwProject_Project_VduInitParams
         """
-        vdu = RwcalYang.VDUInitParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VduInitParams()
         vdu.name = "cal.vdu"
         vdu.node_id = OpenStackTest.NodeID
         vdu.image_id = self._image.id
@@ -963,9 +967,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_vdu_modify_request_info(self, vdu_id, virtual_link_id):
         """
-        Returns object of type RwcalYang.VDUModifyParams
+        Returns object of type RwcalYang.YangData_RwProject_Project_VduModifyParams
         """
-        vdu = RwcalYang.VDUModifyParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VduModifyParams()
         vdu.vdu_id = vdu_id
         c1 = vdu.connection_points_add.add()
         c1.name = "c_modify1"
@@ -975,9 +979,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_rbsh_vdu_request_info(self, vlink_list):
           """
-          Returns object of type RwcalYang.VDUInitParams
+          Returns object of type RwcalYang.YangData_RwProject_Project_VduInitParams
           """
-          vdu = RwcalYang.VDUInitParams()
+          vdu = RwcalYang.YangData_RwProject_Project_VduInitParams()
           vdu.name = "cal_rbsh_vdu"
           vdu.vm_flavor.memory_mb = 2048
           vdu.vm_flavor.vcpu_count = 1
@@ -1034,7 +1038,7 @@ class OpenStackTest(unittest.TestCase):
           logger.info("Openstack-CAL-Test: Test Create Virtual Link API")
           vlink_list = []
           for ctr in range(3):
-             vlink = RwcalYang.VirtualLinkReqParams()
+             vlink = RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams()
              vlink.name = 'rift.cal.virtual_link' + str(ctr)
              vlink.subnet = '11.0.{}.0/24'.format(str(1 + ctr))
 
@@ -1062,7 +1066,11 @@ class OpenStackTest(unittest.TestCase):
           test_vdu_id = rsp
 
           ## Check if VDU get is successful
-          rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id)
+          rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id, "")
+          # Make changes for the third argument (currently None for mgmt_network).
+          # This is the mgmt_network published in the vdur (vdu.mgmt_network).
+          # Pass accordingly as per the use case of the test. 
+          self.assertEqual(rc.status, RwStatus.SUCCESS)
           logger.debug("Get VDU response %s", rsp)
           self.assertEqual(rsp.vdu_id, test_vdu_id)
 
@@ -1073,8 +1081,11 @@ class OpenStackTest(unittest.TestCase):
           vdu_state = 'inactive'
           cp_state = 'inactive'
           for i in range(15):
-              rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id)
-              self.assertEqual(rc, RwStatus.SUCCESS)
+              rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id, "")
+              # Make changes for the third argument (currently None for mgmt_network).
+              # This is the mgmt_network published in the vdur (vdu.mgmt_network).
+              # Pass accordingly as per the use case of the test. 
+              self.assertEqual(rc.status, RwStatus.SUCCESS)
               logger.info("Openstack-CAL-Test: Iter %d VDU with id : %s. Reached State :  %s, mgmt ip %s" %(i, test_vdu_id, rsp.state, rsp.management_ip))
               if (rsp.state == 'active') and ('management_ip' in rsp) and ('public_ip' in rsp):
                   vdu_state = 'active'
@@ -1094,7 +1105,7 @@ class OpenStackTest(unittest.TestCase):
 
           ### Check vdu list as well
           rc, rsp = self.cal.get_vdu_list(self._acct)
-          self.assertEqual(rc, RwStatus.SUCCESS)
+          self.assertEqual(rc.status, RwStatus.SUCCESS)
           found = False
           logger.debug("Get VDU response %s", rsp)
           for vdu in rsp.vdu_info_list:
@@ -1103,7 +1114,7 @@ class OpenStackTest(unittest.TestCase):
           self.assertEqual(found, True)
           logger.info("Openstack-CAL-Test: Passed VDU list" )
 
-    @unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
+    #@unittest.skip("Skipping test_create_delete_virtual_link_and_vdu")
     def test_create_delete_virtual_link_and_vdu(self):
         """
         Test to create VDU
@@ -1132,18 +1143,30 @@ class OpenStackTest(unittest.TestCase):
         vdu_id = rsp
 
         ## Check if VDU create is successful
-        rc, rsp = self.cal.get_vdu(self._acct, rsp)
+        rc, rsp = self.cal.get_vdu(self._acct, rsp, "")
+        # Make changes for the third argument (currently None for mgmt_network).
+        # This is the mgmt_network published in the vdur (vdu.mgmt_network).
+        # Pass accordingly as per the use case of the test. 
+            
+        self.assertEqual(rc.status, RwStatus.SUCCESS)
         self.assertEqual(rsp.vdu_id, vdu_id)
 
         ### Wait until vdu_state is active
         for i in range(50):
-            rc, rs = self.cal.get_vdu(self._acct, vdu_id)
-            self.assertEqual(rc, RwStatus.SUCCESS)
+            rc, rs = self.cal.get_vdu(self._acct, vdu_id, "")
+            self.assertEqual(rc.status, RwStatus.SUCCESS)
+            # Make changes for the third argument (currently None for mgmt_network).
+            # This is the mgmt_network published in the vdur (vdu.mgmt_network).
+            # Pass accordingly as per the use case of the test. 
+            self.assertEqual(rc.status, RwStatus.SUCCESS)
             logger.info("Openstack-CAL-Test: VDU with id : %s. Reached State :  %s" %(vdu_id, rs.state))
             if rs.state == 'active':
                 break
-        rc, rs = self.cal.get_vdu(self._acct, vdu_id)
-        self.assertEqual(rc, RwStatus.SUCCESS)
+        rc, rs = self.cal.get_vdu(self._acct, vdu_id, "")
+        # Make changes for the third argument (currently None for mgmt_network).
+        # This is the mgmt_network published in the vdur (vdu.mgmt_network).
+        # Pass accordingly as per the use case of the test. 
+        self.assertEqual(rc.status, RwStatus.SUCCESS)
         self.assertEqual(rs.state, 'active')
         logger.info("Openstack-CAL-Test: VDU with id : %s reached expected state  : %s" %(vdu_id, rs.state))
         logger.info("Openstack-CAL-Test: VDUInfo: %s" %(rs))
@@ -1174,7 +1197,7 @@ class OpenStackTest(unittest.TestCase):
         time.sleep(5)
         ### Verify that VDU and virtual link are successfully deleted
         rc, rsp = self.cal.get_vdu_list(self._acct)
-        self.assertEqual(rc, RwStatus.SUCCESS)
+        self.assertEqual(rc.status, RwStatus.SUCCESS)
         for vdu in rsp.vdu_info_list:
             self.assertNotEqual(vdu.vdu_id, vdu_id)
 
@@ -1188,9 +1211,9 @@ class OpenStackTest(unittest.TestCase):
 
     def _get_vol_vdu_request_info(self, vlink_list):
           """
-          Returns object of type RwcalYang.VDUInitParams
+          Returns object of type RwcalYang.YangData_RwProject_Project_VduInitParams
           """
-          vdu = RwcalYang.VDUInitParams()
+          vdu = RwcalYang.YangData_RwProject_Project_VduInitParams()
           vdu.name = "cal_vdu"
           vdu.vm_flavor.memory_mb = 512
           vdu.vm_flavor.vcpu_count = 1
@@ -1230,7 +1253,7 @@ class OpenStackTest(unittest.TestCase):
           """
           logger.info("Openstack-CAL-Test: Test Create Virtual Link API")
           vlink_list = []
-          vlink = RwcalYang.VirtualLinkReqParams()
+          vlink = RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams()
           vlink.name = 'rift.cal.virtual_link' 
           vlink.subnet = '11.0.1.0/24'
 
@@ -1258,7 +1281,12 @@ class OpenStackTest(unittest.TestCase):
           test_vdu_id = rsp
 
           ## Check if VDU get is successful
-          rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id)
+          rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id, "")
+          self.assertEqual(rc.status, RwStatus.SUCCESS)
+          # Make changes for the third argument (currently None for mgmt_network).
+          # This is the mgmt_network published in the vdur (vdu.mgmt_network).
+          # Pass accordingly as per the use case of the test. 
+            
           logger.debug("Get VDU response %s", rsp)
           self.assertEqual(rsp.vdu_id, test_vdu_id)
 
@@ -1269,8 +1297,11 @@ class OpenStackTest(unittest.TestCase):
           vdu_state = 'inactive'
           cp_state = 'inactive'
           for i in range(5):
-              rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id)
-              self.assertEqual(rc, RwStatus.SUCCESS)
+              rc, rsp = self.cal.get_vdu(self._acct, test_vdu_id, "")
+              # Make changes for the third argument (currently None for mgmt_network).
+              # This is the mgmt_network published in the vdur (vdu.mgmt_network).
+              # Pass accordingly as per the use case of the test. 
+              self.assertEqual(rc.status, RwStatus.SUCCESS)
               logger.info("Openstack-CAL-Test: VDU with id : %s. Reached State :  %s, mgmt ip %s" %(test_vdu_id, rsp.state, rsp.management_ip))
               if (rsp.state == 'active') and ('management_ip' in rsp) and ('public_ip' in rsp):
                   vdu_state = 'active'
@@ -1294,7 +1325,7 @@ class OpenStackTest(unittest.TestCase):
 
           ### Check vdu list as well
           rc, rsp = self.cal.get_vdu_list(self._acct)
-          self.assertEqual(rc, RwStatus.SUCCESS)
+          self.assertEqual(rc.status, RwStatus.SUCCESS)
           found = False
           logger.debug("Get VDU response %s", rsp)
           for vdu in rsp.vdu_info_list:

@@ -22,7 +22,7 @@ rift_python_install_tree(
   FILES
     rift/mano/__init__.py
     rift/mano/ncclient.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -32,7 +32,17 @@ rift_python_install_tree(
     rift/mano/cloud/accounts.py
     rift/mano/cloud/config.py
     rift/mano/cloud/operdata.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
+  PYTHON3_ONLY
+  )
+
+rift_python_install_tree(
+  FILES
+    rift/mano/ro_account/__init__.py
+    rift/mano/ro_account/accounts.py
+    rift/mano/ro_account/config.py
+    rift/mano/ro_account/operdata.py
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -42,7 +52,7 @@ rift_python_install_tree(
     rift/mano/sdn/accounts.py
     rift/mano/sdn/config.py
     rift/mano/sdn/operdata.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -51,7 +61,7 @@ rift_python_install_tree(
     rift/mano/config_agent/operdata.py
     rift/mano/config_agent/__init__.py
     rift/mano/config_agent/config.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -66,8 +76,7 @@ rift_python_install_tree(
     rift/mano/dts/subscriber/store.py
     rift/mano/dts/subscriber/ns_subscriber.py
     rift/mano/dts/subscriber/vnf_subscriber.py
-    rift/mano/dts/subscriber/ro_account.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -76,7 +85,7 @@ rift_python_install_tree(
   FILES
     rift/mano/dts/rpc/__init__.py
     rift/mano/dts/rpc/core.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -85,8 +94,9 @@ rift_python_install_tree(
   FILES
     rift/downloader/__init__.py
     rift/downloader/base.py
+    rift/downloader/local_file.py
     rift/downloader/url.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -94,7 +104,7 @@ rift_python_install_tree(
   FILES
     rift/mano/config_data/__init__.py
     rift/mano/config_data/config.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -124,6 +134,7 @@ rift_python_install_tree(
     rift/mano/tosca_translator/rwmano/tosca/tosca_initial_config.py
     rift/mano/tosca_translator/rwmano/tosca/tosca_placement_group.py
     rift/mano/tosca_translator/rwmano/tosca/tosca_vnf_configuration.py
+    rift/mano/tosca_translator/rwmano/tosca/tosca_vnf_ns_service_primitive.py
     rift/mano/tosca_translator/rwmano/tosca/tosca_forwarding_graph.py
     rift/mano/tosca_translator/rwmano/tosca/tosca_forwarding_path.py
     rift/mano/tosca_translator/common/__init__.py
@@ -134,7 +145,7 @@ rift_python_install_tree(
     rift/mano/tosca_translator/conf/translator.conf
     rift/mano/tosca_translator/conf/__init__.py
     rift/mano/tosca_translator/conf/config.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -143,8 +154,10 @@ rift_python_install_tree(
     rift/mano/utils/__init.py__
     rift/mano/utils/compare_desc.py
     rift/mano/utils/juju_api.py
+    rift/mano/utils/ssh_keys.py
+    rift/mano/utils/project.py
     rift/mano/utils/short_name.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -173,7 +186,7 @@ rift_python_install_tree(
     rift/mano/yang_translator/common/utils.py
     rift/mano/yang_translator/common/exception.py
     rift/mano/yang_translator/common/__init__.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY
   )
 
@@ -185,21 +198,21 @@ install(
   FILES rift/mano/yang_translator/riftiotypes.yaml
     DESTINATION
       usr/rift/mano/common
-    COMPONENT ${PKG_LONG_NAME}
+    COMPONENT ${INSTALL_COMPONENT}
     )
 
 install(
   FILES rift/mano/tosca_translator/dummy_vnf_node.yaml
     DESTINATION
       usr/rift/mano/common
-    COMPONENT ${PKG_LONG_NAME}
+    COMPONENT ${INSTALL_COMPONENT}
     )
 
 install(
   FILES ${TRANSLATOR_SCRIPTS}
     DESTINATION
       usr/bin
-    COMPONENT ${PKG_LONG_NAME}
+    COMPONENT ${INSTALL_COMPONENT}
     )
 
 set(subdirs

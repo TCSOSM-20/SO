@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,10 +23,6 @@ module pnfd
   namespace "urn:ietf:params:xml:ns:yang:nfvo:pnfd";
   prefix "pnfd";
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import ietf-inet-types {
     prefix "inet";
   }
@@ -39,6 +35,15 @@ module pnfd
     prefix "manotypes";
   }
 
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2015-09-10 {
     description
       "Initial revision. This YANG file defines 
@@ -47,56 +52,58 @@ module pnfd
       "Derived from earlier versions of base YANG files";
   }
 
-  container pnfd-catalog {
+  augment "/rw-project:project" {
+    container pnfd-catalog {
 
-    list pnfd {
-      key "id";
-
-      leaf id {
-        description "Identifier for the PNFD.";
-        type yang:uuid;
-      }
-
-      leaf name {
-        description "PNFD name.";
-        type string;
-      }
-
-      leaf short-name {
-        description "Short name to appear as label in the UI";
-        type string;
-      }
-
-      leaf vendor {
-        description "Vendor of the PNFD.";
-        type string;
-      }
-
-      leaf description {
-        description "Description of the PNFD.";
-        type string;
-      }
-
-      leaf version {
-        description "Version of the PNFD";
-        type string;
-      }
-
-      list connection-point {
-        description
-            "List for external connection points. Each PNF has one or more external
-            connection points.";
+      list pnfd {
         key "id";
+
         leaf id {
-          description
-              "Identifier for the external connection points";
-          type uint64;
+          description "Identifier for the PNFD.";
+          type yang:uuid;
         }
 
-        leaf cp-type {
+        leaf name {
+          description "PNFD name.";
+          type string;
+        }
+
+        leaf short-name {
+          description "Short name to appear as label in the UI";
+          type string;
+        }
+
+        leaf vendor {
+          description "Vendor of the PNFD.";
+          type string;
+        }
+
+        leaf description {
+          description "Description of the PNFD.";
+          type string;
+        }
+
+        leaf version {
+          description "Version of the PNFD";
+          type string;
+        }
+
+        list connection-point {
           description
+            "List for external connection points. Each PNF has one or more external
+            connection points.";
+          key "id";
+          leaf id {
+            description
+              "Identifier for the external connection points";
+            type uint64;
+          }
+
+          leaf cp-type {
+            description
               "Type of the connection point.";
-          type manotypes:connection-point-type;
+            type manotypes:connection-point-type;
+          }
         }
       }
     }

@@ -1,5 +1,5 @@
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -20,34 +20,58 @@
 ##
 # Yang targets
 ##
+
 rift_add_yang_target(
   TARGET rwsdn_yang
   YANG_FILES rw-sdn.yang
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   LIBRARIES
     rwsdnal_yang_gen
   DEPENDS
     rwsdnal_yang
+  ASSOCIATED_FILES
+    rw-sdn.role.xml
 )
 
 rift_add_yang_target(
   TARGET rwcloud_yang
   YANG_FILES rw-cloud.yang 
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   LIBRARIES
     rwsdn_yang_gen
     rwcal_yang_gen
+    rwprojectmano_yang_gen
+    mano-types_yang_gen
   DEPENDS
     rwcal_yang
     rwsdnal_yang
+  ASSOCIATED_FILES
+    rw-cloud.role.xml
 )
 
 rift_add_yang_target(
   TARGET rwconfig_agent_yang
   YANG_FILES rw-config-agent.yang
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   LIBRARIES
     rwcal_yang_gen
+    rwprojectmano_yang_gen
   DEPENDS
     rwcal_yang
+    rwprojectmano_yang
+  ASSOCIATED_FILES
+    rw-config-agent.role.xml
+)
+
+rift_add_yang_target(
+  TARGET rwro_account_yang
+  YANG_FILES rw-ro-account.yang
+  COMPONENT ${INSTALL_COMPONENT}
+  LIBRARIES
+    rwprojectmano_yang_gen
+    mano-types_yang_gen
+  DEPENDS
+    rwprojectmano_yang
+  ASSOCIATED_FILES
+    rw-ro-account.role.xml
 )

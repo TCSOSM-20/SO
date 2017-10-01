@@ -25,7 +25,7 @@ rift_add_yang_target(
     YANG_FILES
         lpmocklet.yang
     COMPONENT
-        ${PKG_LONG_NAME}
+	${INSTALL_COMPONENT}
     LIBRARIES
         mano-types_yang_gen
 )

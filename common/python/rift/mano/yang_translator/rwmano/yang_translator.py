@@ -32,7 +32,7 @@ from rift.package.package import TarPackageArchive
 import rift.package.cloud_init
 import rift.package.script
 import rift.package.store
-
+import rift.package.icon
 
 class YangTranslator(object):
     '''Invokes translation methods.'''
@@ -59,10 +59,10 @@ class YangTranslator(object):
             self.get_yangs()
         else:
             if 'nsd' in self.yangs:
-                self.output_files['nsd'].append(self.yangs['nsd'][0]['short_name'])
+                self.output_files['nsd'].append(self.yangs['nsd'][0]['short_name'].replace(' ','_'))
             if 'vnfd' in self.yangs:
                 for yang_vnfd in self.yangs['vnfd']:
-                    self.output_files['vnfd'].append(yang_vnfd['short_name'])
+                    self.output_files['vnfd'].append(yang_vnfd['short_name'].replace(' ','_'))
 
         self.node_translator = TranslateDescriptors(self.log,
                                                       self.yangs,
@@ -133,9 +133,9 @@ class YangTranslator(object):
                 raise ValidationError(message="No NSD or VNFD uploaded")
         else:
             if 'nsd' in self.yangs:
-                sub_folder_name = self.yangs['nsd'][0]['short_name']
+                sub_folder_name = self.yangs['nsd'][0]['short_name'].replace(' ','_')
             elif 'vnfd' in self.yangs:
-                sub_folder_name = self.yangs['vnfd'][0]['short_name']
+                sub_folder_name = self.yangs['vnfd'][0]['short_name'].replace(' ','_')
 
 
         subdir = os.path.join(output_dir, sub_folder_name)
@@ -147,14 +147,20 @@ class YangTranslator(object):
         def_dir = os.path.join(subdir, 'Definitions')
         os.makedirs(def_dir)
         shutil.copy2(riftio_src_file, def_dir + "/riftiotypes.yaml")
+        tosca_meta_entry_file = None
         for tmpl_key in tmpl_out:
             tmpl = tmpl_out[tmpl_key]
-            entry_file = os.path.join(def_dir, tmpl_key+'.yaml')
+            file_name = tmpl_key.replace(' ','_')
+            entry_file = os.path.join(def_dir, file_name+'.yaml')
+            if file_name.endswith('nsd'):
+                tosca_meta_entry_file = file_name
             self.log.debug(_("Writing file {0}").
                            format(entry_file))
             with open(entry_file, 'w+') as f:
                 f.write(tmpl[ToscaTemplate.TOSCA])
 
+        if tosca_meta_entry_file is None:
+            tosca_meta_entry_file = sub_folder_name
         # Create the Tosca meta
         meta_dir = os.path.join(subdir, 'TOSCA-Metadata')
         os.makedirs(meta_dir)
@@ -162,7 +168,7 @@ class YangTranslator(object):
 CSAR-Version: 1.1
 Created-By: RIFT.io
 Entry-Definitions: Definitions/'''
-        meta_data = "{}{}".format(meta, sub_folder_name+'.yaml')
+        meta_data = "{}{}".format(meta, tosca_meta_entry_file+'.yaml')
         meta_file = os.path.join(meta_dir, 'TOSCA.meta')
         self.log.debug(_("Writing file {0}:\n{1}").
                        format(meta_file, meta_data))
@@ -213,6 +219,15 @@ Entry-Definitions: Definitions/'''
                                     pkg.extract_file(script_file_map[fname],
                                                      dest_path)
                                     break
+                            elif ftype == 'icons':
+                                icon_file_map = \
+                                    rift.package.icon.PackageIconExtractor.package_icon_files(pkg)
+                                if fname in icon_file_map:
+                                    self.log.debug(_("Extracting script {0} to {1}").
+                                                   format(fname, dest_path))
+                                    pkg.extract_file(icon_file_map[fname],
+                                                     dest_path)
+                                    break
 
                             else:
                                 self.log.warn(_("Unknown file type {0}: {1}").
@@ -226,7 +241,7 @@ Entry-Definitions: Definitions/'''
             os.chdir(subdir)
 
             try:
-                zip_file = key + '.zip'
+                zip_file = sub_folder_name + '.zip'
                 zip_path = os.path.join(output_dir, zip_file)
                 self.log.debug(_("Creating zip file {0}").format(zip_path))
                 zip_cmd = "zip -r {}.partial ."

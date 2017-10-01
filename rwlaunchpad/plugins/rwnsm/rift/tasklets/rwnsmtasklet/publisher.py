@@ -21,7 +21,7 @@ import json
 from gi.repository import (
     RwDts as rwdts,
     RwTypes,
-    RwVnfdYang,
+    RwProjectVnfdYang as RwVnfdYang,
     RwYang
     )
 import rift.tasklets
@@ -33,10 +33,11 @@ class NsrOpDataDtsHandler(object):
     """ The network service op data DTS handler """
     XPATH = "D,/nsr:ns-instance-opdata/nsr:nsr"
 
-    def __init__(self, dts, log, loop):
+    def __init__(self, dts, log, loop, project):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
         self._regh = None
 
     @property
@@ -47,51 +48,63 @@ class NsrOpDataDtsHandler(object):
     @asyncio.coroutine
     def register(self):
         """ Register for Nsr op data publisher registration"""
-        self._log.debug("Registering Nsr op data path %s as publisher",
-                        NsrOpDataDtsHandler.XPATH)
+        if self._regh:
+            return
+
+        xpath = self._project.add_project(NsrOpDataDtsHandler.XPATH)
+        self._log.debug("Registering Nsr op data path {} as publisher".
+                        format(xpath))
 
         hdl = rift.tasklets.DTS.RegistrationHandler()
         with self._dts.group_create() as group:
-            self._regh = group.register(xpath=NsrOpDataDtsHandler.XPATH,
+            self._regh = group.register(xpath=xpath,
                                         handler=hdl,
                                         flags=rwdts.Flag.PUBLISHER | rwdts.Flag.NO_PREP_READ)
 
     @asyncio.coroutine
-    def create(self, xact, path, msg):
+    def create(self, xact, xpath, msg):
         """
         Create an NS record in DTS with the path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Creating NSR xact = %s, %s:%s", xact, path, msg)
         self.regh.create_element(path, msg, xact=xact)
         self._log.debug("Created NSR xact = %s, %s:%s", xact, path, msg)
 
     @asyncio.coroutine
-    def update(self, xact, path, msg, flags=rwdts.XactFlag.REPLACE):
+    def update(self, xact, xpath, msg, flags=rwdts.XactFlag.REPLACE):
         """
         Update an NS record in DTS with the path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Updating NSR xact = %s, %s:%s regh = %s", xact, path, msg, self.regh)
         self.regh.update_element(path, msg, flags, xact=xact)
         self._log.debug("Updated NSR xact = %s, %s:%s", xact, path, msg)
 
     @asyncio.coroutine
-    def delete(self, xact, path):
+    def delete(self, xact, xpath):
         """
         Update an NS record in DTS with the path and message
         """
+        path = self._project.add_project(xpath)
         self._log.debug("Deleting NSR xact:%s, path:%s", xact, path)
         self.regh.delete_element(path, xact=xact)
         self._log.debug("Deleted NSR xact:%s, path:%s", xact, path)
 
+    def deregister(self):
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
 class VnfrPublisherDtsHandler(object):
-    """ Registers 'D,/vnfr:vnfr-catalog/vnfr:vnfr' DTS"""
+    """ Registers 'D,/rw-project:project/vnfr:vnfr-catalog/vnfr:vnfr' DTS"""
     XPATH = "D,/vnfr:vnfr-catalog/vnfr:vnfr"
 
-    def __init__(self, dts, log, loop):
+    def __init__(self, dts, log, loop, project):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
 
         self._regh = None
 
@@ -103,6 +116,8 @@ class VnfrPublisherDtsHandler(object):
     @asyncio.coroutine
     def register(self):
         """ Register for Vvnfr create/update/delete/read requests from dts """
+        if self._regh:
+            return
 
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
@@ -115,16 +130,23 @@ class VnfrPublisherDtsHandler(object):
                 "%s action on VirtualNetworkFunctionRecord not supported",
                 action)
 
-        self._log.debug("Registering for VNFR using xpath: %s",
-                        VnfrPublisherDtsHandler.XPATH,)
+        xpath = self._project.add_project(VnfrPublisherDtsHandler.XPATH)
+        self._log.debug("Registering for VNFR using xpath: {}".
+                        format(xpath))
 
         hdl = rift.tasklets.DTS.RegistrationHandler()
         with self._dts.group_create() as group:
-            self._regh = group.register(xpath=VnfrPublisherDtsHandler.XPATH,
+            self._regh = group.register(xpath=xpath,
                                         handler=hdl,
                                         flags=(rwdts.Flag.PUBLISHER |
+                                               rwdts.Flag.SHARED |
                                                rwdts.Flag.NO_PREP_READ |
                                                rwdts.Flag.CACHE),)
+
+    def deregister(self):
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
     @asyncio.coroutine
     def create(self, xact, path, msg):
@@ -159,13 +181,14 @@ class VnfrPublisherDtsHandler(object):
 
 
 class VlrPublisherDtsHandler(object):
-    """ registers 'D,/vlr:vlr-catalog/vlr:vlr """
+    """ registers 'D,/rw-project:project/vlr:vlr-catalog/vlr:vlr """
     XPATH = "D,/vlr:vlr-catalog/vlr:vlr"
 
-    def __init__(self, dts, log, loop):
+    def __init__(self, dts, log, loop, project):
         self._dts = dts
         self._log = log
         self._loop = loop
+        self._project = project
 
         self._regh = None
 
@@ -178,6 +201,9 @@ class VlrPublisherDtsHandler(object):
     def register(self):
         """ Register for vlr create/update/delete/read requests from dts """
 
+        if self._regh:
+            return
+
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
             """ prepare callback from dts """
@@ -189,16 +215,22 @@ class VlrPublisherDtsHandler(object):
                 "%s action on VirtualLinkRecord not supported",
                 action)
 
-        self._log.debug("Registering for VLR using xpath: %s",
-                        VlrPublisherDtsHandler.XPATH,)
+        xpath = self._project.add_project(VlrPublisherDtsHandler.XPATH)
+        self._log.debug("Registering for VLR using xpath: {}".
+                        format(xpath))
 
         hdl = rift.tasklets.DTS.RegistrationHandler()
         with self._dts.group_create() as group:
-            self._regh = group.register(xpath=VlrPublisherDtsHandler.XPATH,
+            self._regh = group.register(xpath=xpath,
                                         handler=hdl,
                                         flags=(rwdts.Flag.PUBLISHER |
                                                rwdts.Flag.NO_PREP_READ |
                                                rwdts.Flag.CACHE),)
+
+    def deregister(self):
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
     @asyncio.coroutine
     def create(self, xact, path, msg):
@@ -233,14 +265,15 @@ class VlrPublisherDtsHandler(object):
 
 
 class VnfdPublisher(object):
-    AUTH = ('admin', 'admin')
+    AUTH = ('@rift', 'rift')
     HEADERS = {"content-type": "application/vnd.yang.data+json"}
 
 
-    def __init__(self, use_ssl, ssl_cert, ssl_key, loop):
+    def __init__(self, use_ssl, ssl_cert, ssl_key, loop, project):
         self.use_ssl = use_ssl
         self.ssl_cert = ssl_cert
         self.ssl_key = ssl_key
+        self._project = project
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.loop = loop
 
@@ -254,15 +287,15 @@ class VnfdPublisher(object):
 
             scheme = "https" if self.use_ssl else "http"
 
-            url = "{}://127.0.0.1:8008/api/config/vnfd-catalog/vnfd/{}"
+            url = "{}://127.0.0.1:8008/api/config/project/{}/vnfd-catalog/vnfd/{}"
 
-            model = RwYang.Model.create_libncx()
-            model.load_module("rw-vnfd")
-            model.load_module("vnfd")
+            model = RwYang.Model.create_libyang()
+            model.load_module("rw-project-vnfd")
+            model.load_module("project-vnfd")
 
             data = vnfd.to_json(model)
 
-            key = "vnfd:vnfd-catalog"
+            key = "project-vnfd:vnfd-catalog"
             newdict = json.loads(data)
             if key in newdict:
                 data = json.dumps(newdict[key])
@@ -276,7 +309,7 @@ class VnfdPublisher(object):
                 options["cert"] = (self.ssl_cert, self.ssl_key)
 
             response = requests.put(
-                url.format(scheme, vnfd.id),
+                url.format(scheme, self._project.name, vnfd.id),
                 **options
             )
 

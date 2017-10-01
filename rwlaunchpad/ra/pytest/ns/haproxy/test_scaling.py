@@ -15,18 +15,26 @@
 #   limitations under the License.
 #
 
+import gi
 import pytest
 
-from gi.repository import NsrYang, RwNsrYang, RwVnfrYang, NsdYang, RwNsdYang
+from gi.repository import (
+    NsrYang,
+    RwNsrYang,
+    RwVnfrYang,
+    RwProjectNsdYang,
+    )
 import rift.auto.session
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 @pytest.fixture(scope='module')
 def proxy(request, mgmt_session):
     return mgmt_session.proxy
 
 
-ScalingGroupInstance = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup_Instance
-ScalingGroup = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr_ScalingGroup
+ScalingGroupInstance = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_ScalingGroup_Instance
+ScalingGroup = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr_ScalingGroup
 
 INSTANCE_ID = 1
 
@@ -41,9 +49,9 @@ class TestScaling:
             proxy (Callable): Proxy for launchpad session.
             state (str): Expected state
         """
-        nsr_opdata = proxy(RwNsrYang).get('/ns-instance-opdata')
+        nsr_opdata = proxy(RwNsrYang).get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
         nsr = nsr_opdata.nsr[0]
-        xpath = "/ns-instance-opdata/nsr[ns-instance-config-ref='{}']/operational-status".format(nsr.ns_instance_config_ref)
+        xpath = "/rw-project:project[rw-project:name='default']/ns-instance-opdata/nsr[ns-instance-config-ref={}]/operational-status".format(quoted_key(nsr.ns_instance_config_ref))
         proxy(RwNsrYang).wait_for(xpath, state, timeout=240)
 
     def verify_scaling_group(self, proxy, group_name, expected_records_count, scale_out=True):
@@ -58,12 +66,12 @@ class TestScaling:
             2. Status of the scaling group
             3. New vnfr record has been created.
         """
-        nsr_opdata = proxy(RwNsrYang).get('/ns-instance-opdata')
+        nsr_opdata = proxy(RwNsrYang).get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
         nsr_id = nsr_opdata.nsr[0].ns_instance_config_ref
 
-        xpath = ('/ns-instance-opdata/nsr[ns-instance-config-ref="{}"]'
-                 '/scaling-group-record[scaling-group-name-ref="{}"]').format(
-                        nsr_id, group_name)
+        xpath = ('/rw-project:project[rw-project:name="default"]/ns-instance-opdata/nsr[ns-instance-config-ref={}]'
+                 '/scaling-group-record[scaling-group-name-ref={}]').format(
+                        quoted_key(nsr_id), quoted_key(group_name))
 
         scaling_record = proxy(NsrYang).get(xpath)
 
@@ -74,7 +82,7 @@ class TestScaling:
 
             for vnfr in instance.vnfrs:
                 vnfr_record = proxy(RwVnfrYang).get(
-                        "/vnfr-catalog/vnfr[id='{}']".format(vnfr))
+                        "/rw-project:project[rw-project:name='default']/vnfr-catalog/vnfr[id={}]".format(quoted_key(vnfr)))
                 assert vnfr_record is not None
 
     def verify_scale_up(self, proxy, group_name, expected):
@@ -105,38 +113,38 @@ class TestScaling:
         """Wait till the NSR state moves to configured before starting scaling
         tests.
         """
-        nsr_opdata = proxy(RwNsrYang).get('/ns-instance-opdata')
+        nsr_opdata = proxy(RwNsrYang).get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
         nsrs = nsr_opdata.nsr
 
         assert len(nsrs) == 1
         current_nsr = nsrs[0]
 
-        xpath = "/ns-instance-opdata/nsr[ns-instance-config-ref='{}']/config-status".format(current_nsr.ns_instance_config_ref)
+        xpath = "/rw-project:project[rw-project:name='default']/ns-instance-opdata/nsr[ns-instance-config-ref={}]/config-status".format(quoted_key(current_nsr.ns_instance_config_ref))
         proxy(RwNsrYang).wait_for(xpath, "configured", timeout=240)
 
 
     def test_min_max_scaling(self, proxy):
-        nsr_opdata = proxy(RwNsrYang).get('/ns-instance-opdata')
+        nsr_opdata = proxy(RwNsrYang).get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
         nsrs = nsr_opdata.nsr
         nsd_id = nsrs[0].nsd_ref
         nsr_id = nsrs[0].ns_instance_config_ref
 
         # group_name = "http_client_group"
 
-        xpath = "/ns-instance-opdata/nsr[ns-instance-config-ref='{}']/scaling-group-record".format(nsr_id)
+        xpath = "/rw-project:project[rw-project:name='default']/ns-instance-opdata/nsr[ns-instance-config-ref={}]/scaling-group-record".format(quoted_key(nsr_id))
         scaling_records = proxy(RwNsrYang).get(xpath, list_obj=True)
 
         for scaling_record in scaling_records.scaling_group_record:
             group_name = scaling_record.scaling_group_name_ref
-            xpath = "/nsd-catalog/nsd[id='{}']/scaling-group-descriptor[name='{}']".format(
-                    nsd_id, group_name)
-            scaling_group_desc = proxy(NsdYang).get(xpath)
+            xpath = "/rw-project:project[rw-project:name='default']/nsd-catalog/nsd[id={}]/scaling-group-descriptor[name={}]".format(
+                    quoted_key(nsd_id), quoted_key(group_name))
+            scaling_group_desc = proxy(RwProjectNsdYang).get(xpath)
 
             # Add + 1 to go beyond the threshold
             for instance_id in range(1, scaling_group_desc.max_instance_count + 1):
-                xpath = '/ns-instance-config/nsr[id="{}"]/scaling-group[scaling-group-name-ref="{}"]'.format(
-                            nsr_id, 
-                            group_name)
+                xpath = '/rw-project:project[rw-project:name="default"]/ns-instance-config/nsr[id={}]/scaling-group[scaling-group-name-ref={}]'.format(
+                            quoted_key(nsr_id), 
+                            quoted_key(group_name))
 
                 instance = ScalingGroupInstance.from_dict({"id": instance_id})
                 scaling_group = proxy(NsrYang).get(xpath)
@@ -155,10 +163,10 @@ class TestScaling:
                     assert instance_id == scaling_group_desc.max_instance_count
 
             for instance_id in range(1, scaling_group_desc.max_instance_count):
-                xpath = ('/ns-instance-config/nsr[id="{}"]/scaling-group'
-                         '[scaling-group-name-ref="{}"]/'
-                         'instance[id="{}"]').format(
-                         nsr_id, group_name, instance_id)
+                xpath = ('/rw-project:project[rw-project:name="default"]/ns-instance-config/nsr[id={}]/scaling-group'
+                         '[scaling-group-name-ref={}]/'
+                         'instance[id={}]').format(
+                         quoted_key(nsr_id), quoted_key(group_name), quoted_key(instance_id))
                 proxy(NsrYang).delete_config(xpath)
                 self.verify_scale_in(proxy, group_name, instance_id)
 

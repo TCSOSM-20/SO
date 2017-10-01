@@ -41,7 +41,7 @@ def cleanup_vm(drv,argument):
         logger.info("Deleting network interface with id %s",port_id)
         port = drv.get_network_interface(port_id)
         if port:
-            if port.association and 'AssociationId' in port.association:
+            if port.association_attribute  and 'AssociationId' in port.association_attribute:
                 drv.disassociate_public_ip_from_network_interface(NetworkInterfaceId=port.id)
             drv.delete_network_interface(port.id)
         else:

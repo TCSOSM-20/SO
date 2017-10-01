@@ -95,7 +95,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Validation Code and Details String
         """
-        status = RwcalYang.CloudConnectionStatus(
+        status = RwcalYang.YangData_Rwcal_ConnectionStatus(
                 status="success",
                 details="AWS Cloud Account validation not implemented yet"
                 )
@@ -221,7 +221,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             The ImageInfoItem
         """
-        img = RwcalYang.ImageInfoItem()
+        img = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         img.name = img_info.name
         img.id   = img_info.id
 
@@ -248,7 +248,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             The the list of images in VimResources object
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         images = self._get_driver(account).list_images()
         for img in images:
             response.imageinfo_list.append(RwcalAWSPlugin._fill_image_info(img))
@@ -334,7 +334,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Protobuf Gi object for VM
         """
-        vm = RwcalYang.VMInfoItem()
+        vm = RwcalYang.YangData_RwProject_Project_VimResources_VminfoList()
         vm.vm_id     = vm_info.id
         vm.image_id  = vm_info.image_id
         vm.flavor_id = vm_info.instance_type
@@ -374,7 +374,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             List containing VM information
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         vms = self._get_driver(account).list_instances()
         for vm in vms:
             response.vminfo_list.append(RwcalAWSPlugin._fill_vm_info(vm))
@@ -412,7 +412,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
 			         vcpus     = flavor.vm_flavor.vcpu_count,
 			         disk      = flavor.vm_flavor.storage_gb)
 
-        new_flavor = RwcalYang.FlavorInfoItem()
+        new_flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         new_flavor.name = flavor.name
         new_flavor.vm_flavor.memory_mb = flavor.vm_flavor.memory_mb
         new_flavor.vm_flavor.vcpu_count = flavor.vm_flavor.vcpu_count
@@ -447,7 +447,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
              Object of class FlavorInfoItem
         """
-        flavor = RwcalYang.FlavorInfoItem()
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         flavor.name                       = flavor_info.name
         flavor.id                         = flavor_info.id
         flavor.vm_flavor.memory_mb = flavor_info.vm_flavor.memory_mb
@@ -465,7 +465,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             List of flavors
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         for flv in self._flavor_list:
             response.flavorinfo_list.append(RwcalAWSPlugin._fill_flavor_info(flv))
         return response
@@ -498,7 +498,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Network info item
         """
-        network                  = RwcalYang.NetworkInfoItem()
+        network                  = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList()
         network.network_id       = network_info.subnet_id
         network.subnet           = network_info.cidr_block
         if network_info.tags:
@@ -517,7 +517,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             List of networks
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         networks = self._get_driver(account).get_subnet_list()
         for network in networks:
             response.networkinfo_list.append(self._fill_network_info(network, account))
@@ -573,7 +573,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Port info item
         """
-        port = RwcalYang.PortInfoItem()
+        port = RwcalYang.YangData_RwProject_Project_VimResources_PortinfoList()
 
         port.port_id    = port_info.id
         port.network_id = port_info.subnet_id
@@ -617,7 +617,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Port info list
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         ports = self._get_driver(account).get_network_interface_list()
         for port in ports:
             response.portinfo_list.append(RwcalAWSPlugin._fill_port_info(port))
@@ -745,7 +745,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
 
     @staticmethod
     def _fill_connection_point_info(c_point, port_info):
-        """Create a GI object for RwcalYang.VDUInfoParams_ConnectionPoints()
+        """Create a GI object for RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_ConnectionPoints()
 
         Converts EC2.NetworkInterface object returned by AWS driver into
         Protobuf Gi Object
@@ -753,15 +753,15 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Arguments:
             port_info - Network Interface information from AWS
         Returns:
-            Protobuf Gi object for RwcalYang.VDUInfoParams_ConnectionPoints
+            Protobuf Gi object for RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_ConnectionPoints
         """
         c_point.virtual_link_id = port_info.subnet_id
         c_point.connection_point_id = port_info.id
         if port_info.attachment:
             c_point.vdu_id = port_info.attachment['InstanceId']
         c_point.ip_address = port_info.private_ip_address
-        if port_info.association and 'PublicIp' in port_info.association:
-                c_point.public_ip = port_info.association['PublicIp']
+        if port_info.association and port_info.association.public_ip:
+                c_point.public_ip = port_info.association.public_ip
         if port_info.tag_set:
             for tag in port_info.tag_set:
                 if tag['Key'] == 'Name':
@@ -786,7 +786,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Protobuf Gi object for VirtualLinkInfoParams
         """
-        link = RwcalYang.VirtualLinkInfoParams()
+        link = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList()
         if network_info.state == 'available':
             link.state = 'active'
         else:
@@ -816,13 +816,13 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Protobuf Gi object for VDUInfoParams
         """
-        vdu = RwcalYang.VDUInfoParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList()
         vdu.vdu_id = vm_info.id
         mgmt_port = [port for port in port_list if port.attachment and port.attachment['DeviceIndex'] == 0]
         assert(len(mgmt_port) == 1)
         vdu.management_ip = mgmt_port[0].private_ip_address
-        if mgmt_port[0].association and 'PublicIp' in mgmt_port[0].association:
-            vdu.public_ip = mgmt_port[0].association['PublicIp']
+        if mgmt_port[0].association and mgmt_port[0].association.public_ip:
+            vdu.public_ip = mgmt_port[0].association.public_ip
             #For now set managemnet ip also to public ip
             #vdu.management_ip = vdu.public_ip
         if vm_info.tags:
@@ -840,11 +840,14 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         #if vm_info.placement and 'AvailabilityZone' in vm_info.placement:
         #    vdu.availability_zone = vm_info.placement['AvailabilityZone']
         # Fill the port information
-        cp_port_list = [port for port in port_list if port.attachment and port.attachment['DeviceIndex'] != 0]
+        
+        # cp_port_list = [port for port in port_list if port.attachment and port.attachment['DeviceIndex'] != 0]
+        # The above conversion of the port list was leaving out the management networks attached to the vdu.
 
-        for port in cp_port_list:
+        for port in port_list:
             c_point = vdu.connection_points.add()
             RwcalAWSPlugin._fill_connection_point_info(c_point, port)
+
         return vdu
 
 
@@ -857,13 +860,17 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
             link_id  - id for the virtual-link
 
         Returns:
-            Object of type RwcalYang.VirtualLinkInfoParams
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList
         """
         drv = self._get_driver(account)
         network = drv.get_subnet(SubnetId=link_id)
         port_list = drv.get_network_interface_list(SubnetId=link_id)
         virtual_link = RwcalAWSPlugin._fill_virtual_link_info(network, port_list)
         return virtual_link
+
+    @rwstatus(ret_on_failure=[None])
+    def do_get_virtual_link_by_name(self, account, link_name):
+        raise NotImplementedError()
 
     @rwstatus(ret_on_failure=[[]])
     def do_get_virtual_link_list(self, account):
@@ -873,9 +880,9 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
             account  - a cloud account
 
         Returns:
-            A list of objects of type RwcalYang.VirtualLinkInfoParams
+            A list of objects of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList
         """
-        vnf_resources = RwcalYang.VNFResources()
+        vnf_resources = RwcalYang.YangData_RwProject_Project_VnfResources()
         drv = self._get_driver(account)
         networks = drv.get_subnet_list()
         for network in networks:
@@ -923,7 +930,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
 
         Arguments:
             account     - a cloud account
-            vdu_init  - information about VDU to create (RwcalYang.VDUInitParams)
+            vdu_init  - information about VDU to create (RwcalYang.YangData_RwProject_Project_VduInitParams)
 
         Returns:
             The vdu_id
@@ -987,7 +994,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
 
         Arguments:
             account     -  a cloud account
-            vdu_modify  -  Information about VDU Modification (RwcalYang.VDUModifyParams)
+            vdu_modify  -  Information about VDU Modification (RwcalYang.YangData_RwProject_Project_VduModifyParams)
         """
         ### First create required number of ports aka connection points
         drv = self._get_driver(account)
@@ -1014,7 +1021,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         for c_point in vdu_modify.connection_points_remove:
             port = drv.get_network_interface(NetworkInterfaceId=c_point.connection_point_id)
             #Check if elastic IP is associated with interface and release it
-            if port  and port.association and 'AssociationId' in port.association:
+            if port and port.association is not None:
                 drv.disassociate_public_ip_from_network_interface(NetworkInterfaceId=port.id)
             if port and port.attachment and port.attachment['DeviceIndex'] != 0:
                 drv.detach_network_interface(AttachmentId = port.attachment['AttachmentId'],Force=True) #force detach as otherwise delete fails
@@ -1070,16 +1077,18 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         self.cleanup_vdu_on_term(account,vdu_id,delete_port_list)
 
 
-    @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    @rwcalstatus(ret_on_failure=[None])
+    def do_get_vdu(self, account, vdu_id, mgmt_network):
         """Get information about a virtual deployment unit.
 
         Arguments:
             account - a cloud account
-            vdu_id  - id for the vdu
+            vdu_id  - id for the vdu,
+            mgmt_network - Added due to need for mgmt network.
+            # TO DO: Investigate the need for aws.
 
         Returns:
-            Object of type RwcalYang.VDUInfoParams
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList
         """
         drv = self._get_driver(account)
 
@@ -1089,7 +1098,7 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
         return RwcalAWSPlugin._fill_vdu_info(vm,port_list)
 
 
-    @rwstatus(ret_on_failure=[[]])
+    @rwcalstatus(ret_on_failure=[None])
     def do_get_vdu_list(self, account):
         """Get information about all the virtual deployment units
 
@@ -1097,9 +1106,9 @@ class RwcalAWSPlugin(GObject.Object, RwCal.Cloud):
             account     - a cloud account
 
         Returns:
-            A list of objects of type RwcalYang.VDUInfoParams
+            A list of objects of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList
         """
-        vnf_resources = RwcalYang.VNFResources()
+        vnf_resources = RwcalYang.YangData_RwProject_Project_VnfResources()
         drv = self._get_driver(account)
         vms = drv.list_instances()
         for vm in vms:

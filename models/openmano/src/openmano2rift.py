@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -28,12 +28,14 @@ import yaml
 
 import gi
 gi.require_version('RwYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
-gi.require_version('RwNsdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
+gi.require_version('RwProjectNsdYang', '1.0')
+gi.require_version('RwProjectYang', '1.0')
 from gi.repository import (
     RwYang,
-    RwVnfdYang,
-    RwNsdYang,
+    RwProjectVnfdYang as RwVnfdYang,
+    RwProjectNsdYang as RwNsdYang,
+    RwProjectYang,
     )
 
 logging.basicConfig(level=logging.WARNING)
@@ -46,7 +48,7 @@ class UnknownVNFError(Exception):
 
 class DescriptorFileWriter(object):
     def __init__(self, module_list, output_dir, output_format):
-        self._model = RwYang.Model.create_libncx()
+        self._model = RwYang.Model.create_libyang()
         for module in module_list:
             self._model.load_module(module)
 
@@ -115,7 +117,7 @@ class RiftNS(RiftManoDescriptor):
         return vnf_name
 
     def openmano2rift(self, vnf_list):
-        self.descriptor = RwNsdYang.YangData_Nsd_NsdCatalog()
+        self.descriptor = RwNsdYang.YangData_RwProject_Project_NsdCatalog()
         openmano_nsd = self.openmano.dictionary
         self.name = openmano_nsd['name']
         nsd = self.descriptor.nsd.add()
@@ -203,7 +205,7 @@ class RiftVnfd(RiftManoDescriptor):
         return None
 
     def openmano2rift(self):
-        self.descriptor = RwVnfdYang.YangData_Vnfd_VnfdCatalog()
+        self.descriptor = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog()
         vnfd = self.descriptor.vnfd.add()
         self.vnfd = vnfd
         vnfd.id = str(uuid.uuid1())
@@ -241,9 +243,10 @@ class RiftVnfd(RiftManoDescriptor):
                 if not ext_conn:
                     continue
 
-                ext_iface = vdu.external_interface.add()
+                ext_iface = vdu.interface.add()
                 ext_iface.name = numa_if['name']
-                ext_iface.vnfd_connection_point_ref = ext_conn['name']
+                ext_iface.type_yang = 'EXTERNAL'
+                ext_iface.external_connection_point_ref = ext_conn['name']
                 ext_iface.virtual_interface.vpci = numa_if['vpci']
                 if numa_if['dedicated'] == 'no':
                     ext_iface.virtual_interface.type_yang = 'SR_IOV'
@@ -322,9 +325,10 @@ class RiftVnfd(RiftManoDescriptor):
                     ext_conn = self.find_external_connection(vdu.name,
                                                              bridge_iface['name'])
                     if ext_conn:
-                        ext_iface = vdu.external_interface.add()
+                        ext_iface = vdu.interface.add()
                         ext_iface.name = bridge_iface['name']
-                        ext_iface.vnfd_connection_point_ref = ext_conn['name']
+                        ext_iface.type_yang = 'EXTERNAL'
+                        ext_iface.external_connection_point_ref = ext_conn['name']
                         if 'vpci' in bridge_iface:
                             ext_iface.virtual_interface.vpci = bridge_iface['vpci']
                         ext_iface.virtual_interface.type_yang = 'VIRTIO'
@@ -467,8 +471,9 @@ def main(argv=sys.argv[1:]):
     vnf_list = create_vnfs_from_yaml_files(args.yaml_file_hdls)
     ns_list = create_ns_from_yaml_files(args.yaml_file_hdls, vnf_list)
 
+    # TODO (Philip): Relook at the model generation
     writer = DescriptorFileWriter(
-        module_list=['nsd', 'rw-nsd', 'vnfd', 'rw-vnfd'],
+        module_list=['rw-project', 'project-nsd', 'rw-project-nsd', 'project-vnfd', 'rw-project-vnfd'],
         output_dir=args.outdir,
         output_format=args.format,
         )

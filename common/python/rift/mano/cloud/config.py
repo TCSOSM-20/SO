@@ -1,6 +1,6 @@
 
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -21,11 +21,14 @@ import rw_peas
 import gi
 gi.require_version('RwDts', '1.0')
 import rift.tasklets
+from rift.mano.utils.project import get_add_delete_update_cfgs
 
 from gi.repository import (
     RwcalYang as rwcal,
     RwDts as rwdts,
     ProtobufC,
+    RwCloudYang,
+    RwTypes
     )
 
 from . import accounts
@@ -36,32 +39,6 @@ class CloudAccountNotFound(Exception):
 
 class CloudAccountError(Exception):
     pass
-
-
-def get_add_delete_update_cfgs(dts_member_reg, xact, key_name):
-    # Unforunately, it is currently difficult to figure out what has exactly
-    # changed in this xact without Pbdelta support (RIFT-4916)
-    # As a workaround, we can fetch the pre and post xact elements and
-    # perform a comparison to figure out adds/deletes/updates
-    xact_cfgs = list(dts_member_reg.get_xact_elements(xact))
-    curr_cfgs = list(dts_member_reg.elements)
-
-    xact_key_map = {getattr(cfg, key_name): cfg for cfg in xact_cfgs}
-    curr_key_map = {getattr(cfg, key_name): cfg for cfg in curr_cfgs}
-
-    # Find Adds
-    added_keys = set(xact_key_map) - set(curr_key_map)
-    added_cfgs = [xact_key_map[key] for key in added_keys]
-
-    # Find Deletes
-    deleted_keys = set(curr_key_map) - set(xact_key_map)
-    deleted_cfgs = [curr_key_map[key] for key in deleted_keys]
-
-    # Find Updates
-    updated_keys = set(curr_key_map) & set(xact_key_map)
-    updated_cfgs = [xact_key_map[key] for key in updated_keys if xact_key_map[key] != curr_key_map[key]]
-
-    return added_cfgs, deleted_cfgs, updated_cfgs
 
 
 class CloudAccountConfigCallbacks(object):
@@ -103,10 +80,11 @@ class CloudAccountConfigCallbacks(object):
 class CloudAccountConfigSubscriber(object):
     XPATH = "C,/rw-cloud:cloud/rw-cloud:account"
 
-    def __init__(self, dts, log, rwlog_hdl, cloud_callbacks):
+    def __init__(self, dts, log, rwlog_hdl, project, cloud_callbacks):
         self._dts = dts
         self._log = log
         self._rwlog_hdl = rwlog_hdl
+        self._project = project
         self._reg = None
 
         self.accounts = {}
@@ -144,9 +122,17 @@ class CloudAccountConfigSubscriber(object):
         self.delete_account(account_msg.name)
         self.add_account(account_msg)
 
+    def deregister(self):
+        self._log.debug("Project {}: De-register cloud account handler".
+                        format(self._project))
+        if self._reg:
+            self._reg.deregister()
+            self._reg = None
+
+    @asyncio.coroutine
     def register(self):
         @asyncio.coroutine
-        def apply_config(dts, acg, xact, action, _):
+        def apply_config(dts, acg, xact, action, scratch):
             self._log.debug("Got cloud account apply config (xact: %s) (action: %s)", xact, action)
 
             if xact.xact is None:
@@ -155,7 +141,9 @@ class CloudAccountConfigSubscriber(object):
                     for cfg in curr_cfg:
                         self._log.debug("Cloud account being re-added after restart.")
                         if not cfg.has_field('account_type'):
-                            raise CloudAccountError("New cloud account must contain account_type field.")
+                            self._log.error("New cloud account must contain account_type field.")
+                            xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                            return
                         self.add_account(cfg)
                 else:
                     # When RIFT first comes up, an INSTALL is called with the current config
@@ -165,6 +153,13 @@ class CloudAccountConfigSubscriber(object):
 
                 return
 
+            #Updating the account incase individual fields of cloud accounts is being deleted.
+            if self._reg:
+                for cfg in self._reg.get_xact_elements(xact):
+                    if cfg.name in scratch.get('cloud_accounts', []):
+                        self.update_account(cfg)
+            scratch.pop('cloud_accounts', None)
+            
             add_cfgs, delete_cfgs, update_cfgs = get_add_delete_update_cfgs(
                     dts_member_reg=self._reg,
                     xact=xact,
@@ -188,12 +183,16 @@ class CloudAccountConfigSubscriber(object):
             """ Prepare callback from DTS for Cloud Account """
 
             action = xact_info.query_action
+
+            xpath = ks_path.to_xpath(RwCloudYang.get_schema())
+
             self._log.debug("Cloud account on_prepare config received (action: %s): %s",
                             xact_info.query_action, msg)
 
             if action in [rwdts.QueryAction.CREATE, rwdts.QueryAction.UPDATE]:
                 if msg.name in self.accounts:
-                    self._log.debug("Cloud account already exists. Invoking update request")
+                    self._log.debug("Cloud account {} already exists. " \
+                                    "Invoking update request".format(msg.name))
 
                     # Since updates are handled by a delete followed by an add, invoke the
                     # delete prepare callbacks to give clients an opportunity to reject.
@@ -202,7 +201,9 @@ class CloudAccountConfigSubscriber(object):
                 else:
                     self._log.debug("Cloud account does not already exist. Invoking on_prepare add request")
                     if not msg.has_field('account_type'):
-                        raise CloudAccountError("New cloud account must contain account_type field.")
+                        self._log.error("New cloud account must contain account_type field.")
+                        xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                        return
 
                     account = accounts.CloudAccount(self._log, self._rwlog_hdl, msg)
                     yield from self._cloud_callbacks.on_add_prepare(account)
@@ -212,8 +213,13 @@ class CloudAccountConfigSubscriber(object):
                 fref = ProtobufC.FieldReference.alloc()
                 fref.goto_whole_message(msg.to_pbcm())
                 if fref.is_field_deleted():
-                    yield from self._cloud_callbacks.on_delete_prepare(msg.name)
-
+                    try:
+                        yield from self._cloud_callbacks.on_delete_prepare(msg.name)
+                    except Exception as e:
+                        err_msg = str(e)
+                        xact_info.send_error_xpath(RwTypes.RwStatus.FAILURE, xpath, err_msg)
+                        xact_info.respond_xpath(rwdts.XactRspCode.NACK)
+                        return
                 else:
                     fref.goto_proto_name(msg.to_pbcm(), "sdn_account")
                     if fref.is_field_deleted():
@@ -223,9 +229,9 @@ class CloudAccountConfigSubscriber(object):
                         del dict_account["sdn_account"]
                         account.cloud_account_msg(dict_account)
                     else:
-                        self._log.error("Deleting individual fields for cloud account not supported")
-                        xact_info.respond_xpath(rwdts.XactRspCode.NACK)
-                        return
+                        #Updating Account incase individuals fields are being deleted
+                        cloud_accounts = scratch.setdefault('cloud_accounts', [])
+                        cloud_accounts.append(msg.name)
 
             else:
                 self._log.error("Action (%s) NOT SUPPORTED", action)
@@ -241,9 +247,10 @@ class CloudAccountConfigSubscriber(object):
                         on_apply=apply_config,
                         )
 
+        xpath = self._project.add_project(CloudAccountConfigSubscriber.XPATH)
         with self._dts.appconf_group_create(acg_handler) as acg:
             self._reg = acg.register(
-                    xpath=CloudAccountConfigSubscriber.XPATH,
+                    xpath=xpath,
                     flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
                     on_prepare=on_prepare,
                     )

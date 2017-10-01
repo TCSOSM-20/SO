@@ -20,6 +20,7 @@ import os
 import subprocess
 import tempfile
 import yaml
+import shlex
 
 import gi
 gi.require_version('RwCal', '1.0')
@@ -63,6 +64,8 @@ class OpenstackServerGroupError(Exception):
 class ImageUploadError(Exception):
     pass
 
+class PrepareVduOnBoot(Exception):
+    pass
 
 class RwcalAccountDriver(object):
     """
@@ -147,7 +150,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Validation Code and Details String
         """
-        status = RwcalYang.CloudConnectionStatus()
+        status = RwcalYang.YangData_Rwcal_ConnectionStatus()
         try:
             drv = self._use_driver(account) 
             drv.validate_account_creds()
@@ -318,7 +321,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             The the list of images in VimResources object
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         drv = self._use_driver(account)
         try:
             images = drv.glance_image_list()
@@ -478,7 +481,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Protobuf Gi object for VM
         """
-        vm = RwcalYang.VMInfoItem()
+        vm = RwcalYang.YangData_RwProject_Project_VimResources_VminfoList()
         vm.vm_id     = vm_info['id']
         vm.vm_name   = vm_info['name']
         vm.image_id  = vm_info['image']['id']
@@ -525,7 +528,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             List containing VM information
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         drv = self._use_driver(account)
         vms = drv.nova_server_list()
         for vm in vms:
@@ -598,7 +601,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             List of flavors
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         drv = self._use_driver(account)
         try:
             flavors = drv.nova_flavor_list()
@@ -645,7 +648,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Network info item
         """
-        network                  = RwcalYang.NetworkInfoItem()
+        network                  = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList()
         network.network_name     = network_info['name']
         network.network_id       = network_info['id']
         if ('provider:network_type' in network_info) and (network_info['provider:network_type'] is not None):
@@ -672,7 +675,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             List of networks
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         drv = self._use_driver(account)
         networks = drv.neutron_network_list()
         for network in networks:
@@ -722,10 +725,15 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             if network.provider_network.has_field('segmentation_id'):
                 kwargs['segmentation_id'] = network.provider_network.segmentation_id
 
-        drv = self._use_driver(account)
-        network_id = drv.neutron_network_create(**kwargs)
-        drv.neutron_subnet_create(network_id = network_id,
-                                  cidr = network.subnet)
+        try:
+            drv = self._use_driver(account)
+            network_id = drv.neutron_network_create(**kwargs)
+            drv.neutron_subnet_create(network_id = network_id,
+                                    cidr = network.subnet)
+        except Exception as e:
+            self.log.exception("Exception %s occured during create-network", str(e))
+            raise
+
         return network_id
 
     @rwstatus
@@ -752,7 +760,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Port info item
         """
-        port = RwcalYang.PortInfoItem()
+        port = RwcalYang.YangData_RwProject_Project_VimResources_PortinfoList()
 
         port.port_name  = port_info['name']
         port.port_id    = port_info['id']
@@ -789,7 +797,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Port info list
         """
-        response = RwcalYang.VimResources()
+        response = RwcalYang.YangData_RwProject_Project_VimResources()
         drv = self._use_driver(account)
         ports = drv.neutron_port_list(*{})
         for port in ports:
@@ -895,21 +903,24 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             A kwargs dictionary for glance operation
         """
-        
         drv = self._use_driver(account)
+        network_id = None
         try:
             kwargs = drv.utils.network.make_virtual_link_args(link_params)
             network_id = drv.neutron_network_create(**kwargs)
-            kwargs = drv.utils.network.make_subnet_args(link_params, network_id)
-            drv.neutron_subnet_create(**kwargs)
+            drv.utils.network.prepare_virtual_link(link_params, network_id)
         except Exception as e:
-            self.log.error("Encountered exceptions during network creation. Exception: %s", str(e))
+            self.log.exception("Encountered exceptions during network creation. Exception: %s", str(e))
             # This is to delete the network if neutron_subnet_create fails after creation of network
-            # Note:- Any subnet created will be implicitly deleted. 
-            try:
-                drv.neutron_network_delete(network_id)
-            except Exception as delete_exception:
-                self.log.debug("Exception while deleting the network after failure of neutron_subnet_create or make_subnet_args: %s", str(delete_exception))
+            # Note:- Any subnet created will be implicitly deleted.
+            if network_id is not None:
+                try:
+                    drv.neutron_network_delete(network_id)
+                except Exception as delete_exception:
+                    self.log.debug("Exception while deleting the network after failure of neutron_subnet_create or make_subnet_args: %s", str(delete_exception))
+                    # Raising exception so that the Exception is propagated to Resmgr.
+                    # This fixes the UI Stuck at Vl-Init-Phase.
+                    raise Exception(str(e) + " --> " + str(delete_exception))
             raise e
         return network_id
 
@@ -945,7 +956,7 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             link_id  - id for the virtual-link
 
         Returns:
-            Object of type RwcalYang.VirtualLinkInfoParams
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList
         """
         drv = self._use_driver(account)
         try:
@@ -963,6 +974,34 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
         return virtual_link
 
     @rwstatus(ret_on_failure=[None])
+    def do_get_virtual_link_by_name(self, account, link_name):
+        """Get information about virtual link.
+
+        Arguments:
+            account  - a cloud account
+            link_name  - name for the virtual-link
+
+        Returns:
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList
+        """
+        drv = self._use_driver(account)
+        try:
+            network = drv.neutron_network_get_by_name(link_name)
+            if network:
+                port_list = drv.neutron_port_list(**{'network_id': network['id']})
+                if 'subnets' in network and network['subnets']:
+                    subnet = drv.neutron_subnet_get(network['subnets'][0])
+                else:
+                    subnet = None
+                virtual_link = drv.utils.network.parse_cloud_virtual_link_info(network, port_list, subnet)
+            else:
+                return None
+        except Exception as e:
+            self.log.exception("Exception %s occured during virtual-link-get-by-name", str(e))
+            raise
+        return virtual_link
+
+    @rwstatus(ret_on_failure=[None])
     def do_get_virtual_link_list(self, account):
         """Get information about all the virtual links
 
@@ -970,9 +1009,9 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             account  - a cloud account
 
         Returns:
-            A list of objects of type RwcalYang.VirtualLinkInfoParams
+            A list of objects of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList
         """
-        vnf_resources = RwcalYang.VNFResources()
+        vnf_resources = RwcalYang.YangData_RwProject_Project_VnfResources()
         drv =  self._use_driver(account)
         try:
             networks = drv.neutron_network_list()
@@ -997,37 +1036,53 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
 
         Arguments:
             account     - a cloud account
-            vdu_init  - information about VDU to create (RwcalYang.VDUInitParams)
+            vdu_init  - information about VDU to create (RwcalYang.YangData_RwProject_Project_VduInitParams)
 
         Returns:
             The vdu_id
         """
         drv =  self._use_driver(account)
+        vdu_prepared = True
         try:
             kwargs = drv.utils.compute.make_vdu_create_args(vdu_init, account)
             vm_id = drv.nova_server_create(**kwargs)
-            self.prepare_vdu_on_boot(account, vm_id, vdu_init)
+            vdu_prepared_on_boot = self.prepare_vdu_on_boot(account, vm_id, vdu_init)
+            vdu_prepared = vdu_prepared_on_boot["status"]
         except Exception as e:
             self.log.exception("Exception %s occured during create-vdu", str(e))
             raise
+
+        if vdu_prepared is False:
+            drv.utils.compute.perform_vdu_network_cleanup(vm_id)
+            drv.nova_server_delete(vm_id)
+            self.log.exception("Cleaning Up VDU as Prepare Vdu Failed : %s", vdu_prepared_on_boot["exception"])
+            raise PrepareVduOnBoot(vdu_prepared_on_boot["exception"])
         return vm_id
     
 
     def prepare_vdu_on_boot(self, account, server_id, vdu_params):
-        cmd = PREPARE_VM_CMD.format(auth_url       = account.openstack.auth_url,
-                                    username       = account.openstack.key,
-                                    password       = account.openstack.secret,
-                                    tenant_name    = account.openstack.tenant,
-                                    region         = account.openstack.region,
-                                    user_domain    = account.openstack.user_domain,
-                                    project_domain = account.openstack.project_domain,
-                                    mgmt_network   = account.openstack.mgmt_network,
-                                    server_id      = server_id)
+        if vdu_params.mgmt_network is not None:
+            mgmt_network_param = vdu_params.mgmt_network
+        else:
+            mgmt_network_param = account.openstack.mgmt_network
+
+        # Adding shell quote to all parameters in case they contain special characters.
+        cmd = PREPARE_VM_CMD.format(auth_url       = shlex.quote(account.openstack.auth_url),
+                                    username       = shlex.quote(account.openstack.key),
+                                    password       = shlex.quote(account.openstack.secret),
+                                    tenant_name    = shlex.quote(account.openstack.tenant),
+                                    region         = shlex.quote(account.openstack.region),
+                                    user_domain    = shlex.quote(account.openstack.user_domain),
+                                    project_domain = shlex.quote(account.openstack.project_domain),
+                                    mgmt_network   = shlex.quote(mgmt_network_param),
+                                    server_id      = shlex.quote(server_id))
         vol_list = list()
+
+        vdu_prepared = {"status": True, "exception": None}
         
         if vdu_params.has_field('allocate_public_address') and vdu_params.allocate_public_address:
-            cmd += " --floating_ip"
             if account.openstack.has_field('floating_ip_pool'):
+                cmd += " --floating_ip"
                 cmd += (" --pool_name " + account.openstack.floating_ip_pool)
         
         if vdu_params.has_field('volumes'):
@@ -1039,19 +1094,34 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_file:
                 yaml.dump(vol_list, tmp_file)
                 cmd += (" --vol_metadata {}").format(tmp_file.name)
-            
+        
+        
         exec_path = 'python3 ' + os.path.dirname(openstack_drv.__file__)
         exec_cmd = exec_path + '/' + cmd
         self.log.info("Running command: %s" %(exec_cmd))
-        subprocess.call(exec_cmd, shell=True)
+        
+        # The return code for the subprocess is always 0. Hence using check_output
+        # for validating the success/failure of the script
+        # The check_output returns False or True on the basis of exception
+        # handling in prepare_vm.py
+        prepare_vm_status = subprocess.check_output(exec_cmd, shell=True)
+        
+        # prepare_vm_status is a string in the format of True/False+ error message
+        # if any. This is to propagate the detailed exception to the callers.
+        vdu_status_elems = prepare_vm_status.decode("utf-8").split("+")
+        if(vdu_status_elems[0] == 'False'):
+            self.log.exception("Exception occured while preparing vdu after boot")
+            vdu_prepared = {"status": False, "exception": vdu_status_elems[1]}
 
+        return vdu_prepared                      
+        
     @rwstatus
     def do_modify_vdu(self, account, vdu_modify):
         """Modify Properties of existing virtual deployment unit
 
         Arguments:
             account     -  a cloud account
-            vdu_modify  -  Information about VDU Modification (RwcalYang.VDUModifyParams)
+            vdu_modify  -  Information about VDU Modification (RwcalYang.YangData_RwProject_Project_VduModifyParams)
         """
         drv = self._use_driver(account)
         ### First create required number of ports aka connection points
@@ -1098,29 +1168,33 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             raise
             
 
-    @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    @rwcalstatus(ret_on_failure=[None])
+    def do_get_vdu(self, account, vdu_id, mgmt_network):
         """Get information about a virtual deployment unit.
 
         Arguments:
             account - a cloud account
             vdu_id  - id for the vdu
+            mgmt_network - mgmt_network if provided in NSD VL
 
         Returns:
-            Object of type RwcalYang.VDUInfoParams
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList
         """
+        if mgmt_network not in [None, ""]:
+            account.openstack.mgmt_network = mgmt_network
+
         drv = self._use_driver(account)
         try:
             vm_info = drv.nova_server_get(vdu_id)
             vdu_info = drv.utils.compute.parse_cloud_vdu_info(vm_info)
         except Exception as e:
-            self.log.exception("Exception %s occured during get-vdu", str(e))
-            raise
+            self.log.debug("Exception occured during get-vdu: %s", str(e))
+            raise 
         
         return vdu_info
 
 
-    @rwstatus(ret_on_failure=[None])
+    @rwcalstatus(ret_on_failure=[None])
     def do_get_vdu_list(self, account):
         """Get information about all the virtual deployment units
 
@@ -1128,9 +1202,9 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
             account     - a cloud account
 
         Returns:
-            A list of objects of type RwcalYang.VDUInfoParams
+            A list of objects of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList
         """
-        vnf_resources = RwcalYang.VNFResources()
+        vnf_resources = RwcalYang.YangData_RwProject_Project_VnfResources()
         drv = self._use_driver(account)
         try:
             vms = drv.nova_server_list()
@@ -1138,8 +1212,8 @@ class RwcalOpenstackPlugin(GObject.Object, RwCal.Cloud):
                 vdu = drv.utils.compute.parse_cloud_vdu_info(vm)
                 vnf_resources.vdu_info_list.append(vdu)
         except Exception as e:
-            self.log.exception("Exception %s occured during get-vdu-list", str(e))
-            raise
+            self.log.debug("Exception occured during get-vdu-list: %s", str(e))
+            raise 
         return vnf_resources
 
 

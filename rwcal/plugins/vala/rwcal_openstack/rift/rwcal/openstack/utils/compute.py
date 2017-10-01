@@ -60,12 +60,21 @@ class ComputeUtils(object):
         from already existing flavors
         
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
 
         Returns:
            flavor_id(string): Flavor id for VDU instantiation
            None if no flavor could be found
         """
+        
+        if vdu_params.vm_flavor.has_field('vm_flavor_name') and \
+                        vdu_params.vm_flavor.vm_flavor_name is not None:
+            nova_flavor_list = self.driver.nova_flavor_list()
+            for flavor in nova_flavor_list:
+                self.log.debug("Flavor {} ".format(flavor.get('name', '')))
+                if flavor.get('name', '') == vdu_params.vm_flavor.vm_flavor_name:
+                    return flavor['id']
+            
         kwargs = { 'vcpus': vdu_params.vm_flavor.vcpu_count,
                    'ram'  : vdu_params.vm_flavor.memory_mb,
                    'disk' : vdu_params.vm_flavor.storage_gb,}
@@ -85,7 +94,7 @@ class ComputeUtils(object):
         is created.
         
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
 
         Returns:
            flavor_id(string): Flavor id for VDU instantiation
@@ -96,7 +105,7 @@ class ComputeUtils(object):
                           flavor_id, vdu_params.name)
             return flavor_id
 
-        flavor = RwcalYang.FlavorInfoItem()
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         flavor.name = str(uuid.uuid4())
         
         epa_dict = { k: v for k, v in vdu_params.as_dict().items()
@@ -115,7 +124,7 @@ class ComputeUtils(object):
         """
         Creates flavor related arguments for VDU operation
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
 
         Returns:
            A dictionary {'flavor_id': <flavor-id>}
@@ -127,7 +136,7 @@ class ComputeUtils(object):
         """
         Creates image related arguments for VDU operation
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
 
         Returns:
            A dictionary {'image_id': <image-id>}
@@ -201,8 +210,8 @@ class ComputeUtils(object):
     def make_vdu_volume_args(self, volume, vdu_params):
         """
         Arguments:
-           volume:   Protobuf GI object RwcalYang.VDUInitParams_Volumes()
-           vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+           volume:   Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams_Volumes()
+           vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
         
         Returns:
            A dictionary required to create volume for VDU
@@ -258,7 +267,7 @@ class ComputeUtils(object):
         Creates volume related arguments for VDU operation
         
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
 
         Returns:
            A dictionary required for volumes creation for VDU instantiation
@@ -283,7 +292,7 @@ class ComputeUtils(object):
         """
         Creates VDU network related arguments for VDU operation
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
 
         Returns:
            A dictionary {'port_list' : [ports], 'network_list': [networks]}
@@ -291,6 +300,7 @@ class ComputeUtils(object):
         """
         kwargs = dict()
         kwargs['port_list'], kwargs['network_list'] = self.driver.utils.network.setup_vdu_networking(vdu_params)
+        
         return kwargs
 
     
@@ -298,7 +308,7 @@ class ComputeUtils(object):
         """
         Creates VDU boot config related arguments for VDU operation
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
 
         Returns:
           A dictionary {
@@ -338,8 +348,12 @@ class ComputeUtils(object):
             # Rift model only
             if vdu_params.supplemental_boot_data.has_field('custom_meta_data'):
                 for cm in vdu_params.supplemental_boot_data.custom_meta_data:
-                    metadata[cm.name] = cm.value
-                    kwargs['metadata'] = metadata
+                    # Adding this condition as the list contains CLOUD_INIT Variables as 
+                    # well. CloudInit Variables such as password are visible on the OpenStack UI
+                    # if not removed from the custom_meta_data list.
+                    if cm.destination == 'CLOUD_METADATA':
+                        metadata[cm.name] = cm.value
+                        kwargs['metadata'] = metadata
         except Exception as e:
             pass
 
@@ -367,7 +381,7 @@ class ComputeUtils(object):
         Function to create kwargs required for nova server placement
         
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
         
         Returns:
          A dictionary { 'availability_zone' : < Zone >, 'scheduler_hints': <group-id> } 
@@ -390,8 +404,8 @@ class ComputeUtils(object):
         Function to create kwargs required for nova security group
 
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
-          account: Protobuf GI object RwcalYang.CloudAccount()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
+          account: Protobuf GI object RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         
         Returns:
           A dictionary {'security_groups' : < group > }
@@ -407,8 +421,8 @@ class ComputeUtils(object):
         Function to create kwargs required for nova_server_create API
         
         Arguments:
-          vdu_params: Protobuf GI object RwcalYang.VDUInitParams()
-          account: Protobuf GI object RwcalYang.CloudAccount()
+          vdu_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VduInitParams()
+          account: Protobuf GI object RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
 
         Returns:
           A kwargs dictionary for VDU create operation
@@ -448,6 +462,7 @@ class ComputeUtils(object):
                                 mgmt_ip = interface['addr']
                             elif interface['OS-EXT-IPS:type'] == 'floating':
                                 public_ip = interface['addr']
+
         return (mgmt_ip, public_ip)
 
     def get_vdu_epa_info(self, vm_info):
@@ -473,7 +488,7 @@ class ComputeUtils(object):
         Arguments:
         vdu_id (string) : VDU Id (vm_info['id']) 
         Returns:
-        A List of object RwcalYang.VDUInfoParams_ConnectionPoints()
+        A List of object RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_ConnectionPoints()
 
         """
         cp_list = []
@@ -481,7 +496,7 @@ class ComputeUtils(object):
         port_list = self.driver.neutron_port_list(**{'device_id': vdu_id})
         for port in port_list:
             cp_info = self.driver.utils.network._parse_cp(port)
-            cp = RwcalYang.VDUInfoParams_ConnectionPoints()
+            cp = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_ConnectionPoints()
             cp.from_dict(cp_info.as_dict())
             cp_list.append(cp)
         return cp_list
@@ -532,18 +547,18 @@ class ComputeUtils(object):
           vm_info : A dictionary returned by novaclient library listing VM attributes
 
         Returns:
-          List of RwcalYang.VDUInfoParams_SupplementalBootData()
+          List of RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_SupplementalBootData()
         """
         supplemental_boot_data = None
         node_id = None
         if 'config_drive' in vm_info:
-            supplemental_boot_data = RwcalYang.VDUInfoParams_SupplementalBootData()
+            supplemental_boot_data = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_SupplementalBootData()
             supplemental_boot_data.boot_data_drive = vm_info['config_drive']
         # Look for any metadata
         if 'metadata' not in vm_info:
             return node_id, supplemental_boot_data
         if supplemental_boot_data is None:
-            supplemental_boot_data = RwcalYang.VDUInfoParams_SupplementalBootData()
+            supplemental_boot_data = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_SupplementalBootData()
         for key, value in vm_info['metadata'].items():
             if key == 'rift_node_id':
                 node_id = value
@@ -564,7 +579,7 @@ class ComputeUtils(object):
           vm_info : A dictionary returned by novaclient library listing VM attributes
 
         Returns:
-          List of RwcalYang.VDUInfoParams_Volumes()
+          List of RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_Volumes()
         """
         volumes = list()
         
@@ -575,11 +590,13 @@ class ComputeUtils(object):
             return volumes
 
         for v in volume_list:
-            volume = RwcalYang.VDUInfoParams_Volumes()
+            volume = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_Volumes()
             try:
                 volume.name = (v['device']).split('/')[2]
                 volume.volume_id = v['volumeId']
                 details = self.driver.cinder_volume_get(volume.volume_id)
+                if details is None:
+                    continue
                 try:
                     # Rift only
                     for k, v in details.metadata.items():
@@ -615,7 +632,7 @@ class ComputeUtils(object):
 
 
             except Exception as e:
-                self.log.exception("Exception %s occured during volume list parsing", str(e))
+                self.log.warning("Exception %s occured during volume list parsing", str(e))
         return console_url
 
     def parse_cloud_vdu_info(self, vm_info):
@@ -626,9 +643,9 @@ class ComputeUtils(object):
            vm_info : A dictionary object return by novaclient library listing VM attributes
         
         Returns:
-           Protobuf GI Object of type RwcalYang.VDUInfoParams()
+           Protobuf GI Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList()
         """
-        vdu = RwcalYang.VDUInfoParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList()
         vdu.name = vm_info['name']
         vdu.vdu_id = vm_info['id']
         vdu.cloud_type  = 'openstack'
@@ -651,17 +668,18 @@ class ComputeUtils(object):
         if 'flavor' in vm_info and 'id' in vm_info['flavor']:
             vdu.flavor_id = vm_info['flavor']['id']
             flavor_info = self.get_vdu_epa_info(vm_info)
-            vm_flavor = self.driver.utils.flavor.parse_vm_flavor_epa_info(flavor_info)
-            guest_epa = self.driver.utils.flavor.parse_guest_epa_info(flavor_info)
-            host_epa = self.driver.utils.flavor.parse_host_epa_info(flavor_info)
-            host_aggregates = self.driver.utils.flavor.parse_host_aggregate_epa_info(flavor_info)
+            if flavor_info is not None:
+                vm_flavor = self.driver.utils.flavor.parse_vm_flavor_epa_info(flavor_info)
+                guest_epa = self.driver.utils.flavor.parse_guest_epa_info(flavor_info)
+                host_epa = self.driver.utils.flavor.parse_host_epa_info(flavor_info)
+                host_aggregates = self.driver.utils.flavor.parse_host_aggregate_epa_info(flavor_info)
 
-            vdu.vm_flavor.from_dict(vm_flavor.as_dict())
-            vdu.guest_epa.from_dict(guest_epa.as_dict())
-            vdu.host_epa.from_dict(host_epa.as_dict())
-            for aggr in host_aggregates:
-                ha = vdu.host_aggregate.add()
-                ha.from_dict(aggr.as_dict())
+                vdu.vm_flavor.from_dict(vm_flavor.as_dict())
+                vdu.guest_epa.from_dict(guest_epa.as_dict())
+                vdu.host_epa.from_dict(host_epa.as_dict())
+                for aggr in host_aggregates:
+                    ha = vdu.host_aggregate.add()
+                    ha.from_dict(aggr.as_dict())
 
         node_id, boot_data = self._parse_vdu_boot_config_data(vm_info)
         if node_id:
@@ -699,6 +717,5 @@ class ComputeUtils(object):
         port_list = self.driver.neutron_port_list(**{'device_id': vdu_id})
 
         for port in port_list:
-            if ((port['device_owner'] == 'compute:None') or (port['device_owner'] == '')):
-                self.driver.neutron_port_delete(port['id'])
+            self.driver.neutron_port_delete(port['id'])
 

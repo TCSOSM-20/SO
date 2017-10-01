@@ -33,7 +33,7 @@ class StagingArea(object):
     def __init__(self, model=None):
         self._model = model
         if not self._model:
-            self._model = RwStagingMgmtYang.StagingArea.from_dict({})
+            self._model = RwStagingMgmtYang.YangData_RwProject_Project_StagingAreas_StagingArea.from_dict({})
 
     @property
     def area_id(self):
@@ -42,6 +42,10 @@ class StagingArea(object):
     @property
     def model(self):
         return self._model
+
+    @property
+    def project_name(self):
+        return self._model.project_name
 
     @property
     def has_expired(self):

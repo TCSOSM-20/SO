@@ -48,7 +48,7 @@ class RequestHandler(tornado.web.RequestHandler):
 class StoreStreamerPart(multipart_streamer.MultiPartStreamer):
     """
     Create a Part streamer with a custom temp directory. Using the default
-    tmp directory and trying to move the file to $RIFT_ARTIFACTS occasionally
+    tmp directory and trying to move the file to $RIFT_VAR_ROOT occasionally
     causes link errors. So create a temp directory within the staging area.
     """
     def __init__(self, store, *args, **kwargs):
@@ -56,6 +56,9 @@ class StoreStreamerPart(multipart_streamer.MultiPartStreamer):
         self.store = store
 
     def create_part(self, headers):
+        #RIFT-18071: tmp directory was not getting created - throwing an error in the system test cases in HA failover.
+        if not os.path.exists(self.store.tmp_dir):
+            os.makedirs(self.store.tmp_dir)
         return multipart_streamer.TemporaryFileStreamedPart(self, headers, tmp_dir=self.store.tmp_dir)
 
 

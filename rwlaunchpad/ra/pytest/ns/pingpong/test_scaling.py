@@ -22,8 +22,10 @@
 @brief Pingpong scaling system test
 """
 
+import gi
 import os
 import pytest
+import re
 import subprocess
 import sys
 import time
@@ -35,26 +37,36 @@ import rift.auto.descriptor
 
 from gi.repository import (
     NsrYang,
-    NsdYang,
+    RwProjectNsdYang,
     VnfrYang,
     RwNsrYang,
-    RwNsdYang,
     RwVnfrYang,
 )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 @pytest.mark.setup('pingpong_nsd')
 @pytest.mark.depends('launchpad')
 class TestSetupPingpongNsd(object):
     def test_onboard(self, mgmt_session, descriptors):
         for descriptor in descriptors:
-            rift.auto.descriptor.onboard(mgmt_session.host, descriptor)
+            rift.auto.descriptor.onboard(mgmt_session, descriptor)
 
     def test_install_sar(self, mgmt_session):
-        install_cmd = 'ssh {mgmt_ip} -q -n -o BatchMode=yes -o StrictHostKeyChecking=no -- sudo yum install sysstat --assumeyes'.format(
-                mgmt_ip=mgmt_session.host,
-        )
+        get_platform_cmd = 'ssh {host} -q -n -o BatchMode=yes -o StrictHostKeyChecking=no -- python3 -mplatform'
+        platform_result = subprocess.check_output(get_platform_cmd.format(host=mgmt_session.host), shell=True)
+        platform_match = re.search('(Ubuntu|fedora)-(\d+)', platform_result.decode('ascii'))
+        assert platform_match is not None
+        (dist, ver) = platform_match.groups()
+        if dist == 'fedora':
+            install_cmd = 'ssh {host} -q -n -o BatchMode=yes -o StrictHostKeyChecking=no -- sudo yum install sysstat --assumeyes'.format(
+                    host=mgmt_session.host,
+            )
+        elif dist == 'Ubuntu':
+            install_cmd = 'ssh {host} -q -n -o BatchMode=yes -o StrictHostKeyChecking=no -- sudo apt-get -q -y install sysstat'.format(
+                    host=mgmt_session.host,
+            )
         subprocess.check_call(install_cmd, shell=True)
-
 
 @pytest.fixture(scope='function', params=[5,10,15,20,25])
 def service_count(request):
@@ -67,10 +79,10 @@ class TestScaling(object):
     def test_scaling(self, mgmt_session, cloud_account_name, service_count):
 
         def start_services(mgmt_session, desired_service_count, max_attempts=3): 
-            catalog = mgmt_session.proxy(NsdYang).get_config('/nsd-catalog')
+            catalog = mgmt_session.proxy(RwProjectNsdYang).get_config('/rw-project:project[rw-project:name="default"]/nsd-catalog')
             nsd = catalog.nsd[0]
             
-            nsr_path = "/ns-instance-config"
+            nsr_path = "/rw-project:project[rw-project:name='default']/ns-instance-config"
             nsr = mgmt_session.proxy(RwNsrYang).get_config(nsr_path)
             service_count = len(nsr.nsr)
 
@@ -78,23 +90,29 @@ class TestScaling(object):
             while attempts < max_attempts and service_count < desired_service_count:
                 attempts += 1
 
+                old_opdata = mgmt_session.proxy(RwNsrYang).get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
                 for count in range(service_count, desired_service_count):
                     nsr = rift.auto.descriptor.create_nsr(
                         cloud_account_name,
                         "pingpong_%s" % str(uuid.uuid4().hex[:10]),
-                        nsd.id)
-                    mgmt_session.proxy(RwNsrYang).create_config('/ns-instance-config/nsr', nsr)
+                        nsd)
+                    mgmt_session.proxy(RwNsrYang).create_config('/rw-project:project[rw-project:name="default"]/ns-instance-config/nsr', nsr)
 
-                ns_instance_opdata = mgmt_session.proxy(RwNsrYang).get('/ns-instance-opdata')
-                for nsr in ns_instance_opdata.nsr:
+                time.sleep(10)
+
+                new_opdata = mgmt_session.proxy(RwNsrYang).get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
+                new_ns_instance_config_refs = {nsr.ns_instance_config_ref for nsr in new_opdata.nsr} - {nsr.ns_instance_config_ref for nsr in old_opdata.nsr}
+                for ns_instance_config_ref in new_ns_instance_config_refs:
                     try:
-                        xpath = "/ns-instance-opdata/nsr[ns-instance-config-ref='{}']/operational-status".format(nsr.ns_instance_config_ref)
-                        mgmt_session.proxy(RwNsrYang).wait_for(xpath, "running", fail_on=['failed'], timeout=180)
-                        xpath = "/ns-instance-opdata/nsr[ns-instance-config-ref='{}']/config-status".format(nsr.ns_instance_config_ref)
+                        xpath = "/rw-project:project[rw-project:name='default']/ns-instance-opdata/nsr[ns-instance-config-ref={}]/operational-status".format(quoted_key(ns_instance_config_ref))
+                        mgmt_session.proxy(RwNsrYang).wait_for(xpath, "running", fail_on=['failed'], timeout=400)
+                        xpath = "/rw-project:project[rw-project:name='default']/ns-instance-opdata/nsr[ns-instance-config-ref={}]/config-status".format(quoted_key(ns_instance_config_ref))
                         mgmt_session.proxy(RwNsrYang).wait_for(xpath, "configured", fail_on=['failed'], timeout=450)
                         service_count += 1
+                        attempts = 0 # Made some progress so reset the number of attempts remaining
                     except rift.auto.session.ProxyWaitForError:
-                        mgmt_session.proxy(RwNsrYang).delete_config("/ns-instance-config/nsr[id='{}']".format(nsr.ns_instance_config_ref))
+                        mgmt_session.proxy(RwNsrYang).delete_config("/rw-project:project[rw-project:name='default']/ns-instance-config/nsr[id={}]".format(quoted_key(ns_instance_config_ref)))
+                        time.sleep(5)
 
         def monitor_launchpad_performance(service_count, interval=30, samples=1):
             sar_cmd = "ssh {mgmt_ip} -q -n -o BatchMode=yes -o StrictHostKeyChecking=no -- sar -A {interval} {samples}".format(
@@ -122,12 +140,12 @@ class TestScaling(object):
 class TestTeardownPingpongNsr(object):
     def test_teardown_nsr(self, mgmt_session):
 
-        ns_instance_config = mgmt_session.proxy(RwNsrYang).get_config('/ns-instance-config')
+        ns_instance_config = mgmt_session.proxy(RwNsrYang).get_config('/rw-project:project[rw-project:name="default"]/ns-instance-config')
         for nsr in ns_instance_config.nsr:
-            mgmt_session.proxy(RwNsrYang).delete_config("/ns-instance-config/nsr[id='{}']".format(nsr.id))
+            mgmt_session.proxy(RwNsrYang).delete_config("/rw-project:project[rw-project:name='default']/ns-instance-config/nsr[id={}]".format(quoted_key(nsr.id)))
 
         time.sleep(60)
-        vnfr_catalog = mgmt_session.proxy(RwVnfrYang).get('/vnfr-catalog')
+        vnfr_catalog = mgmt_session.proxy(RwVnfrYang).get('/rw-project:project[rw-project:name="default"]/vnfr-catalog')
         assert vnfr_catalog is None or len(vnfr_catalog.vnfr) == 0
 
     def test_generate_plots(self):

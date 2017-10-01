@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,13 +23,21 @@ module rw-sdn
   namespace "http://riftio.com/ns/riftware-1.0/rw-sdn";
   prefix "rw-sdn";
 
-
-  import rw-pb-ext {
-    prefix "rwpb";
+  import rw-project {
+    prefix "rw-project";
   }
 
   import rwsdnal {
     prefix "rwsdnal";
+  }
+
+  import mano-types {
+    prefix "manotypes";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2015-09-14 {
@@ -37,17 +45,17 @@ module rw-sdn
       "Initial revision.";
   }
 
-  container sdn {
-    rwpb:msg-new SDNAccountConfig;
-    list account {
-      rwpb:msg-new SDNAccount;
-      key "name";
-      leaf name {
-	type string;
-      }
+  augment "/rw-project:project" {
+    container sdn {
+      list account {
+        key "name";
+        leaf name {
+          type string;
+        }
 
-      uses rwsdnal:sdn-provider-auth;
-      uses rwsdnal:connection-status;
+        uses rwsdnal:sdn-provider-auth;
+        uses rwsdnal:connection-status;
+      }
     }
   }
 
@@ -60,6 +68,21 @@ module rw-sdn
           "The sdn account name to update connection status for";
         type string;
       }
+
+      uses manotypes:rpc-project-name;
+    }
+  }
+
+  notification sdn-notif {
+    description "Notification for SDN account credentials";
+    leaf name {
+      description "SDN account name";
+      type string;
+    }
+
+    leaf message {
+      description "Notification message";
+      type string;
     }
   }
 }

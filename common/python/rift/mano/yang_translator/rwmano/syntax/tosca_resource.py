@@ -23,8 +23,8 @@ class ToscaResource(object):
     # from REQUIRED_FIELDS below
     NAME = 'name'
 
-    REQUIRED_FIELDS = (DESC, VERSION, VENDOR, ID) = \
-                      ('description', 'version', 'vendor', 'id')
+    REQUIRED_FIELDS = (DESC, VERSION, VENDOR, ID, LOGO) = \
+                      ('description', 'version', 'vendor', 'id', 'logo')
 
     COMMON_FIELDS = (PATH, PORT, HOST, XPATH, TYPE, COUNT, FILE, 
                     NFV_COMPUTE, HOST_EPA, VSWITCH_EPA, HYPERVISOR_EPA, GUEST_EPA) = \
@@ -98,6 +98,7 @@ class ToscaResource(object):
         T_ELAN,
         T_VNFFG,
         T_FP,
+        T_NS_PRIMITIVE,
     ) = \
         ('tosca.policies.nfv.riftio.vnf_configuration',
          'tosca.capabilities.riftio.http_endpoint_type',
@@ -116,13 +117,14 @@ class ToscaResource(object):
          'tosca.nodes.nfv.riftio.ELAN',
          'tosca.groups.nfv.VNFFG',
          'tosca.nodes.nfv.riftio.FP1',
+         'tosca.policies.nfv.riftio.ns_service_primitives',
         )
 
     SUPPORT_FILES = ( SRC, DEST, EXISTING) = \
                     ('source', 'destination', 'existing')
 
-    SUPPORT_DIRS = (IMAGE_DIR, SCRIPT_DIR, CLOUD_INIT_DIR) = \
-                   ('images', 'scripts','cloud_init')
+    SUPPORT_DIRS = (IMAGE_DIR, SCRIPT_DIR, CLOUD_INIT_DIR, ICON_DIR) = \
+                   ('images', 'scripts','cloud_init', 'icons')
 
     def __init__(self,
                  log,

@@ -42,12 +42,12 @@ system_is_up() {
    fi
 }
 
-echo -n "wait for system"
-while ! system_is_up
-do
-    echo -n "."
-    sleep 5s
-done
+#echo -n "wait for system"
+#while ! system_is_up
+#do
+#    echo -n "."
+#    sleep 5s
+#done
 
 echo "system is up"
 
@@ -121,8 +121,9 @@ wait_for_package() {
      echo "must supply transaction id to wait for"
      exit -1
    fi
-
-   response=$(curl --silent --insecure https://${lp_ip}:4567/api/upload/${transaction_id}/state)
+   
+   project="default"
+   response=$(curl --silent --insecure https://${lp_ip}:8008/api/operational/project/${project}/create-jobs/job/${transaction_id})
    transaction_state=$(echo ${response} | awk -F "status" '{print $2}' | awk '{print $2}')
    transaction_state=${transaction_state:1:-2}
    

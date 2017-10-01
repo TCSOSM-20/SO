@@ -103,8 +103,8 @@ rw_status_t rwcal_cloud_init(rwcal_module_ptr_t rwcal);
  */
 rw_status_t rwcal_get_image_list(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VimResources **images);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources **images);
 
 /*
  * Delete Image.
@@ -116,7 +116,7 @@ rw_status_t rwcal_get_image_list(
  */
 rw_status_t rwcal_delete_image(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * image_id);
 
 /*
@@ -131,8 +131,8 @@ rw_status_t rwcal_delete_image(
  */
 rw_status_t rwcal_create_flavor(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_FlavorInfoItem *flavor,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_FlavorinfoList *flavor,
     char *flavor_id);
 
 
@@ -146,7 +146,7 @@ rw_status_t rwcal_create_flavor(
  */
 rw_status_t rwcal_delete_flavor(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * flavor_id);
 
 /*
@@ -162,9 +162,9 @@ rw_status_t rwcal_delete_flavor(
  */
 rw_status_t rwcal_get_flavor(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * flavor_id,
-    rwpb_gi_Rwcal_FlavorInfoItem **flavor);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_FlavorinfoList **flavor);
 
 /*
  * Get a list of the details for all flavors
@@ -177,8 +177,8 @@ rw_status_t rwcal_get_flavor(
  */
 rw_status_t rwcal_get_flavor_list(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VimResources **flavors);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources **flavors);
 
 /*
  * Create a virtual machine.
@@ -194,8 +194,8 @@ rw_status_t rwcal_get_flavor_list(
  */
 rw_status_t rwcal_create_vm(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VMInfoItem *vm,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_VminfoList *vm,
     char **vm_id);
 
 /*
@@ -208,7 +208,7 @@ rw_status_t rwcal_create_vm(
  */
 rw_status_t rwcal_delete_vm(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * vm_id);
 
 /*
@@ -221,7 +221,7 @@ rw_status_t rwcal_delete_vm(
  */
 rw_status_t rwcal_reboot_vm(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * vm_id);
 
 /*
@@ -234,7 +234,7 @@ rw_status_t rwcal_reboot_vm(
  */
 rw_status_t rwcal_start_vm(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * vm_id);
 
 /*
@@ -247,7 +247,7 @@ rw_status_t rwcal_start_vm(
  */
 rw_status_t rwcal_stop_vm(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * vm_id);
 
 /*
@@ -261,8 +261,8 @@ rw_status_t rwcal_stop_vm(
  */
 rw_status_t rwcal_get_vm_list(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VimResources** vms);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources** vms);
 
 /*
  * Create a tenant.
@@ -275,7 +275,7 @@ rw_status_t rwcal_get_vm_list(
  */
 rw_status_t rwcal_create_tenant(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * tenant_name,
     char *** tenant_info);
 
@@ -289,7 +289,7 @@ rw_status_t rwcal_create_tenant(
  */
 rw_status_t rwcal_delete_tenant(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * tenant_id);
 
 /*
@@ -303,8 +303,8 @@ rw_status_t rwcal_delete_tenant(
  */
 rw_status_t rwcal_get_tenant_list(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VimResources **tenants);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources **tenants);
 
 /*
  * Create a role.
@@ -317,7 +317,7 @@ rw_status_t rwcal_get_tenant_list(
  */
 rw_status_t rwcal_create_role(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * role_name,
     char *** role_info);
 
@@ -331,7 +331,7 @@ rw_status_t rwcal_create_role(
  */
 rw_status_t rwcal_delete_role(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char * role_id);
 
 /*
@@ -345,8 +345,8 @@ rw_status_t rwcal_delete_role(
  */
 rw_status_t rwcal_get_role_list(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VimResources **roles);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources **roles);
 
 /*
  * Add a new host
@@ -361,8 +361,8 @@ rw_status_t rwcal_get_role_list(
  */
 rw_status_t rwcal_add_host(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_HostInfoItem *host,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_HostinfoList *host,
     char **host_id);
 
 /*
@@ -376,7 +376,7 @@ rw_status_t rwcal_add_host(
  */
 rw_status_t rwcal_remove_host(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char *host_id);
 
 /*
@@ -391,9 +391,9 @@ rw_status_t rwcal_remove_host(
  */
 rw_status_t rwcal_get_host(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char *host_id,
-    rwpb_gi_Rwcal_HostInfoItem **host);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_HostinfoList **host);
 
 /*
  * Get a list of hosts
@@ -406,8 +406,8 @@ rw_status_t rwcal_get_host(
  */
 rw_status_t rwcal_get_host_list(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VimResources **hosts);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources **hosts);
 
 /*
  * Create a new port
@@ -422,8 +422,8 @@ rw_status_t rwcal_get_host_list(
  */
 rw_status_t rwcal_create_port(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_PortInfoItem *port,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_PortinfoList *port,
     char **port_id);
 
 /*
@@ -437,7 +437,7 @@ rw_status_t rwcal_create_port(
  */
 rw_status_t rwcal_delete_port(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char *port_id);
 
 /*
@@ -452,9 +452,9 @@ rw_status_t rwcal_delete_port(
  */
 rw_status_t rwcal_get_port(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char *port_id,
-    rwpb_gi_Rwcal_PortInfoItem **port);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_PortinfoList **port);
 
 /*
  * Get a list of ports
@@ -467,8 +467,8 @@ rw_status_t rwcal_get_port(
  */
 rw_status_t rwcal_get_port_list(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VimResources **ports);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources **ports);
 
 /*
  * Create a new network
@@ -483,8 +483,8 @@ rw_status_t rwcal_get_port_list(
  */
 rw_status_t rwcal_create_network(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_NetworkInfoItem *network,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_NetworkinfoList *network,
     char **network_id);
 
 /*
@@ -498,7 +498,7 @@ rw_status_t rwcal_create_network(
  */
 rw_status_t rwcal_delete_network(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char *network_id);
 
 /*
@@ -513,9 +513,9 @@ rw_status_t rwcal_delete_network(
  */
 rw_status_t rwcal_get_network(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
     const char *network_id,
-    rwpb_gi_Rwcal_NetworkInfoItem **network);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_NetworkinfoList **network);
 
 /*
  * Get a the management network
@@ -528,8 +528,8 @@ rw_status_t rwcal_get_network(
  */
 rw_status_t rwcal_get_management_network(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_NetworkInfoItem **network);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources_NetworkinfoList **network);
 
 /*
  * Get a list of networks
@@ -542,8 +542,8 @@ rw_status_t rwcal_get_management_network(
  */
 rw_status_t rwcal_get_network_list(
     rwcal_module_ptr_t rwcal,
-    rwpb_gi_Rwcal_CloudAccount *account,
-    rwpb_gi_Rwcal_VimResources **networks);
+    rwpb_gi_Rwcal_YangData_RwProject_Project_CloudAccounts_CloudAccountList *account,
+    rwpb_gi_Rwcal_YangData_RwProject_Project_VimResources **networks);
 
 /*
  * Get a RwLog Context so that log messages can go to rwlog

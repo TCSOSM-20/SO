@@ -107,7 +107,7 @@ def get_cal_account(auth_url):
     """
     Returns cal account
     """
-    account                        = RwcalYang.CloudAccount()
+    account                        = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
     account.account_type           = "openstack"
     account.openstack.key          = openstack_info['username']
     account.openstack.secret       = openstack_info['password']
@@ -222,7 +222,7 @@ class OpenstackResources(object):
         Creates a VM. The VM name is derived from username
 
         """
-        vm = RwcalYang.VDUInitParams()
+        vm = RwcalYang.YangData_RwProject_Project_VduInitParams()
         vm.name = name
         vm.flavor_id = self._flavor_id
         vm.image_id  = self._image_id
@@ -239,7 +239,7 @@ class OpenstackResources(object):
         
     def create_network(self, name):
         logger.info("Creating network with name: %s" %name)
-        network                = RwcalYang.NetworkInfoItem()
+        network                = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList()
         network.network_name   = name
         network.subnet         = openstack_info['subnets'][openstack_info['subnet_index']]
 
@@ -265,7 +265,7 @@ class OpenstackResources(object):
         
 
     def create_image(self, location):
-        img = RwcalYang.ImageInfoItem()
+        img = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         img.name = basename(location)
         img.location = location
         img.disk_format = "qcow2"
@@ -299,7 +299,7 @@ class OpenstackResources(object):
         """
         Create Flavor suitable for rift_ping_pong VNF
         """
-        flavor = RwcalYang.FlavorInfoItem()
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
         flavor.name = FLAVOR_NAME
         flavor.vm_flavor.memory_mb   = 16384 # 16GB
         flavor.vm_flavor.vcpu_count  = 4 

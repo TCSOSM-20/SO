@@ -74,6 +74,6 @@ class ArchiveChecksums(dict):
     def to_string(self):
         string = ""
         for file_name, file_checksum in self.items():
-            string += "{}  {}\n".format(file_name, file_checksum)
+            string += "{}  {}\n".format(file_checksum, file_name)
 
         return string

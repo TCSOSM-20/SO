@@ -17,13 +17,9 @@
 
 include(rift_plugin)
 
-### rwcal-openstack package
-set(PKG_NAME rwcal-openmano-vimconnector)
-set(PKG_VERSION 1.0)
-set(PKG_RELEASE 1)
-set(PKG_LONG_NAME ${PKG_NAME}-${PKG_VERSION})
+set(INSTALL_COMPONENT rwcal-plugin-openmano-vimconnector)
 
-rift_install_python_plugin(rwcal_openmano_vimconnector rwcal_openmano_vimconnector.py)
+rift_install_gobject_python_plugin(rwcal_openmano_vimconnector rwcal_openmano_vimconnector.py COMPONENT ${INSTALL_COMPONENT})
 
 rift_python_install_tree(
   FILES
@@ -32,4 +28,4 @@ rift_python_install_tree(
     rift/rwcal/openmano_vimconnector/vimconn_openvim.py
     rift/rwcal/openmano_vimconnector/openmano_schemas.py
   PYTHON3_ONLY
-  COMPONENT ${PKG_LONG_NAME})
+  COMPONENT ${INSTALL_COMPONENT})

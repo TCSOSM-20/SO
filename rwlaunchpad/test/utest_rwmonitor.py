@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,6 +60,7 @@ from rift.tasklets.rwmonitor.core import (
         UnknownAccountError,
         )
 import rw_peas
+from rift.mano.utils.project import ManoProject, DEFAULT_PROJECT
 
 
 class wait_for_pending_tasks(object):
@@ -108,17 +109,17 @@ class MockTasklet(object):
 
 
 def make_nsr(ns_instance_config_ref=str(uuid.uuid4())):
-    nsr = NsrYang.YangData_Nsr_NsInstanceOpdata_Nsr()
+    nsr = NsrYang.YangData_RwProject_Project_NsInstanceOpdata_Nsr()
     nsr.ns_instance_config_ref = ns_instance_config_ref
     return nsr
 
 def make_vnfr(id=str(uuid.uuid4())):
-    vnfr = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
+    vnfr = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
     vnfr.id = id
     return vnfr
 
 def make_vdur(id=str(uuid.uuid4()), vim_id=str(uuid.uuid4())):
-    vdur = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+    vdur = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
     vdur.id = id
     vdur.vim_id = vim_id
     return vdur
@@ -130,7 +131,7 @@ class TestNfviMetricsCache(unittest.TestCase):
             return True
 
         def nfvi_metrics(self, account, vim_id):
-            metrics = RwmonYang.NfviMetrics()
+            metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics()
             metrics.vcpu.utilization = 0.5
             return metrics
 
@@ -138,7 +139,7 @@ class TestNfviMetricsCache(unittest.TestCase):
         self.loop = asyncio.new_event_loop()
         self.logger = logging.getLogger('test-logger')
 
-        self.account = RwcalYang.CloudAccount(
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList(
                 name='test-cloud-account',
                 account_type="mock",
                 )
@@ -149,7 +150,7 @@ class TestNfviMetricsCache(unittest.TestCase):
         mock = self.plugin_manager.plugin(self.account.name)
         mock.set_impl(TestNfviMetricsCache.Plugin())
 
-        self.vdur = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+        self.vdur = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
         self.vdur.id = "test-vdur-id"
         self.vdur.vim_id = "test-vim-id"
         self.vdur.vm_flavor.vcpu_count = 4
@@ -207,13 +208,13 @@ class TestNfviMetrics(unittest.TestCase):
             return True
 
         def nfvi_metrics(self, account, vim_id):
-            metrics = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur_NfviMetrics()
+            metrics = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur_NfviMetrics()
             metrics.vcpu.utilization = 0.5
             return None, metrics
 
     def setUp(self):
         self.loop = asyncio.new_event_loop()
-        self.account = RwcalYang.CloudAccount(
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList(
                 name='test-cloud-account',
                 account_type="mock",
                 )
@@ -287,7 +288,7 @@ class TestNfviInterface(unittest.TestCase):
             self._alarms = set()
 
         def nfvi_metrics(self, account, vm_id):
-            return rwmon.NfviMetrics()
+            return rwmon.YangData_RwProject_Project_NfviMetrics()
 
         def nfvi_metrics_available(self, account):
             return True
@@ -305,7 +306,7 @@ class TestNfviInterface(unittest.TestCase):
         self.loop = asyncio.new_event_loop()
         self.logger = logging.getLogger('test-logger')
 
-        self.account = RwcalYang.CloudAccount(
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList(
                 name='test-cloud-account',
                 account_type="mock",
                 )
@@ -339,8 +340,9 @@ class TestNfviInterface(unittest.TestCase):
     def test_retrieve(self):
         pass
 
+    @unittest.skip("Alarms are being disabled in monitor")
     def test_alarm_create_and_destroy(self):
-        alarm = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur_Alarms()
+        alarm = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur_Alarms()
         alarm.name = "test-alarm"
         alarm.description = "test-description"
         alarm.vdur_id = "test-vdur-id"
@@ -401,7 +403,7 @@ class TestVdurNfviMetrics(unittest.TestCase):
         # return a VCPU utilization of 0.5.
         class MockPlugin(object):
             def __init__(self):
-                self.metrics = RwmonYang.NfviMetrics()
+                self.metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics()
 
             def nfvi_metrics(self, account, vim_id):
                 self.metrics.vcpu.utilization = 0.5
@@ -410,7 +412,7 @@ class TestVdurNfviMetrics(unittest.TestCase):
         self.loop = asyncio.get_event_loop()
         self.logger = logging.getLogger('test-logger')
 
-        self.account = RwcalYang.CloudAccount(
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList(
                 name='test-cloud-account',
                 account_type="mock",
                 )
@@ -485,7 +487,7 @@ class TestNfviMetricsPluginManager(unittest.TestCase):
     def setUp(self):
         self.logger = logging.getLogger('test-logger')
         self.plugins = NfviMetricsPluginManager(self.logger)
-        self.account = RwcalYang.CloudAccount(
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList(
                 name='test-cloud-account',
                 account_type="mock",
                 )
@@ -553,10 +555,11 @@ class TestMonitor(unittest.TestCase):
 
         self.loop = asyncio.get_event_loop()
         self.logger = logging.getLogger('test-logger')
+        self.project = ManoProject(self.logger, name=DEFAULT_PROJECT)
         self.config = InstanceConfiguration()
-        self.monitor = Monitor(self.loop, self.logger, self.config)
+        self.monitor = Monitor(self.loop, self.logger, self.config, self.project)
 
-        self.account = RwcalYang.CloudAccount(
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList(
                 name='test-cloud-account',
                 account_type="mock",
                 )
@@ -606,8 +609,8 @@ class TestMonitor(unittest.TestCase):
         self.monitor.add_cloud_account(self.account)
 
         # Create a VNFR associated with the cloud account
-        vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
-        vnfr.cloud_account = self.account.name
+        vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
+        vnfr.datacenter = self.account.name
         vnfr.id = 'test-vnfr-id'
 
         # Add a VDUR to the VNFR
@@ -644,7 +647,7 @@ class TestMonitor(unittest.TestCase):
         to retrieve the NFVI metrics associated with the VDU.
         """
         # Define the VDUR to be registered
-        vdur = VnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+        vdur = VnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
         vdur.vm_flavor.vcpu_count = 4
         vdur.vm_flavor.memory_mb = 100
         vdur.vm_flavor.storage_gb = 2
@@ -680,12 +683,12 @@ class TestMonitor(unittest.TestCase):
         the VDURs contained in the VNFR are unregistered.
         """
         # Define the VDUR to be registered
-        vdur = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+        vdur = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
         vdur.vim_id = 'test-vim-id-1'
         vdur.id = 'test-vdur-id-1'
 
-        vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
-        vnfr.cloud_account = self.account.name
+        vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
+        vnfr.datacenter = self.account.name
         vnfr.id = 'test-vnfr-id'
 
         vnfr.vdur.append(vdur)
@@ -699,7 +702,7 @@ class TestMonitor(unittest.TestCase):
 
         # Add another VDUR to the VNFR and update the monitor. Both VDURs
         # should now be registered
-        vdur = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr_Vdur()
+        vdur = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr_Vdur()
         vdur.vim_id = 'test-vim-id-2'
         vdur.id = 'test-vdur-id-2'
 
@@ -730,8 +733,8 @@ class TestMonitor(unittest.TestCase):
         Monitor.
         """
         # Create the VNFR
-        vnfr = RwVnfrYang.YangData_Vnfr_VnfrCatalog_Vnfr()
-        vnfr.cloud_account = self.account.name
+        vnfr = RwVnfrYang.YangData_RwProject_Project_VnfrCatalog_Vnfr()
+        vnfr.datacenter = self.account.name
         vnfr.id = 'test-vnfr-id'
 
         # Create 2 VDURs
@@ -752,8 +755,8 @@ class TestMonitor(unittest.TestCase):
         class MockPlugin(object):
             def __init__(self):
                 self._metrics = dict()
-                self._metrics['test-vim-id-1'] = RwmonYang.NfviMetrics()
-                self._metrics['test-vim-id-2'] = RwmonYang.NfviMetrics()
+                self._metrics['test-vim-id-1'] = RwmonYang.YangData_RwProject_Project_NfviMetrics()
+                self._metrics['test-vim-id-2'] = RwmonYang.YangData_RwProject_Project_NfviMetrics()
 
             def nfvi_metrics(self, account, vim_id):
                 metrics = self._metrics[vim_id]

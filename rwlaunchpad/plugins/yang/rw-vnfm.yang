@@ -47,8 +47,8 @@ module rw-vnfm
     prefix "rw-vns";
   }
 
-  import rw-vnfd {
-    prefix "rw-vnfd";
+  import rw-project-vnfd {
+    prefix "rw-project-vnfd";
   }
 
   import rw-vnfr {
@@ -69,6 +69,10 @@ module rw-vnfm
 
   import rw-launchpad {
     prefix "rw-launchpad";
+  }
+
+  import rw-project-mano {
+    prefix "rw-project-mano";
   }
 
   revision 2015-10-07 {

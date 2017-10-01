@@ -1,4 +1,3 @@
-
 # 
 #   Copyright 2016 RIFT.IO Inc
 #
@@ -16,8 +15,8 @@
 #
 
 import asyncio
-
 import gi
+
 gi.require_version('RwDts', '1.0')
 gi.require_version('RwcalYang', '1.0')
 gi.require_version('RwTypes', '1.0')
@@ -35,16 +34,20 @@ from gi.repository import (
 from gi.repository.RwTypes import RwStatus
 import rift.tasklets
 
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
+
 
 class NwtopDiscoveryDtsHandler(object):
     """ Handles DTS interactions for the Discovered Topology registration """
     DISC_XPATH = "D,/nd:network"
 
-    def __init__(self, dts, log, loop, acctstore, nwdatastore):
+    def __init__(self, dts, log, loop, project, acctmgr, nwdatastore):
         self._dts = dts
         self._log = log
         self._loop = loop
-        self._acctstore = acctstore
+        self._project = project
+        self._acctmgr = acctmgr
         self._nwdatastore = nwdatastore
 
         self._regh = None
@@ -53,6 +56,13 @@ class NwtopDiscoveryDtsHandler(object):
     def regh(self):
         """ The registration handle associated with this Handler"""
         return self._regh
+
+    def deregister(self):
+        self._log.debug("De-register Topology discovery handler for project {}".
+                        format(self._project.name))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
 
     @asyncio.coroutine
     def register(self):
@@ -93,7 +103,7 @@ class NwtopDiscoveryDtsHandler(object):
                         nw.server_provided = False
                         nw.network_id = name + ':' + nw.network_id
                         self._log.debug("...Network id %s", nw.network_id)
-                        nw_xpath = ("D,/nd:network[network-id=\'{}\']").format(nw.network_id)
+                        nw_xpath = ("D,/nd:network[network-id={}]").format(quoted_key(nw.network_id))
                         xact_info.respond_xpath(rwdts.XactRspCode.MORE,
                                         nw_xpath, nw)
 
@@ -108,7 +118,7 @@ class NwtopDiscoveryDtsHandler(object):
             on_prepare=on_prepare,
             )
 
-        yield from self._dts.register(
+        self._regh = yield from self._dts.register(
             NwtopDiscoveryDtsHandler.DISC_XPATH,
             flags=rwdts.Flag.PUBLISHER,
             handler=handler
@@ -119,11 +129,12 @@ class NwtopStaticDtsHandler(object):
     """ Handles DTS interactions for the Static Topology registration """
     STATIC_XPATH = "C,/nd:network"
 
-    def __init__(self, dts, log, loop, acctstore, nwdatastore):
+    def __init__(self, dts, log, loop, project, acctmgr, nwdatastore):
         self._dts = dts
         self._log = log
         self._loop = loop
-        self._acctstore = acctstore
+        self._project = project
+        self._acctmgr = acctmgr
 
         self._regh = None
         self.pending = {}
@@ -133,8 +144,14 @@ class NwtopStaticDtsHandler(object):
     def regh(self):
         """ The registration handle associated with this Handler"""
         return self._regh
- 
-    
+
+    def deregister(self):
+        self._log.debug("De-register Topology static handler for project {}".
+                        format(self._project.name))
+        if self._regh:
+            self._regh.deregister()
+            self._regh = None
+
     @asyncio.coroutine
     def register(self):
         """ Register for the Static Topology path """
@@ -173,8 +190,6 @@ class NwtopStaticDtsHandler(object):
                         on_apply=apply_nw_config)
 
         with self._dts.appconf_group_create(handler=handler) as acg:
-            acg.register(xpath = NwtopStaticDtsHandler.STATIC_XPATH, 
-                                   flags = rwdts.Flag.SUBSCRIBER, 
-                                   on_prepare=prepare_nw_cfg)
-
-
+            self._regh = acg.register(xpath = NwtopStaticDtsHandler.STATIC_XPATH,
+                                      flags = rwdts.Flag.SUBSCRIBER,
+                                      on_prepare=prepare_nw_cfg)

@@ -293,7 +293,7 @@ class LxcManager(object):
         self._bridge_to_ports = collections.defaultdict(list)
 
         # Create the management network
-        self.mgmt_network = RwcalYang.NetworkInfoItem()
+        self.mgmt_network = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList()
         self.mgmt_network.network_name = MGMT_NETWORK_NAME
 
         network = MGMT_NETWORK_INTERFACE_IP.network
@@ -467,7 +467,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Validation Code and Details String
         """
-        status = RwcalYang.CloudConnectionStatus(
+        status = RwcalYang.YangData_Rwcal_ConnectionStatus(
                 status="success",
                 details=""
                 )
@@ -657,7 +657,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
     @rwstatus(ret_on_failure=[[]])
     def do_get_image_list(self, account):
         """Returns a list of images"""
-        resources = RwcalYang.VimResources()
+        resources = RwcalYang.YangData_RwProject_Project_VimResources()
         for image in self.cal.get_image_list():
             resources.imageinfo_list.append(rwcal_copy_object(image))
 
@@ -845,7 +845,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
             a list of VMInfoItem objects
 
         """
-        resources = RwcalYang.VimResources()
+        resources = RwcalYang.YangData_RwProject_Project_VimResources()
         for vm in self.cal.get_vm_list():
             resources.vminfo_list.append(rwcal_copy_object(vm))
 
@@ -890,9 +890,9 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
         """
         Return a list of flavors
         """
-        vim_resources = RwcalYang.VimResources()
+        vim_resources = RwcalYang.YangData_RwProject_Project_VimResources()
         for flavor in self.cal.flavors.values():
-            f = RwcalYang.FlavorInfoItem()
+            f = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
             f.copy_from(flavor)
             vim_resources.flavorinfo_list.append(f)
         logger.debug("Returning list of flavor-info of size: %d", len(vim_resources.flavorinfo_list))
@@ -1017,7 +1017,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
     @rwstatus(ret_on_failure=[[]])
     def do_get_port_list(self, account):
         """Returns a list of ports"""
-        resources = RwcalYang.VimResources()
+        resources = RwcalYang.YangData_RwProject_Project_VimResources()
         for port in self.datastore.cal_manager.get_port_list():
             resources.portinfo_list.append(rwcal_copy_object(port))
 
@@ -1123,7 +1123,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
     @rwstatus(ret_on_failure=[[]])
     def do_get_network_list(self, account):
         """Returns a list of network objects"""
-        resources = RwcalYang.VimResources()
+        resources = RwcalYang.YangData_RwProject_Project_VimResources()
         for network in self.cal.get_network_list():
             resources.networkinfo_list.append(rwcal_copy_object(network))
 
@@ -1140,7 +1140,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             The vdu_id
         """
-        network = RwcalYang.NetworkInfoItem()
+        network = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList()
         network.network_name = link_params.name
         network.subnet = link_params.subnet
 
@@ -1173,7 +1173,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
 
     @staticmethod
     def fill_connection_point_info(c_point, port_info):
-        """Create a GI object for RwcalYang.VDUInfoParams_ConnectionPoints()
+        """Create a GI object for RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_ConnectionPoints()
 
         Converts Port information dictionary object returned by container cal
         driver into Protobuf Gi Object
@@ -1181,7 +1181,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
         Arguments:
             port_info - Port information from container cal
         Returns:
-            Protobuf Gi object for RwcalYang.VDUInfoParams_ConnectionPoints
+            Protobuf Gi object for RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList_ConnectionPoints
         """
         c_point.name = port_info.port_name
         c_point.connection_point_id = port_info.port_id
@@ -1204,7 +1204,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Protobuf Gi object for VirtualLinkInfoParams
         """
-        link = RwcalYang.VirtualLinkInfoParams()
+        link = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList()
         link.name = network_info.network_name
         link.state = 'active'
         link.virtual_link_id = network_info.network_id
@@ -1225,7 +1225,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
             link_id  - id for the virtual-link
 
         Returns:
-            Object of type RwcalYang.VirtualLinkInfoParams
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList
         """
 
         network = self.do_get_network(account, link_id, no_rwstatus=True)
@@ -1239,6 +1239,10 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
         return virtual_link
 
     @rwstatus(ret_on_failure=[None])
+    def do_get_virtual_link_by_name(self, account, link_name):
+        raise NotImplementedError()
+
+    @rwstatus(ret_on_failure=[None])
     def do_get_virtual_link_list(self, account):
         """Get information about all the virtual links
 
@@ -1246,10 +1250,10 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
             account  - a cloud account
 
         Returns:
-            A list of objects of type RwcalYang.VirtualLinkInfoParams
+            A list of objects of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList
         """
         networks = self.do_get_network_list(account, no_rwstatus=True)
-        vnf_resources = RwcalYang.VNFResources()
+        vnf_resources = RwcalYang.YangData_RwProject_Project_VnfResources()
         for network in networks.networkinfo_list:
             virtual_link = self.do_get_virtual_link(account, network.network_id, no_rwstatus=True)
             vnf_resources.virtual_link_info_list.append(virtual_link)
@@ -1263,7 +1267,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
            account  - a cloud account
            c_point  - connection_points
         """
-        port = RwcalYang.PortInfoItem()
+        port = RwcalYang.YangData_RwProject_Project_VimResources_PortinfoList()
         port.port_name = c_point.name
         port.network_id = c_point.virtual_link_id
         port.port_type = 'normal' ### Find Port type from network_profile under cloud account
@@ -1277,13 +1281,13 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
 
         Arguments:
             account     - a cloud account
-            vdu_init  - information about VDU to create (RwcalYang.VDUInitParams)
+            vdu_init  - information about VDU to create (RwcalYang.YangData_RwProject_Project_VduInitParams)
 
         Returns:
             The vdu_id
         """
         ### Create VM
-        vm = RwcalYang.VMInfoItem()
+        vm = RwcalYang.YangData_RwProject_Project_VimResources_VminfoList()
         vm.vm_name = vdu_init.name
         vm.image_id = vdu_init.image_id
         if vdu_init.vdu_init.has_field('userdata'):
@@ -1315,7 +1319,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
 
         Arguments:
             account     -  a cloud account
-            vdu_modify  -  Information about VDU Modification (RwcalYang.VDUModifyParams)
+            vdu_modify  -  Information about VDU Modification (RwcalYang.YangData_RwProject_Project_VduModifyParams)
         """
         ### First create required number of ports aka connection points
         port_list = []
@@ -1369,7 +1373,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
         returns:
             protobuf gi object for vduinfoparams
         """
-        vdu = RwcalYang.VDUInfoParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList()
         vdu.name = vm_info.vm_name
         vdu.vdu_id = vm_info.vm_id
         vdu.management_ip = vm_info.management_ip
@@ -1389,16 +1393,18 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
 
         return vdu
 
-    @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    @rwcalstatus(ret_on_failure=[None])
+    def do_get_vdu(self, account, vdu_id, mgmt_network):
         """Get information about a virtual deployment unit.
 
         Arguments:
             account - a cloud account
             vdu_id  - id for the vdu
+            mgmt_network - Added due to need for mgmt network.
+            # TO DO: Investigate the need for cloudsim.
 
         Returns:
-            Object of type RwcalYang.VDUInfoParams
+            Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList
         """
         port_id_list = self.cal.get_vm_ports(vdu_id)
         ports = [self.cal.get_port(p_id) for p_id in port_id_list]
@@ -1407,7 +1413,7 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
 
         return vdu_info
 
-    @rwstatus(ret_on_failure=[None])
+    @rwcalstatus(ret_on_failure=[None])
     def do_get_vdu_list(self, account):
         """Get information about all the virtual deployment units
 
@@ -1415,10 +1421,10 @@ class CloudSimPlugin(GObject.Object, RwCal.Cloud):
             account     - a cloud account
 
         Returns:
-            A list of objects of type RwcalYang.VDUInfoParams
+            A list of objects of type RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList
         """
 
-        vnf_resources = RwcalYang.VNFResources()
+        vnf_resources = RwcalYang.YangData_RwProject_Project_VnfResources()
 
         vm_resources = self.do_get_vm_list(account, no_rwstatus=True)
         for vm in vm_resources.vminfo_list:

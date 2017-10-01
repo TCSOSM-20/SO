@@ -167,4 +167,5 @@ class FileRestApiHandler(tornado.web.StaticFileHandler):
 
         # Return the root object!
         structure = folder_cache[root_dir].serialize()
+        self.set_header('Content-Type','application/json')
         self.write(tornado.escape.json_encode(structure))

@@ -80,5 +80,5 @@ install(
 
  DESTINATION
     usr/rift/mano/examples/tidgen_ns
-    COMPONENT ${PKG_LONG_NAME}
+    COMPONENT ${INSTALL_COMPONENT}
   )

@@ -17,4 +17,4 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwmon_ceilometer rwmon_ceilometer.py)
+rift_install_gobject_python_plugin(rwmon_ceilometer rwmon_ceilometer.py COMPONENT ${INSTALL_COMPONENT})

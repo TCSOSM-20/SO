@@ -478,6 +478,18 @@ class CalProxyApp(tornado.web.Application):
                         ),
                     ),
 
+            (r"/api/get_virtual_link_by_name", CalRequestHandler,
+                    mk_attrs(
+                        cal_method="get_virtual_link_by_name",
+                        input_params=[
+                            RPCParam("link_name"),
+                            ],
+                        output_params=[
+                            RPCParam("response", "VirtualLinkInfoParams"),
+                            ],
+                        ),
+                    ),
+
             (r"/api/get_virtual_link_list", CalRequestHandler,
                     mk_attrs(
                         cal_method="get_virtual_link_list",
@@ -567,7 +579,7 @@ class RwCalProxyTasklet(rift.tasklets.Tasklet):
         super().start()
 
         cal = self.get_cal_interface()
-        account = RwcalYang.CloudAccount(account_type="cloudsim")
+        account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList(account_type="cloudsim")
 
         self.app = CalProxyApp(self.log, self.loop, cal, account)
         self._dts = rift.tasklets.DTS(

@@ -91,7 +91,7 @@ class SdnSimPlugin(GObject.Object, RwSdn.Topology):
         Returns:
             Validation Code and Details String
         """
-        status = RwsdnalYang.SdnConnectionStatus()
+        status = RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList_ConnectionStatus()
         print("SDN Successfully connected")
         status.status = "success"
         status.details = "Connection was successful"

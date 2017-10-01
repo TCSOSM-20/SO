@@ -31,10 +31,6 @@ module rw-monitor
   namespace "http://riftio.com/ns/riftware-1.0/rw-monitor";
   prefix "rw-monitor";
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import rw-cli-ext {
     prefix "rwcli";
   }
@@ -61,6 +57,10 @@ module rw-monitor
 
   import ietf-yang-types {
     prefix "yang";
+  }
+
+  import rw-project-mano {
+    prefix "rw-project-mano";
   }
 
   revision 2015-10-30 {

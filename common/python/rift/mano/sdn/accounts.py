@@ -1,5 +1,5 @@
 
-# 
+#
 #   Copyright 2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,7 +52,7 @@ class SDNAccount(object):
         self._sdn = self.plugin.get_interface("Topology")
         self._sdn.init(rwlog_hdl)
 
-        self._status = RwsdnalYang.SDNAccount_ConnectionStatus(
+        self._status = RwSdnYang.YangData_RwProject_Project_Sdn_Account_ConnectionStatus(
                 status="unknown",
                 details="Connection status lookup not started"
                 )
@@ -102,13 +102,13 @@ class SDNAccount(object):
 
     @property
     def sdnal_account_msg(self):
-        return RwsdnalYang.SDNAccount.from_dict(
+        return RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList.from_dict(
                 self.account_msg.as_dict(),
                 ignore_missing_keys=True,
                 )
 
     def sdn_account_msg(self, account_dict):
-        self._account_msg = RwSdnYang.SDNAccount.from_dict(account_dict)
+        self._account_msg = RwSdnYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList.from_dict(account_dict)
 
     @property
     def account_type(self):
@@ -126,8 +126,9 @@ class SDNAccount(object):
 
     @asyncio.coroutine
     def validate_sdn_account_credentials(self, loop):
-        self._log.debug("Validating SDN Account credentials %s", self._account_msg)
-        self._status = RwSdnYang.SDNAccount_ConnectionStatus(
+        self._log.debug("Validating SDN Account credentials %s",
+                        self.name)
+        self._status = RwSdnYang.YangData_RwProject_Project_Sdn_Account_ConnectionStatus(
                 status="validating",
                 details="SDN account connection validation in progress"
                 )
@@ -137,14 +138,16 @@ class SDNAccount(object):
                 self.sdnal_account_msg,
                 )
         if rwstatus == RwTypes.RwStatus.SUCCESS:
-            self._status = RwSdnYang.SDNAccount_ConnectionStatus.from_dict(status.as_dict())
+            self._status = RwSdnYang.YangData_RwProject_Project_Sdn_Account_ConnectionStatus.from_dict(status.as_dict())
         else:
-            self._status = RwSdnYang.SDNAccount_ConnectionStatus(
+            self._status = RwSdnYang.YangData_RwProject_Project_Sdn_Account_ConnectionStatus(
                     status="failure",
                     details="Error when calling SDNAL validate SDN creds"
                     )
 
-        self._log.info("Got SDN account validation response: %s", self._status)
+        if self._status.status == 'failure':
+            self._log.error("SDN account validation failed; Acct: %s status: %s",
+                            self.name, self._status)
 
     def start_validate_credentials(self, loop):
         if self._validate_task is not None:

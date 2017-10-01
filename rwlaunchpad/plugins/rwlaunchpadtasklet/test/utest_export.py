@@ -29,10 +29,12 @@ import unittest
 import uuid
 import xmlrunner
 
+#Setting RIFT_VAR_ROOT if not already set for unit test execution
+if "RIFT_VAR_ROOT" not in os.environ:
+    os.environ['RIFT_VAR_ROOT'] = os.path.join(os.environ['RIFT_INSTALL'], 'var/rift/unittest')
+
 import rift.package.archive
-import rift.package.charm
 import rift.package.checksums
-import rift.package.config
 import rift.package.convert
 import rift.package.icon
 import rift.package.package
@@ -42,10 +44,11 @@ import rift.package.store
 from rift.tasklets.rwlaunchpad import export
 
 import gi
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('ProjectVnfdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 from gi.repository import (
-        RwVnfdYang,
-        VnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
+        ProjectVnfdYang as VnfdYang,
         )
 
 import utest_package
@@ -59,7 +62,7 @@ class TestExport(utest_package.PackageTestCase):
         self._vnfd_serializer = rift.package.convert.VnfdSerializer()
 
     def test_create_archive(self):
-        rw_vnfd_msg = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd(
+        rw_vnfd_msg = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd(
                 id="new_id", name="new_name", description="new_description"
                 )
         json_desc_str = self._rw_vnfd_serializer.to_json_string(rw_vnfd_msg)
@@ -80,11 +83,11 @@ class TestExport(utest_package.PackageTestCase):
             self.assertEqual(package.descriptor_msg, rw_vnfd_msg)
 
     def test_export_package(self):
-        rw_vnfd_msg = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd(
+        rw_vnfd_msg = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd(
                 id="new_id", name="new_name", description="new_description",
                 meta="THIS FIELD IS NOT IN REGULAR VNFD"
                 )
-        vnfd_msg = VnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd()
+        vnfd_msg = VnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd()
         vnfd_msg.from_dict(rw_vnfd_msg.as_dict(), ignore_missing_keys=True)
 
         self.assertNotEqual(rw_vnfd_msg, vnfd_msg)

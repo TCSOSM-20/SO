@@ -18,12 +18,15 @@
 # 
 
 import asyncio
+import gi
 import sys
 
 from gi.repository import (RwDts as rwdts)
 import rift.mano.dts as mano_dts
 
 import rift.downloader as url_downloader
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 import functools
 import concurrent
@@ -33,14 +36,15 @@ if sys.version_info < (3, 4, 4):
 
 class DownloadStatusPublisher(mano_dts.DtsHandler, url_downloader.DownloaderProtocol):
 
-    def __init__(self, log, dts, loop):
-        super().__init__(log, dts, loop)
+    def __init__(self, log, dts, loop, project):
+        super().__init__(log, dts, loop, project)
         self.tasks = {}
 
 
     def xpath(self, download_id=None):
-        return ("D,/rw-pkg-mgmt:download-jobs/rw-pkg-mgmt:job" +
-            ("[download-id='{}']".format(download_id) if download_id else ""))
+        return self._project.add_project("D,/rw-pkg-mgmt:download-jobs/rw-pkg-mgmt:job" +
+                                         ("[download-id={}]".
+                                          format(quoted_key(download_id)) if download_id else ""))
 
     @asyncio.coroutine
     def _dts_publisher(self, job):
@@ -54,6 +58,13 @@ class DownloadStatusPublisher(mano_dts.DtsHandler, url_downloader.DownloaderProt
                   flags=rwdts.Flag.PUBLISHER|rwdts.Flag.CACHE|rwdts.Flag.NO_PREP_READ)
 
         assert self.reg is not None
+
+    def dergister(self):
+        self._log.debug("De-registering download status for project {}".
+                        format(self.project.name))
+        if self.reg:
+            self.reg.deregister()
+            self.reg = None
    
     @staticmethod 
     def _async_func(func, fut):

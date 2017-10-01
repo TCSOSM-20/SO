@@ -17,4 +17,4 @@
 
 include(rift_plugin)
 
-rift_install_python_plugin(rwcal_vsphere rwcal_vsphere.py)
+rift_install_gobject_python_plugin(rwcal_vsphere rwcal_vsphere.py COMPONENT ${INSTALL_COMPONENT})

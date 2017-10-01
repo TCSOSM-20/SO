@@ -1,6 +1,6 @@
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -33,20 +33,33 @@ module rw-image-mgmt
     prefix "yang";
   }
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import rw-cli-ext {
     prefix "rwcli";
   }
 
   import rw-cloud {
-    prefix "rwcloud";
+    prefix "rw-cloud";
   }
 
   import rwcal {
     prefix "rwcal";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  import rw-project-mano {
+    prefix "rw-project-mano";
+  }
+
+  import mano-types {
+    prefix "mano-types";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
   }
 
   revision 2016-06-01 {
@@ -145,7 +158,7 @@ module rw-image-mgmt
     leaf cloud-account {
       description "The cloud account to upload the image to";
       type leafref {
-        path "/rwcloud:cloud/rwcloud:account/rwcloud:name";
+        path "../../../../rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
       }
     }
 
@@ -153,46 +166,46 @@ module rw-image-mgmt
     uses upload-task-status;
   }
 
-  container upload-jobs {
-    rwpb:msg-new UploadJobs;
-    description "Image upload jobs";
-    config false;
+  augment "/rw-project:project" {
+    container upload-jobs {
+      description "Image upload jobs";
+      config false;
 
-    list job {
-      rwpb:msg-new UploadJob;
-      key "id";
+      list job {
+        key "id";
 
-      leaf id {
-        description "Unique image upload job-id";
-        type uint32;
-      }
+        leaf id {
+          description "Unique image upload job-id";
+          type uint32;
+        }
 
-      leaf status {
-        description "Current job status";
-        type job-status;
-      }
+        leaf status {
+          description "Current job status";
+          type job-status;
+        }
 
-      leaf start-time {
-        description "The job start time (unix epoch)";
-        type uint32;
-      }
+        leaf start-time {
+          description "The job start time (unix epoch)";
+          type uint32;
+        }
 
-      leaf stop-time {
-        description "The job stop time (unix epoch)";
-        type uint32;
-      }
+        leaf stop-time {
+          description "The job stop time (unix epoch)";
+          type uint32;
+        }
 
-      list upload-tasks {
-        rwpb:msg-new UploadTask;
-        description "The upload tasks that are part of this job";
-        uses upload-task;
+        list upload-tasks {
+          description "The upload tasks that are part of this job";
+          uses upload-task;
+        }
       }
     }
   }
 
   rpc create-upload-job {
     input {
-      rwpb:msg-new CreateUploadJob;
+      
+      uses mano-types:rpc-project-name;
 
       choice image-selection {
         case onboarded-image {
@@ -230,13 +243,13 @@ module rw-image-mgmt
       leaf-list cloud-account {
         description "List of cloud accounts to upload the image to";
         type leafref {
-          path "/rwcloud:cloud/rwcloud:account/rwcloud:name";
+          path "/rw-project:project[rw-project:name=current()/.." +
+            "/project-name]/rw-cloud:cloud/rw-cloud:account/rw-cloud:name";
         }
       }
     }
 
     output {
-      rwpb:msg-new CreateUploadJobOutput;
       leaf job-id {
         description "The upload job-id to cancel";
         type uint32;
@@ -246,10 +259,11 @@ module rw-image-mgmt
 
   rpc cancel-upload-job {
     input {
-      rwpb:msg-new CancelUploadJob;
       leaf job-id {
         type uint32;
       }
+
+      uses mano-types:rpc-project-name;
     }
   }
 }

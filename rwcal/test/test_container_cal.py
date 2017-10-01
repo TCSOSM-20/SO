@@ -66,7 +66,7 @@ def main(argv=sys.argv[1:]):
 
     # The account object is not currently used, but it is required by the CAL
     # interface, so we create an empty object here to represent it.
-    account = RwcalYang.CloudAccount()
+    account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
     account.account_type = "lxc"
 
     # Make sure that any containers that were previously created have been
@@ -88,7 +88,7 @@ def main(argv=sys.argv[1:]):
     logger.info(args.rootfs)
 
     # Create an image that can be used to create VMs
-    image = RwcalYang.ImageInfoItem()
+    image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
     image.name = 'rift-master'
     image.lxc.size = '2.5G'
     image.lxc.template_path = template
@@ -99,7 +99,7 @@ def main(argv=sys.argv[1:]):
     # Create a VM
     vms = []
     for index in range(args.num_vms):
-        vm = RwcalYang.VMInfoItem()
+        vm = RwcalYang.YangData_RwProject_Project_VimResources_VminfoList()
         vm.vm_name = 'rift-s{}'.format(index + 1)
         vm.image_id = image.id
 
@@ -108,14 +108,14 @@ def main(argv=sys.argv[1:]):
         vms.append(vm)
 
     # Create the default and data networks
-    network = RwcalYang.NetworkInfoItem(network_name='virbr0')
+    network = RwcalYang.YangData_RwProject_Project_VimResources_NetworkinfoList(network_name='virbr0')
     cal.create_network(account, network)
 
     os.system('/usr/sbin/brctl show')
 
     # Create pairs of ports to connect the networks
     for index, vm in enumerate(vms):
-        port = RwcalYang.PortInfoItem()
+        port = RwcalYang.YangData_RwProject_Project_VimResources_PortinfoList()
         port.port_name = "eth0"
         port.network_id = network.network_id
         port.vm_id = vm.vm_id

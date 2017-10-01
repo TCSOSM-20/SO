@@ -13,6 +13,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
+
+import gi
+
 import rift.downloader as downloader
 from gi.repository import RwPkgMgmtYang
 
@@ -30,7 +33,7 @@ class PackageFileDownloader(downloader.UrlDownloader):
         }
 
     @classmethod
-    def from_rpc_input(cls, rpc_input, file_obj, proxy, log=None, auth=None):
+    def from_rpc_input(cls, rpc_input, file_obj, proxy, log=None, auth=None, project=None):
         """Convenience class to set up an instance form RPC data
         """
         url_downloader = cls(
@@ -43,7 +46,8 @@ class PackageFileDownloader(downloader.UrlDownloader):
             auth=auth,
             proxy=proxy,
             file_obj=file_obj,
-            log=log)
+            log=log,
+            project=project)
 
         return url_downloader
 
@@ -59,7 +63,8 @@ class PackageFileDownloader(downloader.UrlDownloader):
                  delete_on_fail=True,
                  decompress_on_fly=False,
                  auth=None,
-                 log=None):
+                 log=None,
+                 project=None):
         super().__init__(
                 url,
                 file_obj=file_obj,
@@ -74,10 +79,11 @@ class PackageFileDownloader(downloader.UrlDownloader):
         self.package_file_type = vnfd_file_type.lower() \
                 if package_type == 'VNFD' else nsd_file_type.lower()
         self.proxy = proxy
+        self.project = project
 
     def convert_to_yang(self):
 
-        job = RwPkgMgmtYang.DownloadJob.from_dict({
+        job = RwPkgMgmtYang.YangData_RwProject_Project_DownloadJobs_Job.from_dict({
                 "url": self.meta.url,
                 "download_id": self.meta.download_id,
                 "package_id": self.package_id,
@@ -113,11 +119,12 @@ class PackageFileDownloader(downloader.UrlDownloader):
                 self.package_type,
                 self.package_id,
                 self.package_path, 
-                self.package_file_type)
+                self.package_file_type,
+                self.project)
 
         except Exception as e:
             self.log.exception(e)
-            self.job.detail = str(e)
+            self.meta.detail = str(e)
             self.download_failed()
             return
 

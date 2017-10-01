@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# 
+#
 #   Copyright 2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,40 +37,74 @@ class NetworkUtils(object):
     @property
     def driver(self):
         return self._driver
-    
+
     def _parse_cp(self, cp_info):
         """
-        Parse the port_info dictionary returned by neutronclient 
+        Parse the port_info dictionary returned by neutronclient
         Arguments:
           cp_info: A dictionary object representing port attributes
 
         Returns:
-          Protobuf GI oject of type RwcalYang.VirtualLinkInfoParams_ConnectionPoints()
+          Protobuf GI oject of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList_ConnectionPoints()
         """
-        cp = RwcalYang.VirtualLinkInfoParams_ConnectionPoints()
+        cp = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList_ConnectionPoints()
         if 'name' in cp_info and cp_info['name']:
             cp.name = cp_info['name']
-            
+
         if 'id' in cp_info and cp_info['id']:
             cp.connection_point_id = cp_info['id']
-            
+
         if ('fixed_ips' in cp_info) and (len(cp_info['fixed_ips']) >= 1):
             if 'ip_address' in cp_info['fixed_ips'][0]:
                 cp.ip_address = cp_info['fixed_ips'][0]['ip_address']
-                
+
         if 'mac_address' in cp_info and cp_info['mac_address']:
             cp.mac_addr = cp_info['mac_address']
-            
+
         if cp_info['status'] == 'ACTIVE':
             cp.state = 'active'
         else:
             cp.state = 'inactive'
-            
+
         if 'network_id' in cp_info and cp_info['network_id']:
             cp.virtual_link_id = cp_info['network_id']
-            
+
         if 'device_id' in cp_info and cp_info['device_id']:
             cp.vdu_id = cp_info['device_id']
+
+        if 'allowed_address_pairs' in cp_info and cp_info['allowed_address_pairs']:
+            for vcp in cp_info['allowed_address_pairs']:
+                vcp_info = cp.virtual_cp_info.add()
+                if 'ip_address' in vcp and vcp['ip_address']:
+                    vcp_info.ip_address = vcp['ip_address']
+                if 'mac_address' in vcp and vcp['mac_address']:
+                    vcp_info.mac_address = vcp['mac_address']
+        return cp
+
+    def _parse_virtual_cp(self, cp_info):
+        """
+        Parse the port_info dictionary returned by neutronclient
+        Arguments:
+          cp_info: A dictionary object representing port attributes
+
+        Returns:
+          Protobuf GI oject of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList_VirtualConnectionPoints()
+        """
+        cp = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList_VirtualConnectionPoints()
+
+        if 'id' in cp_info and cp_info['id']:
+            cp.connection_point_id = cp_info['id']
+
+        if 'name' in cp_info and cp_info['name']:
+            cp.name = cp_info['name']
+
+        if ('fixed_ips' in cp_info) and (len(cp_info['fixed_ips']) >= 1):
+            if 'ip_address' in cp_info['fixed_ips'][0]:
+                cp.ip_address = cp_info['fixed_ips'][0]['ip_address']
+
+        if 'mac_address' in cp_info and cp_info['mac_address']:
+            cp.mac_address = cp_info['mac_address']
+
         return cp
 
     def parse_cloud_virtual_link_info(self, vlink_info, port_list, subnet):
@@ -79,11 +113,11 @@ class NetworkUtils(object):
 
         Arguments:
         vlink_info : A dictionary object return by neutronclient library listing network attributes
-        
+
         Returns:
-        Protobuf GI Object of type RwcalYang.VirtualLinkInfoParams()
+        Protobuf GI Object of type RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList()
         """
-        link = RwcalYang.VirtualLinkInfoParams()
+        link = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList()
         link.name  = vlink_info['name']
         if 'status' in vlink_info and vlink_info['status'] == 'ACTIVE':
             link.state = 'active'
@@ -92,8 +126,10 @@ class NetworkUtils(object):
 
         link.virtual_link_id = vlink_info['id']
         for port in port_list:
-            if ('device_owner' in port) and (port['device_owner'] == 'compute:None'):
+            if ('device_owner' in port) and (port['device_owner'] in ['compute:nova', 'compute:None']):
                 link.connection_points.append(self._parse_cp(port))
+            if ('device_owner' in port) and (port['device_owner'] == ''):
+                link.virtual_connection_points.append(self._parse_virtual_cp(port))
 
         if subnet is not None:
             link.subnet = subnet['cidr']
@@ -106,80 +142,100 @@ class NetworkUtils(object):
             link.provider_network.physical_network = vlink_info['provider:physical_network'].upper()
 
         return link
-    
+
     def setup_vdu_networking(self, vdu_params):
         """
         This function validates the networking/connectivity setup.
 
         Arguments:
-          vdu_params: object of RwcalYang.VDUInitParams()
+          vdu_params: object of RwcalYang.YangData_RwProject_Project_VduInitParams()
 
         Returns:
           A list of port_ids and network_ids for VDU
-  
+
         """
         port_args = list()
         network_ids = list()
         add_mgmt_net = False
-        for cp in vdu_params.connection_points:
-            if cp.virtual_link_id == self.driver._mgmt_network_id:
+
+        # Sorting Connection Points by given 'port_order'. If 'port_order' is not given then sorting by name.
+        # Please note that the GI Object (vdu_params.connection_points) has been converted into a dictionary object for sorting purposes.
+
+        sorted_connection_points = []
+        if vdu_params.has_field('connection_points'):
+            sorted_connection_points = sorted(vdu_params.as_dict().get('connection_points'), key=lambda k: ("port_order" not in k,
+                                                                                                            k.get("port_order", None), k['name']))
+
+        if vdu_params.mgmt_network is not None:
+            # Setting the mgmt network as found in vdu params.
+            mgmt_network = self.driver.neutron_drv.network_get(network_name=vdu_params.mgmt_network)['id']
+        else:
+            mgmt_network = self.driver._mgmt_network_id
+
+        for cp in sorted_connection_points:
+            if cp['virtual_link_id'] == mgmt_network:
                 ### Remove mgmt_network_id from net_ids
                 add_mgmt_net = True
             port_args.append(self._create_cp_args(cp))
-
         if not add_mgmt_net:
-            network_ids.append(self.driver._mgmt_network_id)
-            
+            network_ids.append(mgmt_network)
+
         ### Create ports and collect port ids
         if port_args:
             port_ids = self.driver.neutron_multi_port_create(port_args)
         else:
             port_ids = list()
-
         return port_ids, network_ids
-    
-        
+
+
     def _create_cp_args(self, cp):
         """
         Creates a request dictionary for port create call
         Arguments:
-           cp: Object of RwcalYang.VDUInitParams_ConnectionPoints() 
+           cp: Object of Python Dictionary
         Returns:
            dict() of request params
         """
         args = dict()
-        args['name'] = cp.name
-        args['network_id'] = cp.virtual_link_id
+        args['name'] = cp['name']
+
+        args['network_id'] = cp['virtual_link_id']
         args['admin_state_up'] = True
 
-        if cp.type_yang == 'VIRTIO' or cp.type_yang == 'E1000':
+        if cp['type_yang'] in ['VIRTIO', 'E1000', 'VPORT']:
             args['binding:vnic_type'] = 'normal'
-        elif cp.type_yang == 'SR_IOV':
+        elif cp['type_yang'] == 'SR_IOV':
             args['binding:vnic_type'] = 'direct'
         else:
-            raise NotImplementedError("Port Type: %s not supported" %(cp.type_yang))
+            raise NotImplementedError("Port Type: %s not supported" %(cp['type_yang']))
 
         try:
-            if cp.static_ip_address:
-                args["fixed_ips"] = [{"ip_address" : cp.static_ip_address}]
+            if cp['static_ip_address']:
+                args["fixed_ips"] = [{"ip_address" : cp['static_ip_address']}]
         except Exception as e:
             pass
 
         if 'port_security_enabled' in cp:
-            args['port_security_enabled'] = cp.port_security_enabled
+            args['port_security_enabled'] = cp['port_security_enabled']
 
-        if cp.has_field('security_group'):
+        if 'security_group' in cp:
             if self.driver._neutron_security_groups:
                 gid = self.driver._neutron_security_groups[0]['id']
                 args['security_groups'] = [ gid ]
+
+        if 'virtual_cps' in cp:
+            args['allowed_address_pairs'] = [ {'ip_address': vcp['ip_address'],
+                                               'mac_address': vcp['mac_address']}
+                                              for vcp in cp['virtual_cps'] ]
+
         return args
 
     def make_virtual_link_args(self, link_params):
         """
         Function to create kwargs required for neutron_network_create API
-        
+
         Arguments:
-         link_params: Protobuf GI object RwcalYang.VirtualLinkReqParams()
+         link_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams()
 
         Returns:
           A kwargs dictionary for network operation
@@ -203,9 +259,9 @@ class NetworkUtils(object):
     def make_subnet_args(self, link_params, network_id):
         """
         Function to create kwargs required for neutron_subnet_create API
-        
+
         Arguments:
-         link_params: Protobuf GI object RwcalYang.VirtualLinkReqParams()
+         link_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams()
 
         Returns:
           A kwargs dictionary for subnet operation
@@ -229,9 +285,9 @@ class NetworkUtils(object):
                                link_params.ip_profile_params.subnet_prefix_pool,
                                link_params.name)
                 raise NeutronException.NotFound("SubnetPool with name %s not found"%(link_params.ip_profile_params.subnet_prefix_pool))
-            
+
             kwargs['subnetpool_id'] = pools[0]
-            
+
         elif link_params.has_field('subnet'):
             kwargs['cidr'] = link_params.subnet
         else:
@@ -254,3 +310,35 @@ class NetworkUtils(object):
             kwargs['gateway_ip'] = link_params.ip_profile_params.gateway_address
 
         return kwargs
+
+    def prepare_virtual_link(self, link_params, network_id):
+        """
+        Function to create additional resources in the network during
+        network-creation process. It involves following steps
+           - Create subnets
+           - Create any virtual ports in network
+
+        Arguments:
+         link_params: Protobuf GI object RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams()
+         network_id: string
+
+        Returns:
+          None
+        """
+        ### Create subnet
+        kwargs = self.make_subnet_args(link_params, network_id)
+        self.driver.neutron_subnet_create(**kwargs)
+
+        ### Create Virtual connection point
+        if link_params.has_field('virtual_cps'):
+            port_args = list()
+            for vcp in link_params.virtual_cps:
+                cp = RwcalYang.YangData_RwProject_Project_VduInitParams_ConnectionPoints()
+                cp.from_dict({k:v for k,v in vcp.as_dict().items()
+                              if k in ['name','security_group', 'port_security_enabled', 'static_ip_address', 'type_yang']})
+                cp.virtual_link_id = network_id
+                port_args.append(self._create_cp_args(cp.as_dict()))
+            if port_args:
+                ### Create ports
+                self.driver.neutron_multi_port_create(port_args)
+        return

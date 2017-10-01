@@ -224,7 +224,7 @@ def adjust_xml_file(infile, outfile, begin_marker, end_marker):
                     outf.write(line)
 
 if __name__ == "__main__":
-    model = RwYang.Model.create_libncx()
+    model = RwYang.Model.create_libyang()
     model.load_schema_ypbc(RwTl.get_schema())
     # create logger 
     logger = logging.getLogger(__file__)

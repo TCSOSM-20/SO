@@ -101,12 +101,7 @@ class ToscaCompute(ManoResource):
                        format(self.name, tosca_props))
         vdu_props = {}
         for key, value in tosca_props.items():
-            if key == 'cloud_init':
-                vdu_props['cloud-init'] = value
-            elif key == 'cloud-init-file':
-                self._cloud_init = "../cloud_init/{}".format(value)
-            else:
-                vdu_props[key] = value
+            vdu_props[key] = value
 
         if 'name' not in vdu_props:
             vdu_props['name'] = self.name
@@ -290,8 +285,6 @@ class ToscaCompute(ManoResource):
             self.properties['guest-epa'] = get_guest_epa(tosca_caps['numa_extension'], tosca_caps['nfv_compute'])
         if 'monitoring_param' in tosca_caps:
             self._monitor_param.append(get_monitor_param(tosca_caps['monitoring_param'], '1'))
-        if 'monitoring_param_1' in tosca_caps:
-            self._monitor_param.append(get_monitor_param(tosca_caps['monitoring_param_1'], '2'))
         if 'mgmt_interface' in tosca_caps:
             self._mgmt_interface = get_mgmt_interface(tosca_caps['mgmt_interface'])
         if len(self._mgmt_interface) > 0:
@@ -303,7 +296,20 @@ class ToscaCompute(ManoResource):
                     prop['port'] = self._mgmt_interface['dashboard-params']['port']
                 self._http_endpoint = prop
 
+        mon_idx = 2
+        monitoring_param_name = 'monitoring_param_1'
+        while True:
+            if monitoring_param_name in tosca_caps:
+                self._monitor_param.append(get_monitor_param(tosca_caps[monitoring_param_name], str(mon_idx)))
+                mon_idx += 1
+                monitoring_param_name = 'monitoring_param_{}'.format(mon_idx)
+            else:
+                break
 
+        # THis is a quick hack to remove monitor params without name
+        for mon_param in list(self._monitor_param):
+            if 'name' not in mon_param:
+                self._monitor_param.remove(mon_param)
 
     def handle_artifacts(self):
         if self.artifacts is None:
@@ -343,8 +349,8 @@ class ToscaCompute(ManoResource):
         self.artifacts = arts
 
     def handle_interfaces(self):
-        # Currently, we support only create operation
-        operations_deploy_sequence = ['create']
+        # Currently, we support the following:
+        operations_deploy_sequence = ['create', 'configure']
 
         operations = ManoResource._get_all_operations(self.nodetemplate)
 
@@ -357,7 +363,11 @@ class ToscaCompute(ManoResource):
                     self.operations[operation.name] = operation.implementation
                     for name, details in self.artifacts.items():
                         if name == operation.implementation:
-                            self._image = details['file']
+                            if operation.name == 'create':
+                                self._image = details['file']
+                            elif operation.name == 'configure':
+                                self._cloud_init = details['file']
+                            break
                 except KeyError as e:
                     self.log.exception(e)
         return None
@@ -411,6 +421,9 @@ class ToscaCompute(ManoResource):
             self.properties['image'] = os.path.basename(self._image)
             if self._image_cksum:
                 self.properties['image-checksum'] = self._image_cksum
+
+        if self._cloud_init:
+            self.properties['cloud-init-file'] = os.path.basename(self._cloud_init)
 
         for key in ToscaCompute.IGNORE_PROPS:
             if key in self.properties:

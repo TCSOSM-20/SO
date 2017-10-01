@@ -156,8 +156,10 @@ class SdnOdlPlugin(GObject.Object, RwSdn.Topology):
 
            @param account - a SDN account
         """
+        classifier_list = list()
         classifier_name = self.sdnodl.create_sfc_classifier(account,vnffg_classifier)
-        return classifier_name 
+        classifier_list.append(classifier_name)
+        return classifier_list 
 
     @rwstatus(ret_on_failure=[None])
     def do_terminate_vnffg_classifier(self, account, vnffg_classifier_name):
@@ -336,7 +338,7 @@ class SdnOdl(object):
         """
             Validate the SDN account credentials by accessing the rest API using the provided credentials
         """
-        status = RwsdnalYang.SdnConnectionStatus()
+        status = RwsdnalYang.YangData_RwProject_Project_SdnAccounts_SdnAccountList_ConnectionStatus()
         url = '{}/{}'.format(account.odl.url,"restconf")
         try:
             r=requests.get(url,auth=(account.odl.username,account.odl.password))
@@ -934,7 +936,7 @@ class SdnOdl(object):
         self.delete_all_sf(account)
 
     def _fill_rsp_list(self,sfc_rsp_list,sff_list):
-        vnffg_rsps = RwsdnalYang.VNFFGRenderedPaths()
+        vnffg_rsps = RwsdnalYang.YangData_RwProject_Project_VnffgRenderedPaths()
         for sfc_rsp in sfc_rsp_list['rendered-service-paths']['rendered-service-path']:
             rsp = vnffg_rsps.vnffg_rendered_path.add()
             rsp.name = sfc_rsp['name']

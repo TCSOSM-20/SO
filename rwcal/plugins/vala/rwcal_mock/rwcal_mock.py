@@ -94,7 +94,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
                 )
             )
 
-        account = RwcalYang.CloudAccount()
+        account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         account.name = 'mock_account'
         account.account_type = 'mock'
         account.mock.username = 'mock_user'
@@ -113,7 +113,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
         Returns:
             Validation Code and Details String
         """
-        status = RwcalYang.CloudConnectionStatus(
+        status = RwcalYang.YangData_Rwcal_ConnectionStatus(
                 status="success",
                 details=""
                 )
@@ -223,9 +223,9 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
         """
         Return a list of the names of all available images.
         """
-        boxed_image_list = RwcalYang.VimResources()
+        boxed_image_list = RwcalYang.YangData_RwProject_Project_VimResources()
         for image in self.resources[account.name].images.values():
-            image_entry = RwcalYang.ImageInfoItem()
+            image_entry = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
             image_entry.id = image.id
             image_entry.name = image.name
             if image.has_field('checksum'):
@@ -326,9 +326,9 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
         """
         Return a list of flavors
         """
-        vim_resources = RwcalYang.VimResources()
+        vim_resources = RwcalYang.YangData_RwProject_Project_VimResources()
         for flavor in self.resources[account.name].flavors.values():
-            f = RwcalYang.FlavorInfoItem()
+            f = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
             f.copy_from(flavor)
             vim_resources.flavorinfo_list.append(f)
         logger.debug("Returning list of flavor-info of size: %d", len(vim_resources.flavorinfo_list))
@@ -390,7 +390,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
         link_list = []
         ### Add virtual links
         #for i in range(1):
-        #    vlink = RwcalYang.VirtualLinkReqParams()
+        #    vlink = RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams()
         #    vlink.name = 'link-'+str(i)
         #    vlink.subnet = '10.0.0.0/24'
         #    rs, vlink_id = self.do_create_virtual_link(account, vlink)
@@ -400,7 +400,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
 
         #### Add VDUs
         #for i in range(8):
-        #    vdu = RwcalYang.VDUInitParams()
+        #    vdu = RwcalYang.YangData_RwProject_Project_VduInitParams()
         #    vdu.name = 'vdu-'+str(i)
         #    vdu.node_id = str(i)
         #    vdu.image_id = self.get_uuid('image-'+str(i))
@@ -417,7 +417,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
         #    logger.debug("Creating static VDU with name: %s", vdu.name)
 
         for i in range(2):
-            flavor = RwcalYang.FlavorInfoItem()
+            flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList()
             flavor.name = 'flavor-'+str(i)
             flavor.vm_flavor.vcpu_count = 4
             flavor.vm_flavor.memory_mb = 4096*2
@@ -425,28 +425,28 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
             rc, flavor_id = self.do_create_flavor(account, flavor)
 
         for i in range(2):
-            image = RwcalYang.ImageInfoItem()
+            image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
             image.name = "rwimage"
             image.id = self.get_uuid('image-'+str(i))
             image.checksum = self.get_uuid('rwimage'+str(i))
             image.location = "/dev/null"
             rc, image_id = self.do_create_image(account, image)
 
-        image = RwcalYang.ImageInfoItem()
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         image.name = "Fedora-x86_64-20-20131211.1-sda.qcow2"
         image.id = self.get_uuid(image.name)
         image.checksum = self.get_uuid(image.name)
         image.location = "/dev/null"
         rc, image_id = self.do_create_image(account, image)
 
-        image = RwcalYang.ImageInfoItem()
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         image.name = "Fedora-x86_64-20-20131211.1-sda-ping.qcow2"
         image.id = self.get_uuid(image.name)
         image.checksum = "a6ffaa77f949a9e4ebb082c6147187cf"#self.get_uuid(image.name)
         image.location = "/dev/null"
         rc, image_id = self.do_create_image(account, image)
 
-        image = RwcalYang.ImageInfoItem()
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         image.name = "Fedora-x86_64-20-20131211.1-sda-pong.qcow2"
         image.id = self.get_uuid(image.name)
         image.checksum = "977484d95575f80ef8399c9cf1d45ebd"#self.get_uuid(image.name)
@@ -457,7 +457,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
     @rwcalstatus(ret_on_failure=[""])
     def do_create_virtual_link(self, account, link_params):
         vlink_id = self.get_uuid("%s_%s" % (link_params.name, len(self.resources[account.name].vlinks)))
-        vlink = RwcalYang.VirtualLinkInfoParams()
+        vlink = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList()
         vlink.name = link_params.name
         vlink.state = 'active'
         vlink.virtual_link_id = vlink_id
@@ -483,11 +483,15 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
         logger.debug('Returning virtual-link-info for : {}'.format(link_id))
         return vlink
 
+    @rwstatus(ret_on_failure=[None])
+    def do_get_virtual_link_by_name(self, account, link_name):
+        raise NotImplementedError()
+
     @rwstatus(ret_on_failure=[""])
     def do_get_virtual_link_list(self, account):
-        vnf_resources = RwcalYang.VNFResources()
+        vnf_resources = RwcalYang.YangData_RwProject_Project_VnfResources()
         for r in self.resources[account.name].vlinks.values():
-            vlink = RwcalYang.VirtualLinkInfoParams()
+            vlink = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList()
             vlink.copy_from(r)
             vnf_resources.virtual_link_info_list.append(vlink)
         logger.debug("Returning list of virtual-link-info of size: %d", len(vnf_resources.virtual_link_info_list))
@@ -496,7 +500,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
     @rwcalstatus(ret_on_failure=[""])
     def do_create_vdu(self, account, vdu_init):
         vdu_id = self.get_uuid("%s_%s" % (vdu_init.name, len(self.resources[account.name].vdus)))
-        vdu = RwcalYang.VDUInfoParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList()
         vdu.vdu_id = vdu_id
         vdu.name = vdu_init.name
         vdu.node_id = vdu_init.node_id
@@ -566,7 +570,7 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
             p.virtual_link_id = c.virtual_link_id
             # Need to add this connection_point to virtual link
             vlink = self.resources[account.name].vlinks[c.virtual_link_id]
-            aa = RwcalYang.VirtualLinkInfoParams_ConnectionPoints()
+            aa = RwcalYang.YangData_RwProject_Project_VnfResources_VirtualLinkInfoList_ConnectionPoints()
             aa.connection_point_id = p.connection_point_id
             aa.name = p.name
             aa.virtual_link_id = vlink.virtual_link_id
@@ -598,17 +602,19 @@ class MockPlugin(GObject.Object, RwCal.Cloud):
 
         logger.debug('deleted vdu: {}'.format(vdu_id))
 
-    @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    @rwcalstatus(ret_on_failure=[None])
+    def do_get_vdu(self, account, vdu_id, mgmt_network):
+        # mgmt_network - Added due to need for mgmt network.
+        # TO DO: Investigate the need here.
         vdu = self.resources[account.name].vdus[vdu_id]
         logger.debug('Returning vdu-info for : {}'.format(vdu_id))
         return vdu.copy()
 
-    @rwstatus(ret_on_failure=[""])
+    @rwcalstatus(ret_on_failure=[None])
     def do_get_vdu_list(self, account):
-        vnf_resources = RwcalYang.VNFResources()
+        vnf_resources = RwcalYang.YangData_RwProject_Project_VnfResources()
         for r in self.resources[account.name].vdus.values():
-            vdu = RwcalYang.VDUInfoParams()
+            vdu = RwcalYang.YangData_RwProject_Project_VnfResources_VduInfoList()
             vdu.copy_from(r)
             vnf_resources.vdu_info_list.append(vdu)
         logger.debug("Returning list of vdu-info of size: %d", len(vnf_resources.vdu_info_list))

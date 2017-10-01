@@ -37,6 +37,9 @@ test_cmd=""
 # Parse commonline argument and set test variables
 parse_args "${@}"
 
+# We want to run in expanded mode
+collapsed_mode=false
+
 # Construct the test command based on the test variables
 construct_test_command
 
@@ -44,7 +47,10 @@ construct_test_command
 cd "${PYTEST_DIR}"
 
 eval ${test_cmd}
+test_rc=$?
 
 # display scaling log
 scaling_log="${RIFT_ARTIFACTS}/scaling_${AUTO_TASK_ID}.log"
 cat ${scaling_log}
+
+exit $test_rc

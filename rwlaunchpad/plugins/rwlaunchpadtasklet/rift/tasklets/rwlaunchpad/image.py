@@ -43,7 +43,7 @@ class ImageUploader(object):
 
         self._client = client.UploadJobClient(self._log, self._loop, self._dts)
 
-    def upload_image(self, image_name, image_checksum, image_hdl):
+    def upload_image(self, image_name, image_checksum, image_hdl, set_image_property=None):
         endpoint = "http://127.0.0.1:9292"
         glance_client = glanceclient.Client('1', endpoint, token="asdf")
 
@@ -60,16 +60,15 @@ class ImageUploader(object):
 
             image = glance_client.images.create(name=image_name, data=image_hdl, is_public="False",
                                                 disk_format="qcow2", container_format="bare",
-                                                checksum=image_checksum)
+                                                checksum=image_checksum, properties=set_image_property)
             self._log.debug('Image upload complete: %s', image)
         except Exception as e:
             raise ImageUploadError("Failed to upload image to catalog: %s" % str(e)) from e
 
-    def upload_image_to_cloud_accounts(self, image_name, image_checksum, cloud_accounts=None):
+    def upload_image_to_cloud_accounts(self, image_name, image_checksum, project, cloud_accounts=None):
         self._log.debug("uploading image %s to all cloud accounts", image_name)
-        upload_job = self._client.create_job_threadsafe(image_name, image_checksum, cloud_accounts)
+        upload_job = self._client.create_job_threadsafe(image_name, image_checksum, project, cloud_accounts)
         try:
             upload_job.wait_until_complete_threadsafe()
         except client.UploadJobError as e:
             raise ImageUploadError("Failed to upload image " + image_name + " to cloud accounts") from e
-

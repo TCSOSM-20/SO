@@ -24,7 +24,7 @@ set(TASKLET_NAME rwmonparam)
 ##
 # This function creates an install target for the plugin artifacts
 ##
-rift_install_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py)
+rift_install_gobject_python_plugin(${TASKLET_NAME} ${TASKLET_NAME}.py COMPONENT ${INSTALL_COMPONENT})
 
 # Workaround RIFT-6485 - rpmbuild defaults to python2 for
 # anything not in a site-packages directory so we have to
@@ -37,5 +37,5 @@ rift_python_install_tree(
     rift/tasklets/${TASKLET_NAME}/nsr_core.py
     rift/tasklets/${TASKLET_NAME}/vnfr_core.py
     rift/tasklets/${TASKLET_NAME}/${TASKLET_NAME}.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY)

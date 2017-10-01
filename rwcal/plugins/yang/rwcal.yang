@@ -1,7 +1,7 @@
 
 /*
  * 
- *   Copyright 2016 RIFT.IO Inc
+ *   Copyright 2016-2017 RIFT.IO Inc
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,10 +27,6 @@ module rwcal
     prefix rwbase;
   }
 
-  import rw-pb-ext {
-    prefix "rwpb";
-  }
-
   import rw-yang-types {
     prefix "rwt";
   }
@@ -43,12 +39,26 @@ module rwcal
     prefix "manotypes";
   }
 
+  import ietf-inet-types {
+    prefix "inet";
+  }
+
+  import rw-project {
+    prefix "rw-project";
+  }
+
+  revision 2017-02-08 {
+    description
+      "Update model to support projects.";
+  }
+
   revision 2014-12-30 {
     description
         "Initial revision.";
     reference
         "RIFT RWCAL cloud data";
   }
+
 
 
   typedef connection-status {
@@ -88,12 +98,44 @@ module rwcal
   grouping connection-status {
     container connection-status {
       config false;
-      rwpb:msg-new CloudConnectionStatus;
       leaf status {
         type connection-status;
       }
       leaf details {
         type string;
+      }
+    }
+  }
+
+  grouping custom-meta-data {
+    description "Grouping for instance-specific meta data";
+    list custom-meta-data {
+      description
+          "List of meta-data to be associated with the instance";
+      key "name";
+      leaf name {
+        description "Name of the meta-data parameter";
+        type string;
+      }
+
+      leaf data-type {
+        description "Data-type the meta-data parameter";
+        type manotypes:meta-data-type;
+        default "STRING";
+      }
+
+      leaf value {
+        description "Value of the meta-data parameter";
+        type string;
+      }
+
+      leaf destination {
+        description "Type of input parameter";
+        type enumeration {
+            enum "CLOUD_INIT";
+            enum "CLOUD_METADATA";
+        }
+        default "CLOUD_METADATA";
       }
     }
   }
@@ -203,7 +245,6 @@ module rwcal
 
         leaf mgmt-network {
           type string;
-          mandatory true;
         }
 
         leaf plugin-name {
@@ -352,78 +393,106 @@ module rwcal
           }
         }
       }
+
+      container prop_cloud1 {
+        leaf host {
+          description "This is a single-host cloud. IP address of host";
+          type string;
+          mandatory true;
+        }
+        leaf username {
+          description "Username to access host";
+          type string;
+        }
+        leaf password {
+          description "Password for user";
+          type string;
+        }
+        leaf mgmt-network {
+          description "Name of bridge used for management access to VMs on cloud";
+          type string;
+          mandatory true;
+        }
+        leaf public-ip-pool {
+          description "Public IP pool for VMs";
+          type string;
+          mandatory true;
+        }
+        leaf wan-interface {
+          description "WAN interface name";
+          type string;
+          mandatory true;
+        }
+        leaf firewall {
+          description "Firewall services";
+          type string;
+        }
+        leaf plugin-name {
+          type string;
+          default "rwcal_brocade";
+        }
+        leaf dynamic-flavor-support {
+          type boolean;
+          default true;
+        }
+      }
     }
   }
-  
+
+  grouping instance-timeout {
+    leaf vdu-instance-timeout {
+      description "VDU instantiation timeout";
+      type uint64;
+      default 300;
+    }
+  }
+
   grouping vm-info-item {
     leaf vm-name {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 255;
       type string;
     }
 
     leaf vm-size {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf vm-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf flavor-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf image-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf state {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf availability-zone {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf tenant-name {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf host-name {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf management-ip {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf public-ip {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf allocate-public-address {
-      rwpb:field-inline "true";
       description "If this VM should allocate a floating public IP address";
       type boolean;
       default false;
@@ -433,8 +502,6 @@ module rwcal
       key "ip-address";
 
       leaf ip-address {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
         type string;
       }
     }
@@ -443,8 +510,6 @@ module rwcal
       key "ip-address";
 
       leaf ip-address {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
         type string;
       }
     }
@@ -452,8 +517,6 @@ module rwcal
     list port-list {
       key "port-id";
       leaf port-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
         type string;
       }
     }
@@ -461,8 +524,6 @@ module rwcal
     list network-list {
       key "network-id";
       leaf network-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
         type string;
       }
     }
@@ -530,13 +591,13 @@ module rwcal
 
     leaf disk_format {
       description "Format of the Disk";
-      type disk-format;
+      type string;
       default "qcow2";
     }
 
     leaf container_format {
       description "Format of the container";
-      type container-format;
+      type string;
       default "bare";
     }
 
@@ -554,8 +615,18 @@ module rwcal
     container user-tags {
       description "User tags associated with Image";
       leaf checksum {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
+        type string;
+      }
+    }
+
+    list properties {
+      key "name";
+      leaf name {
+        description "Name of the image property";
+        type string;
+      }
+      leaf property_value {
+        description "Value of the image property";
         type string;
       }
     }
@@ -563,20 +634,14 @@ module rwcal
 
   grouping network-info-item {
     leaf network-name {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf network-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf subnet {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
@@ -585,38 +650,26 @@ module rwcal
 
   grouping port-info-item {
     leaf port-name {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 255;
       type string;
     }
 
     leaf port-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf port-state {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf network-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf ip-address {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf vm-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
@@ -639,163 +692,156 @@ module rwcal
     }
   }
 
-  container cloud-accounts {
-    list cloud-account-list {
-      rwpb:msg-new CloudAccount;
-      key "name";
+  augment "/rw-project:project" {
+    container cloud-accounts {
+      list cloud-account-list {
+        key "name";
 
-      leaf name {
-        type string;
+        leaf name {
+          type string;
+        }
+        uses provider-auth;
+        uses instance-timeout;
       }
-      uses provider-auth;
     }
   }
 
-  container vim-resources {
-    rwpb:msg-new VimResources;
-    config false;
-
-    list vminfo-list {
-      rwpb:msg-new VMInfoItem;
+  augment "/rw-project:project" {
+    container vim-resources {
       config false;
-      key "vm-id";
 
-      uses vm-info-item;
-    }
+      list vminfo-list {
+        config false;
+        key "vm-id";
 
-    list imageinfo-list {
-      rwpb:msg-new ImageInfoItem;
-      config false;
-      key "id";
-
-      uses image-info-item;
-    }
-
-    list tenantinfo-list {
-      rwpb:msg-new TenantInfoItem;
-      config false;
-      key "tenant-id";
-
-      leaf tenant-name {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
+        uses vm-info-item;
       }
 
-      leaf tenant-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
-      }
-    }
+      list imageinfo-list {
+        config false;
+        key "id";
 
-    list userinfo-list {
-      rwpb:msg-new UserInfoItem;
-      config false;
-      key "user-id";
-
-      leaf user-name{
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
+        uses image-info-item;
       }
 
-      leaf user-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
-      }
-    }
+      list tenantinfo-list {
+        config false;
+        key "tenant-id";
 
-    list roleinfo-list {
-      rwpb:msg-new RoleInfoItem;
-      config false;
-      key "role-id";
+        leaf tenant-name {
+          type string;
+        }
 
-      leaf role-name {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
+        leaf tenant-id {
+          type string;
+        }
       }
 
-      leaf role-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
-      }
-    }
+      list userinfo-list {
+        config false;
+        key "user-id";
 
-    list hostinfo-list {
-      rwpb:msg-new HostInfoItem;
-      config false;
-      key "host-id";
+        leaf user-name{
+          type string;
+        }
 
-      leaf host-name {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
+        leaf user-id {
+          type string;
+        }
       }
 
-      leaf host-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
-      }
-    }
+      list roleinfo-list {
+        config false;
+        key "role-id";
 
-    list networkinfo-list {
-      rwpb:msg-new NetworkInfoItem;
-      config false;
-      key "network-id";
+        leaf role-name {
+          type string;
+        }
 
-      uses network-info-item;
-    }
-
-    list portinfo-list {
-      rwpb:msg-new PortInfoItem;
-      config false;
-      key "port-id";
-
-      uses port-info-item;
-    }
-
-    list flavorinfo-list {
-      rwpb:msg-new FlavorInfoItem;
-      config false;
-      key "id";
-
-      leaf id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
-        type string;
+        leaf role-id {
+          type string;
+        }
       }
 
-      leaf name {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 255;
-        type string;
+      list hostinfo-list {
+        config false;
+        key "host-id";
+
+        leaf host-name {
+          type string;
+        }
+
+        leaf host-id {
+          type string;
+        }
       }
 
-      uses manotypes:vm-flavor;
-      uses manotypes:guest-epa;
-      uses manotypes:vswitch-epa;
-      uses manotypes:hypervisor-epa;
-      uses manotypes:host-epa;
-      uses manotypes:placement-group-input;
+      list networkinfo-list {
+        config false;
+        key "network-id";
+
+        uses network-info-item;
+      }
+
+      list portinfo-list {
+        config false;
+        key "port-id";
+
+        uses port-info-item;
+      }
+
+      list flavorinfo-list {
+        config false;
+        key "id";
+
+        leaf id {
+          type string;
+        }
+
+        leaf name {
+          type string;
+        }
+
+        uses manotypes:vm-flavor;
+        uses manotypes:guest-epa;
+        uses manotypes:vswitch-epa;
+        uses manotypes:hypervisor-epa;
+        uses manotypes:host-epa;
+        uses manotypes:placement-group-input;
+      }
     }
   }
+  
+  grouping virtual-cp-info-params {
+    
+    leaf connection-point-id {
+      description "Connection point id";
+      type string;
+    }
 
+    leaf name {
+      description "Name of virtual connection point";
+      type string;
+    }
+
+    leaf ip-address {
+      description "IP address of the virtual connection point";
+      type inet:ip-address;
+    }
+
+    leaf mac-address {
+        description "MAC address of the virtual connection point";
+        type string;
+    }
+  }
+  
   grouping virtual-link-create-params {
     leaf name {
       description "Name of the Virtual-Link";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 255;
       type string;
     }
 
     leaf subnet {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
     leaf associate-public-ip {
@@ -809,17 +855,46 @@ module rwcal
       type string;
     }
 
+    list virtual-cps {
+      key "name";
+
+      leaf name {
+        description "Name of virtual connection point";
+        type string;
+      }
+
+      leaf type {
+        description "Type of the Virtual Connection Point";
+        type manotypes:connection-point-type;
+      }
+      
+      leaf security-group {
+        description "Name of the security group";
+        type string;
+      }
+      
+      leaf port-security-enabled {
+        description "Enables the port security";
+        type boolean;
+      }
+
+      leaf static-ip-address {
+        description "Static IP address for the connection point";
+        type inet:ip-address;
+      }
+    }
+    
     uses manotypes:provider-network;
     uses manotypes:ip-profile-info;
   }
 
 
-  container virtual-link-req-params {
-    description "This object defines the parameters required to create a virtual-link";
-    rwpb:msg-new VirtualLinkReqParams;
-    uses virtual-link-create-params;
+  augment "/rw-project:project" {
+    container virtual-link-req-params {
+      description "This object defines the parameters required to create a virtual-link";
+      uses virtual-link-create-params;
+    }
   }
-
 
   grouping connection-point-type {
     leaf type {
@@ -830,7 +905,8 @@ module rwcal
              SR-IOV          : Use SR-IOV interface.
              E1000           : Emulate E1000 interface.
              RTL8139         : Emulate RTL8139 interface.
-             PCNET           : Emulate PCNET interface.";
+             PCNET           : Emulate PCNET interface.
+             VPORT           : Virtual Port.";
       type enumeration {
         enum VIRTIO;
         enum PCI-PASSTHROUGH;
@@ -838,6 +914,7 @@ module rwcal
         enum E1000;
         enum RTL8139;
         enum PCNET;
+        enum VPORT;
       }
       default "VIRTIO";
     }
@@ -847,8 +924,6 @@ module rwcal
   grouping vdu-create-params {
     leaf name {
       description "Name of the VDU";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 255;
       type string;
     }
 
@@ -860,7 +935,7 @@ module rwcal
            pass as metadata during the VM creation.";
       type string;
     }
-
+		
     uses manotypes:vm-flavor;
     uses manotypes:guest-epa;
     uses manotypes:vswitch-epa;
@@ -868,37 +943,27 @@ module rwcal
     uses manotypes:host-epa;
 
     leaf node-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf flavor-id {
       description "CAL assigned flavor-id for the VDU image";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf image-id {
       description "CAL assigned image-id for the VDU image";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf image-name {
       description "Image name which can be used to lookup the image-id";
       type string;
-      rwpb:field-inline "true";
-      rwpb:field-string-max 256;
     }
 
     leaf image-checksum {
       description "Image md5sum checksum used in combination with image name to lookup image-id ";
       type string;
-      rwpb:field-inline "true";
-      rwpb:field-string-max 32;
     }
 
     uses manotypes:placement-group-input;
@@ -931,11 +996,27 @@ module rwcal
         description "Name of the security group";
         type string;
       }
+      
       leaf port-security-enabled {
         description "Enables the port security";
         type boolean;
       }
 
+      leaf static-ip-address {
+        description "Static IP address for the connection point";
+        type inet:ip-address;
+      }
+
+      leaf port-order {
+        description "Port Sequence Order";
+        type uint32;
+      }
+
+      list virtual_cps {
+        key "name";
+        uses virtual-cp-info-params;
+      }
+      
       uses connection-point-type;
     }
 
@@ -963,7 +1044,15 @@ module rwcal
       }
     }
  
-    uses manotypes:supplemental-boot-data;
+    container supplemental-boot-data {
+      uses manotypes:config-file;
+      leaf boot-data-drive {
+        description "Some VIMs implement additional drives to host config-files or meta-data";
+        type boolean;
+        default false;
+      }
+      uses custom-meta-data;
+    }
 
     list volumes {
       key "name";
@@ -972,70 +1061,140 @@ module rwcal
         description "Name of the disk-volumes, e.g. vda, vdb etc";
         type string;
       }
-      uses manotypes:volume-info;
-    } 
-  }
 
-  container vdu-init-params {
-    description "This object defines the parameters required to create a VDU";
-    rwpb:msg-new VDUInitParams;
-    uses vdu-create-params;
-  }
-
-  container vdu-modify-params {
-    description "This object defines the parameters required to modify VDU";
-    rwpb:msg-new VDUModifyParams;
-
-    leaf vdu-id {
-      description "CAL assigned id for VDU to which this connection point belongs";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
-      type string;
-    }
-
-    leaf image-id {
-      description "CAL assigned image-id for the VDU image";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
-      type string;
-    }
-
-    list connection-points-add {
-      key "name";
-      leaf name {
-        description "Name of the connection point";
+      leaf description {
+        description "Description for Volume";
         type string;
       }
-      leaf virtual-link-id {
-        description "CAL assigned resource Id for the Virtual Link";
+
+      leaf size {
+        description "Size of disk in GB";
+        type uint64;
+      }
+
+      choice volume-source {
+        description
+              "Defines the source of the volume. Possible options are
+               1. Ephemeral -- Empty disk
+               2. Image     -- Refer to image to be used for volume
+               3. Volume    -- Reference of pre-existing volume to be used
+              ";
+
+        case ephemeral {
+          leaf ephemeral {
+            type empty;
+          }
+        }
+
+        case image {
+          uses manotypes:image-properties;
+        }
+
+        case volume {
+          leaf volume-ref {
+            description "Reference for pre-existing volume in VIM";
+            type string;
+          }
+        }
+      }
+
+      leaf device-bus {
+        description "Type of disk-bus on which this disk is exposed to guest";
+        type enumeration {
+          enum ide;
+          enum usb;
+          enum virtio;
+          enum scsi;
+        }
+      }
+
+      leaf device-type {
+        description "The type of device as exposed to guest";
+        type enumeration {
+            enum disk;
+            enum cdrom;
+            enum floppy;
+            enum lun;
+        }
+      }
+
+      leaf boot-volume {
+        description "This flag indicates if this is boot volume or not";
+        type boolean;
+      }
+
+      leaf boot-priority {
+        description "Boot priority associated with volume";
+        type int32;
+      }
+    }
+  }
+
+  augment "/rw-project:project" {
+    container vdu-init-params {
+      description "This object defines the parameters required to create a VDU";
+      uses vdu-create-params;
+    }
+  }
+  
+  augment "/rw-project:project/vdu-init-params/vm-flavor" {
+		uses manotypes:vm-flavor-name;
+  }
+
+  augment "/rw-project:project" {
+    container vdu-modify-params {
+      description "This object defines the parameters required to modify VDU";
+      
+      leaf vdu-id {
+        description "CAL assigned id for VDU to which this connection point belongs";
         type string;
       }
-      leaf associate-public-ip {
-        type boolean;
-        default false;
-      }
-      leaf port-security-enabled {
-        description "Enables the port security";
-        type boolean;
+
+      leaf static-ip-address {
+        description "Static IP address for the connection point";
+        type inet:ip-address;
       }
 
       uses connection-point-type;
-    }
 
-    list connection-points-remove {
-      key "connection-point-id";
-      leaf connection-point-id {
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
+      leaf image-id {
+        description "CAL assigned image-id for the VDU image";
         type string;
+      }
+
+      list connection-points-add {
+        key "name";
+        leaf name {
+          description "Name of the connection point";
+          type string;
+        }
+        leaf virtual-link-id {
+          description "CAL assigned resource Id for the Virtual Link";
+          type string;
+        }
+        leaf associate-public-ip {
+          type boolean;
+          default false;
+        }
+        leaf port-security-enabled {
+          description "Enables the port security";
+          type boolean;
+        }
+
+        uses connection-point-type;
+      }
+
+      list connection-points-remove {
+        key "connection-point-id";
+        leaf connection-point-id {
+          type string;
+        }
       }
     }
   }
 
   grouping connection-point-info-params {
     leaf connection-point-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
@@ -1046,15 +1205,11 @@ module rwcal
 
     leaf virtual-link-id {
       description "CAL assigned resource ID of the Virtual-Link";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf vdu-id {
       description "CAL assigned id for VDU to which this connection point belongs";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
@@ -1069,29 +1224,38 @@ module rwcal
     }
 
     leaf ip-address {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
-      type string;
+      type inet:ip-address;
     }
 
     leaf public-ip {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf mac-addr {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 48;
       type string;
+    }
+
+    leaf port-order {
+      description "Port Sequence Order";
+      type uint32;
+    }
+
+    list virtual-cp-info {
+      key "ip-address";
+      
+      leaf ip-address {
+        type inet:ip-address;
+      }
+
+      leaf mac-address {
+        type string;
+      }
     }
   }
 
   grouping virtual-link-info-params {
     leaf name {
       description "Name of the Virtual-Link";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 255;
       type string;
     }
 
@@ -1108,8 +1272,6 @@ module rwcal
 
     leaf virtual-link-id {
       description "CAL assigned resource ID of the Virtual-Link";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
@@ -1118,9 +1280,12 @@ module rwcal
       uses connection-point-info-params;
     }
 
+    list virtual-connection-points {
+      key connection-point-id;
+      uses virtual-cp-info-params;
+    }
+    
     leaf subnet {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
@@ -1131,34 +1296,24 @@ module rwcal
   grouping vdu-info-params {
     leaf vdu-id {
       description "CAL assigned id for VDU";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
     leaf name {
       description "Name of the VDU";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 255;
       type string;
     }
 
     leaf flavor-id {
       description "CAL assigned flavor-id for the VDU image";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf image-id {
       description "CAL assigned image-id for the VDU image";
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf node-id {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
@@ -1174,14 +1329,10 @@ module rwcal
     }
 
     leaf management-ip {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
     leaf public-ip {
-      rwpb:field-inline "true";
-      rwpb:field-string-max 64;
       type string;
     }
 
@@ -1201,7 +1352,15 @@ module rwcal
       description "Console URL from the VIM, if available";
     }
 
-    uses manotypes:supplemental-boot-data;
+    container supplemental-boot-data {
+      uses manotypes:config-file;
+      leaf boot-data-drive {
+        description "Some VIMs implement additional drives to host config-files or meta-data";
+        type boolean;
+        default false;
+      }
+      uses custom-meta-data;
+    }
 
     list volumes {
       key "name";
@@ -1213,30 +1372,29 @@ module rwcal
 
       leaf volume-id {
         description "CAL assigned volume-id ";
-        rwpb:field-inline "true";
-        rwpb:field-string-max 64;
         type string;
       }
+
+      uses custom-meta-data;
     } 
   }
 
 
-  container vnf-resources {
-    rwpb:msg-new VNFResources;
-    config false;
-
-    list virtual-link-info-list {
-      rwpb:msg-new VirtualLinkInfoParams;
+  augment "/rw-project:project" {
+    container vnf-resources {
       config false;
-      key virtual-link-id;
-      uses virtual-link-info-params;
-    }
 
-    list vdu-info-list {
-      rwpb:msg-new VDUInfoParams;
-      config false;
-      key vdu-id;
-      uses vdu-info-params;
+      list virtual-link-info-list {
+        config false;
+        key virtual-link-id;
+        uses virtual-link-info-params;
+      }
+
+      list vdu-info-list {
+        config false;
+        key vdu-id;
+        uses vdu-info-params;
+      }
     }
   }
 }

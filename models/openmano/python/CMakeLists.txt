@@ -9,5 +9,5 @@ rift_python_install_tree(
     rift/openmano/__init__.py
     rift/openmano/rift2openmano.py
     rift/openmano/openmano_client.py
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   PYTHON3_ONLY)

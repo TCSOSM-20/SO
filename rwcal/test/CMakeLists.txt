@@ -62,6 +62,6 @@ install(
     RIFT.ware-ready.py 
     openstack_resources.py
   DESTINATION usr/bin
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
 )
 

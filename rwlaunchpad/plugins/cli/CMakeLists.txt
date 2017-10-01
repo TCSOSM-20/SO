@@ -25,6 +25,7 @@ cmake_minimum_required(VERSION 2.8)
 install(
   FILES
   cli_launchpad_schema_listing.txt
+  cli_launchpad_rift_specific_schema_listing.txt
   DESTINATION usr/data/manifest
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
 )

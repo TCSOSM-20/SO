@@ -1,5 +1,5 @@
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ rift_add_vala(
   VALA_PACKAGES
     rw_types-1.0 rw_yang-1.0 rw_keyspec-1.0 rw_yang_pb-1.0 rw_schema_proto-1.0
     rw_log_yang-1.0 rw_base_yang-1.0 rwcal_yang-1.0 rw_manifest_yang-1.0 protobuf_c-1.0 ietf_netconf_yang-1.0
-    rw_log-1.0
+    rw_log-1.0 rw_project_yang-1.0 rw_user_yang-1.0 rw_rbac_base_yang-1.0
   VAPI_DIRS ${RIFT_SUBMODULE_BINARY_ROOT}/rwcal/plugins/yang
             ${RIFT_SUBMODULE_BINARY_ROOT}/models/plugins/yang
             ${RIFT_SUBMODULE_BINARY_ROOT}/rwvcs/plugins/yang
@@ -49,7 +49,7 @@ rift_add_vala(
   GENERATE_VAPI_FILE ${VALA_LONG_NAME}.vapi
   GENERATE_GIR_FILE ${VALA_TYPELIB_PREFIX}.gir
   GENERATE_TYPELIB_FILE ${VALA_TYPELIB_PREFIX}.typelib
-  DEPENDS rwcal_yang rwlog_gi rwschema_yang rwmanifest_yang
+  DEPENDS rwcal_yang rwmanifest_yang
   )
 
 rift_install_vala_artifacts(
@@ -58,7 +58,7 @@ rift_install_vala_artifacts(
   VAPI_FILES ${VALA_LONG_NAME}.vapi
   GIR_FILES ${VALA_TYPELIB_PREFIX}.gir
   TYPELIB_FILES ${VALA_TYPELIB_PREFIX}.typelib
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   DEST_PREFIX .
   )
 

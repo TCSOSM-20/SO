@@ -36,15 +36,12 @@ rift_add_vala(
     rw_types-1.0 rw_log_yang-1.0 rw_schema_proto-1.0 rw_yang_pb-1.0
     rw_yang-1.0 protobuf_c-1.0 rw_keyspec-1.0 rw_log-1.0
 
-  #VAPI_DIRS ${RIFT_SUBMODULE_BINARY_ROOT}/rwcal/plugins/yang
-  #GIR_PATHS ${RIFT_SUBMODULE_BINARY_ROOT}/rwcal/plugins/yang
   GENERATE_HEADER_FILE ${VALA_NAME}.h
 
   GENERATE_SO_FILE lib${VALA_LONG_NAME}.so
   GENERATE_VAPI_FILE ${VALA_LONG_NAME}.vapi
   GENERATE_GIR_FILE ${VALA_TYPELIB_PREFIX}.gir
   GENERATE_TYPELIB_FILE ${VALA_TYPELIB_PREFIX}.typelib
-  #DEPENDS rwcal_yang rwlog_gi rwschema_yang
   )
 
 rift_install_vala_artifacts(
@@ -53,7 +50,7 @@ rift_install_vala_artifacts(
   VAPI_FILES ${VALA_LONG_NAME}.vapi
   GIR_FILES ${VALA_TYPELIB_PREFIX}.gir
   TYPELIB_FILES ${VALA_TYPELIB_PREFIX}.typelib
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   DEST_PREFIX .
   )
 

@@ -175,7 +175,8 @@ class QuickProxyServer(object):
                 req_callback=on_http_request,
                 resp_callback=on_http_response,
                 io_loop=io_loop,
-                debug_level=QuickProxyServer.DEBUG_LEVEL
+                debug_level=QuickProxyServer.DEBUG_LEVEL,
+                address="127.0.0.1",
                 )
 
     def stop(self):

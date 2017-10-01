@@ -1,6 +1,6 @@
 
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -17,12 +17,16 @@
 
 import asyncio
 import concurrent.futures
-
 import gi
+
+from rift.mano.utils.project import ManoProject
+
 gi.require_version("RwImageMgmtYang", "1.0")
 from gi.repository import (
     RwImageMgmtYang,
 )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 
 class UploadJobError(Exception):
@@ -48,7 +52,7 @@ class UploadJobClient(object):
         self._loop = loop
         self._dts = dts
 
-    def create_job(self, image_name, image_checksum, cloud_account_names=None):
+    def create_job(self, image_name, image_checksum, project, cloud_account_names=None):
         """ Create an image upload_job and return an UploadJob instance
 
         Arguments:
@@ -60,7 +64,11 @@ class UploadJobClient(object):
         Returns:
             An UploadJob instance
         """
-        create_job_msg = RwImageMgmtYang.CreateUploadJob.from_dict({
+        self._log.debug("Project {}: Create image upload job for image {} to {}".
+                        format(project, image_name, cloud_account_names))
+
+        create_job_msg = RwImageMgmtYang.YangInput_RwImageMgmt_CreateUploadJob.from_dict({
+            "project_name": project,
             "onboarded_image": {
                 "image_name": image_name,
                 "image_checksum": image_checksum,
@@ -81,9 +89,9 @@ class UploadJobClient(object):
 
             job_id = rpc_result.job_id
 
-        return UploadJob(self._log, self._loop, self._dts, job_id)
+        return UploadJob(self._log, self._loop, self._dts, job_id, project)
 
-    def create_job_threadsafe(self, image_name, image_checksum, cloud_account_names=None):
+    def create_job_threadsafe(self, image_name, image_checksum, project, cloud_account_names=None):
         """ A thread-safe, syncronous wrapper for create_job """
         future = concurrent.futures.Future()
 
@@ -96,7 +104,7 @@ class UploadJobClient(object):
 
         def add_task():
             task = self._loop.create_task(
-                    self.create_job(image_name, image_checksum, cloud_account_names)
+                    self.create_job(image_name, image_checksum, project, cloud_account_names)
                     )
             task.add_done_callback(on_done)
 
@@ -106,11 +114,12 @@ class UploadJobClient(object):
 
 class UploadJob(object):
     """ A handle for a image upload job """
-    def __init__(self, log, loop, dts, job_id):
+    def __init__(self, log, loop, dts, job_id, project):
         self._log = log
         self._loop = loop
         self._dts = dts
         self._job_id = job_id
+        self._project = project
 
     @asyncio.coroutine
     def wait_until_complete(self):
@@ -122,12 +131,14 @@ class UploadJob(object):
             UploadJobCancelled: The upload job was cancelled
         """
         self._log.debug("waiting for upload job %s to complete", self._job_id)
+        xpath = ManoProject.prefix_project("D,/rw-image-mgmt:upload-jobs/" +
+                                           "rw-image-mgmt:job[rw-image-mgmt:id={}]".
+                                           format(quoted_key(str(self._job_id))),
+                                           project=self._project,
+                                           log=self._log)
+
         while True:
-            query_iter = yield from self._dts.query_read(
-                "D,/rw-image-mgmt:upload-jobs/rw-image-mgmt:job[rw-image-mgmt:id='{}']".format(
-                    self._job_id
-                )
-            )
+            query_iter = yield from self._dts.query_read(xpath)
             job_status_msg = None
             for fut_resp in query_iter:
                 job_status_msg = (yield from fut_resp).result

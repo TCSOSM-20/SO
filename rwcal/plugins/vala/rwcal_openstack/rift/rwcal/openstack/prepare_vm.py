@@ -28,7 +28,6 @@ import fcntl
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
-
 rwlog_handler = rwlogger.RwLogger(category="rw-cal-log",
                                   subcategory="openstack",)
 logger.addHandler(rwlog_handler)
@@ -60,21 +59,26 @@ class FileLock:
     
 def allocate_floating_ip(drv, argument):
     #### Allocate a floating_ip
-    available_ip = [ ip for ip in drv.nova_floating_ip_list() if ip.instance_id == None ]
+    try:
+        available_ip = [ ip for ip in drv.nova_floating_ip_list() if ip.instance_id == None ]
 
-    if argument.pool_name:
-        ### Filter further based on IP address
-        available_ip = [ ip for ip in available_ip if ip.pool == argument.pool_name ]
-        
-    if not available_ip:
-        logger.info("<PID: %d> No free floating_ips available. Allocating fresh from pool: %s" %(os.getpid(), argument.pool_name))
-        pool_name = argument.pool_name if argument.pool_name is not None else None
-        floating_ip = drv.nova_floating_ip_create(pool_name)
-    else:
-        floating_ip = random.choice(available_ip)
-        logger.info("<PID: %d> Selected floating_ip: %s from available free pool" %(os.getpid(), floating_ip))
+        if argument.pool_name:
+            ### Filter further based on IP address
+            available_ip = [ ip for ip in available_ip if ip.pool == argument.pool_name ]
+            
+        if not available_ip:
+            logger.info("<PID: %d> No free floating_ips available. Allocating fresh from pool: %s" %(os.getpid(), argument.pool_name))
+            pool_name = argument.pool_name if argument.pool_name is not None else None
+            floating_ip = drv.nova_floating_ip_create(pool_name)
+        else:
+            floating_ip = random.choice(available_ip)
+            logger.info("<PID: %d> Selected floating_ip: %s from available free pool" %(os.getpid(), floating_ip))
 
-    return floating_ip
+        return floating_ip
+    
+    except Exception as e:
+        logger.error("Floating IP Allocation Failed - %s", e)
+        return None    
 
 
 def handle_floating_ip_assignment(drv, server, argument, management_ip):
@@ -116,8 +120,12 @@ def assign_floating_ip_address(drv, argument):
                 for n_info in network_info:
                     if 'OS-EXT-IPS:type' in n_info and n_info['OS-EXT-IPS:type'] == 'fixed':
                         management_ip = n_info['addr']
-                        handle_floating_ip_assignment(drv, server, argument, management_ip)
-                        return
+                        try:
+                            handle_floating_ip_assignment(drv, server, argument, management_ip)
+                            return
+                        except Exception as e:
+                            logger.error("Exception in assign_floating_ip_address : %s", e)
+                            raise
         else:
             logger.info("Waiting for management_ip to be assigned to server: %s" %(server['name']))
             time.sleep(1)
@@ -218,10 +226,13 @@ def prepare_vm_after_boot(drv,argument):
     else:
         logger.error("Server %s did not reach active state in %d seconds. Current state: %s" %(server['name'], wait_time, server['status']))
         sys.exit(4)
-    
     #create_port_metadata(drv, argument)
     create_volume_metadata(drv, argument)
-    assign_floating_ip_address(drv, argument)
+    try:
+        assign_floating_ip_address(drv, argument)
+    except Exception as e:
+        logger.error("Exception in prepare_vm_after_boot : %s", e)
+        raise
     
 
 def main():
@@ -365,10 +376,23 @@ def main():
                   region = argument.region)
 
     drv = openstack_drv.OpenstackDriver(logger = logger, **kwargs)
-    prepare_vm_after_boot(drv, argument)
-    sys.exit(0)
+    try:
+        prepare_vm_after_boot(drv, argument)
+    except Exception as e:
+        logger.error("Exception in main of prepare_vm : %s", e)
+        raise
     
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        # Do not print anything in this script. This is a subprocess spawned by rwmain
+        # and the following print determines the success or failure of this script.
+        print("True",end="")
+    except Exception as e:
+        logger.error("Exception in prepare_vm : %s", e)
+        # Do not print anything in this script. This is a subprocess spawned by rwmain
+        # and the following print determines the success or failure of this script.
+        print("False+" + str(e),end="")
+        sys.exit(2)
         
 

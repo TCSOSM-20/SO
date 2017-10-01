@@ -30,7 +30,7 @@ rift_generate_python_log_yang(
 rift_add_yang_target(
   TARGET rw_conman_yang
   YANG_FILES rw-conman.yang ${rw_conman_log_file}
-  COMPONENT ${PKG_LONG_NAME}
+  COMPONENT ${INSTALL_COMPONENT}
   LIBRARIES
     mano_yang_gen
     mano-types_yang_gen

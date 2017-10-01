@@ -16,25 +16,27 @@
 #
 
 import asyncio
+import gi
 import os
 import sys
 import time
 import yaml
 
-import gi
 gi.require_version('RwDts', '1.0')
 gi.require_version('RwVnfrYang', '1.0')
 from gi.repository import (
     RwDts as rwdts,
     RwVnfrYang,
 )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 import rift.openmano.rift2openmano as rift2openmano
 import rift.openmano.openmano_client as openmano_client
-from . import rwnsmplugin
+from . import nsmpluginbase
 from enum import Enum
 
-
+import ipaddress
 import rift.tasklets
 
 if sys.version_info < (3, 4, 4):
@@ -42,7 +44,7 @@ if sys.version_info < (3, 4, 4):
 
 
 DUMP_OPENMANO_DIR = os.path.join(
-    os.environ["RIFT_ARTIFACTS"],
+        os.environ["RIFT_VAR_ROOT"],
     "openmano_descriptors"
 )
 
@@ -78,9 +80,12 @@ class VnfrConsoleOperdataDtsHandler(object):
     @property
     def vnfr_vdu_console_xpath(self):
         """ path for resource-mgr"""
-        return ("D,/rw-vnfr:vnfr-console/rw-vnfr:vnfr[rw-vnfr:id='{}']/rw-vnfr:vdur[vnfr:id='{}']".format(self._vnfr_id,self._vdur_id))
+        return self._project.add_project(
+            "D,/rw-vnfr:vnfr-console/rw-vnfr:vnfr[rw-vnfr:id={}]/rw-vnfr:vdur[vnfr:id={}]".format(
+                quoted_key(self._vnfr_id), quoted_key(self._vdur_id)))
 
-    def __init__(self, dts, log, loop, nsr, vnfr_id, vdur_id, vdu_id):
+    def __init__(self, project, dts, log, loop, nsr, vnfr_id, vdur_id, vdu_id):
+        self._project = project
         self._dts = dts
         self._log = log
         self._loop = loop
@@ -105,7 +110,7 @@ class VnfrConsoleOperdataDtsHandler(object):
             )
 
             if action == rwdts.QueryAction.READ:
-                schema = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur.schema()
+                schema = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur.schema()
                 path_entry = schema.keyspec_to_entry(ks_path)
 
                 try:
@@ -117,11 +122,11 @@ class VnfrConsoleOperdataDtsHandler(object):
                     )
 
                     self._log.debug("Got console response: %s for NSR ID %s vdur ID %s",
-                                    console_url,
-                                    self._nsr._nsr_uuid,
-                                    self._vdur_id
-                                    )
-                    vdur_console = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur()
+                                        console_url,
+                                        self._nsr._nsr_uuid,
+                                        self._vdur_id
+                                       )
+                    vdur_console = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur()
                     vdur_console.id = self._vdur_id
                     if console_url:
                         vdur_console.console_url = console_url
@@ -130,8 +135,8 @@ class VnfrConsoleOperdataDtsHandler(object):
                     self._log.debug("Recevied console URL for vdu {} is {}".format(self._vdu_id,vdur_console))
                 except openmano_client.InstanceStatusError as e:
                     self._log.error("Could not get NS instance console URL: %s",
-                                    str(e))
-                    vdur_console = RwVnfrYang.YangData_RwVnfr_VnfrConsole_Vnfr_Vdur()
+                                        str(e))
+                    vdur_console = RwVnfrYang.YangData_RwProject_Project_VnfrConsole_Vnfr_Vdur()
                     vdur_console.id = self._vdur_id
                     vdur_console.console_url = 'none'
 
@@ -156,10 +161,11 @@ class VnfrConsoleOperdataDtsHandler(object):
 
 
 class OpenmanoVnfr(object):
-    def __init__(self, log, loop, cli_api, vnfr, nsd):
+    def __init__(self, log, loop, cli_api, http_api, vnfr, nsd, ssh_key=None):
         self._log = log
         self._loop = loop
         self._cli_api = cli_api
+        self._http_api = http_api
         self._vnfr = vnfr
         self._vnfd_id = vnfr.vnfd.id
 
@@ -168,6 +174,7 @@ class OpenmanoVnfr(object):
         self._created = False
 
         self.nsd = nsd
+        self._ssh_key = ssh_key
 
     @property
     def vnfd(self):
@@ -188,7 +195,7 @@ class OpenmanoVnfr(object):
     @property
     def openmano_vnfd(self):
         self._log.debug("Converting vnfd %s from rift to openmano", self.vnfd.id)
-        openmano_vnfd = rift2openmano.rift2openmano_vnfd(self.vnfd, self.nsd)
+        openmano_vnfd = rift2openmano.rift2openmano_vnfd(self.vnfd, self.nsd, self._http_api)
         return openmano_vnfd
 
     @property
@@ -197,36 +204,19 @@ class OpenmanoVnfr(object):
 
     @asyncio.coroutine
     def create(self):
-        self._log.debug("Creating openmano vnfd")
-        openmano_vnfd = self.openmano_vnfd
-        name = openmano_vnfd["vnf"]["name"]
+        try:
+            self._log.debug("Created openmano vnfd")
+            # The self.openmano_vnfd_yaml internally creates the vnf if not found.
+            # Assigning the yaml to a variable so that the api is not fired unnecessarily.
+            openmano_vnfd = self.openmano_vnfd
+            name = openmano_vnfd["name"]
 
-        # If the name already exists, get the openmano vnfd id
-        name_uuid_map = yield from self._loop.run_in_executor(
-            None,
-            self._cli_api.vnf_list,
-        )
+            self._vnf_id = openmano_vnfd['uuid']
 
-        if name in name_uuid_map:
-            vnf_id = name_uuid_map[name]
-            self._log.debug("Vnf already created.  Got existing openmano vnfd id: %s", vnf_id)
-            self._vnf_id = vnf_id
-            return
-
-        self._vnf_id, _ = yield from self._loop.run_in_executor(
-            None,
-            self._cli_api.vnf_create,
-            self.openmano_vnfd_yaml,
-        )
-
-        fpath = dump_openmano_descriptor(
-            "{}_vnf".format(name),
-            self.openmano_vnfd_yaml
-        )
-
-        self._log.debug("Dumped Openmano VNF descriptor to: %s", fpath)
-
-        self._created = True
+            self._created = True
+        except Exception as e:
+            self._log.error("Failed to create vnf on Openmano RO : %s", e)
+            raise e
 
     def delete(self):
         if not self._created:
@@ -260,7 +250,9 @@ class OpenmanoNsr(object):
     TIMEOUT_SECS = 300
     INSTANCE_TERMINATE_TIMEOUT = 60
 
-    def __init__(self, dts, log, loop, publisher, cli_api, http_api, nsd_msg, nsr_config_msg,key_pairs,rift_vnfd_id=None ):
+    def __init__(self, project, dts, log, loop, publisher, cli_api, http_api, nsd_msg,
+                 nsr_config_msg, key_pairs, ssh_key, rift_vnfd_id=None ):
+        self._project = project
         self._log = log
         self._dts = dts
         self._loop = loop
@@ -275,6 +267,7 @@ class OpenmanoNsr(object):
         self._nsrs = {}
         self._vdur_console_handler = {}
         self._key_pairs = key_pairs
+        self._ssh_key = ssh_key
 
         self._nsd_uuid = None
         self._nsr_uuid = None
@@ -287,6 +280,9 @@ class OpenmanoNsr(object):
         self._monitor_task = None
         self._rift_vnfd_id = rift_vnfd_id
         self._state = OpenmanoNSRecordState.INIT
+
+        self._active_vms = 0
+        self._active_nets = 0
 
     @property
     def nsd(self):
@@ -330,16 +326,20 @@ class OpenmanoNsr(object):
         return self._vlrs
 
     @property
+    def http_api(self):
+        return self._http_api
+
+    @property
     def openmano_nsd_yaml(self):
         self._log.debug("Converting nsd %s from rift to openmano", self.nsd.id)
-        openmano_nsd = rift2openmano.rift2openmano_nsd(self.nsd, self.vnfds,self.vnfr_ids)
+        openmano_nsd = rift2openmano.rift2openmano_nsd(self.nsd, self.vnfds,self.vnfr_ids, self.http_api)
         return yaml.safe_dump(openmano_nsd, default_flow_style=False)
 
     @property
     def openmano_scaling_yaml(self):
         self._log.debug("Creating Openmano Scaling Descriptor %s")
         try:
-            openmano_vnfd_nsd = rift2openmano.rift2openmano_vnfd_nsd(self.nsd, self.vnfds, self.vnfr_ids, self._rift_vnfd_id)
+            openmano_vnfd_nsd = rift2openmano.rift2openmano_vnfd_nsd(self.nsd, self.vnfds, self.vnfr_ids, self.http_api, self._rift_vnfd_id)
             return yaml.safe_dump(openmano_vnfd_nsd, default_flow_style=False)
         except Exception as e:
             self._log.exception("Scaling Descriptor Exception: %s", str(e))
@@ -355,6 +355,10 @@ class OpenmanoNsr(object):
         for authorized_key in self._nsd_msg.key_pair:
             self._log.debug("Key pair  NSD  is %s",authorized_key)
             key_pairs.append(authorized_key.key)
+
+        if self._ssh_key['public_key']:
+            self._log.debug("Pub key  NSD  is %s", self._ssh_key['public_key'])
+            key_pairs.append(self._ssh_key['public_key'])
 
         if key_pairs:
             cloud_config["key-pairs"] = key_pairs
@@ -397,13 +401,13 @@ class OpenmanoNsr(object):
         cloud_config = self.get_ssh_key_pairs()
         if cloud_config:
             openmano_instance_create["cloud-config"] = cloud_config
-        if self._nsr_config_msg.has_field("om_datacenter"):
-            openmano_instance_create["datacenter"] = self._nsr_config_msg.om_datacenter
+        if self._nsr_config_msg.has_field("datacenter"):
+            openmano_instance_create["datacenter"] = self._nsr_config_msg.datacenter
         openmano_instance_create["vnfs"] = {}
         for vnfr in self._vnfrs:
-            if "om_datacenter" in vnfr.vnfr.vnfr_msg:
-                vnfr_name = vnfr.vnfr.vnfd.name + "__" + str(vnfr.vnfr.vnfr_msg.member_vnf_index_ref)
-                openmano_instance_create["vnfs"][vnfr_name] = {"datacenter": vnfr.vnfr.vnfr_msg.om_datacenter}
+            if "datacenter" in vnfr.vnfr.vnfr_msg:
+                vnfr_name = vnfr.vnfr.vnfd.name + "." + str(vnfr.vnfr.vnfr_msg.member_vnf_index_ref)
+                openmano_instance_create["vnfs"][vnfr_name] = {"datacenter": vnfr.vnfr.vnfr_msg.datacenter}
         openmano_instance_create["networks"] = {}
         for vld_msg in self._nsd_msg.vld:
             openmano_instance_create["networks"][vld_msg.name] = {}
@@ -411,7 +415,7 @@ class OpenmanoNsr(object):
             for vlr in self._vlrs:
                 if vlr.vld_msg.name == vld_msg.name:
                     self._log.debug("Received VLR name %s, VLR DC: %s for VLD: %s",vlr.vld_msg.name,
-                                    vlr.om_datacenter_name,vld_msg.name)
+                                    vlr.datacenter_name,vld_msg.name)
                     #network["vim-network-name"] = vld_msg.name
                     network = {}
                     ip_profile = {}
@@ -434,12 +438,32 @@ class OpenmanoNsr(object):
                             ip_profile['dhcp']['enabled'] = ip_profile_params.dhcp_params.enabled
                             ip_profile['dhcp']['start-address'] = ip_profile_params.dhcp_params.start_address
                             ip_profile['dhcp']['count'] = ip_profile_params.dhcp_params.count
+                            if ip_profile['dhcp']['enabled'] is True and ip_profile['dhcp']['start-address'] is None:
+                                addr_pool = list(ipaddress.ip_network(ip_profile['subnet-address']).hosts())
+                                gateway_ip_addr = ip_profile.get('gateway-address', None) 
+                                if gateway_ip_addr is None:
+                                    gateway_ip_addr = str(next(iter(addr_pool)))
+                                    ip_profile['gateway-address'] = gateway_ip_addr
+                                
+                                self._log.debug("Gateway Address {}".format(gateway_ip_addr))
+                                                                                              
+                                if ipaddress.ip_address(gateway_ip_addr) in addr_pool:
+                                    addr_pool.remove(ipaddress.ip_address(gateway_ip_addr))
+                                if len(addr_pool) > 0:
+                                    ip_profile['dhcp']['start-address'] = str(next(iter(addr_pool)))
+                                    #DHCP count more than 200 is not instantiating any instances using OPENMANO RO
+                                    #So restricting it to a feasible count of 100. 
+                                    dhcp_count = ip_profile['dhcp']['count']
+                                    if dhcp_count is None or dhcp_count == 0 or dhcp_count > len(addr_pool):
+                                        ip_profile['dhcp']['count'] = min(len(addr_pool), 100)
+                            self._log.debug("DHCP start Address {} DHCP count {}".
+                                            format(ip_profile['dhcp']['start-address'], ip_profile['dhcp']['count']))
                     else:
                         network["netmap-create"] = vlr.name
-                    if vlr.om_datacenter_name:
-                        network["datacenter"] = vlr.om_datacenter_name
-                    elif vld_msg.has_field("om_datacenter"):
-                        network["datacenter"] = vld_msg.om_datacenter
+                    if vlr.datacenter_name:
+                        network["datacenter"] = vlr.datacenter_name
+                    elif vld_msg.has_field("datacenter"):
+                        network["datacenter"] = vld_msg.datacenter
                     elif "datacenter" in openmano_instance_create:
                         network["datacenter"] = openmano_instance_create["datacenter"]
                     if network:
@@ -462,13 +486,13 @@ class OpenmanoNsr(object):
         scaling_instance_create["description"] = self._nsr_config_msg.description
 
 
-        if self._nsr_config_msg.has_field("om_datacenter"):
-            scaling_instance_create["datacenter"] = self._nsr_config_msg.om_datacenter
+        if self._nsr_config_msg.has_field("datacenter"):
+            scaling_instance_create["datacenter"] = self._nsr_config_msg.datacenter
         scaling_instance_create["vnfs"] = {}
         for vnfr in self._vnfrs:
-            if "om_datacenter" in vnfr.vnfr.vnfr_msg:
+            if "datacenter" in vnfr.vnfr.vnfr_msg:
                 vnfr_name = vnfr.vnfr.vnfd.name + "__" + str(vnfr.vnfr.vnfr_msg.member_vnf_index_ref)
-                scaling_instance_create["vnfs"][vnfr_name] = {"datacenter": vnfr.vnfr.vnfr_msg.om_datacenter}
+                scaling_instance_create["vnfs"][vnfr_name] = {"datacenter": vnfr.vnfr.vnfr_msg.datacenter}
         scaling_instance_create["networks"] = {}
         for vld_msg in self._nsd_msg.vld:
             scaling_instance_create["networks"][vld_msg.name] = {}
@@ -476,7 +500,7 @@ class OpenmanoNsr(object):
             for vlr in self._vlrs:
                 if vlr.vld_msg.name == vld_msg.name:
                     self._log.debug("Received VLR name %s, VLR DC: %s for VLD: %s",vlr.vld_msg.name,
-                                    vlr.om_datacenter_name,vld_msg.name)
+                                    vlr.datacenter_name,vld_msg.name)
                     #network["vim-network-name"] = vld_msg.name
                     network = {}
                     ip_profile = {}
@@ -484,10 +508,10 @@ class OpenmanoNsr(object):
                         network["netmap-use"] = vld_msg.vim_network_name
                     #else:
                     #    network["netmap-create"] = vlr.name
-                    if vlr.om_datacenter_name:
-                        network["datacenter"] = vlr.om_datacenter_name
-                    elif vld_msg.has_field("om_datacenter"):
-                        network["datacenter"] = vld_msg.om_datacenter
+                    if vlr.datacenter_name:
+                        network["datacenter"] = vlr.datacenter_name
+                    elif vld_msg.has_field("datacenter"):
+                        network["datacenter"] = vld_msg.datacenter
                     elif "datacenter" in scaling_instance_create:
                         network["datacenter"] = scaling_instance_create["datacenter"]
                     if network:
@@ -527,13 +551,14 @@ class OpenmanoNsr(object):
                     None,
                     self._cli_api.ns_vim_network_delete,
                     vlr.name,
-                    vlr.om_datacenter_name)
+                    vlr.datacenter_name)
             yield from self._publisher.unpublish_vlr(None, vlr.vlr_msg)
         yield from asyncio.sleep(1, loop=self._loop)
 
     @asyncio.coroutine
     def add_vnfr(self, vnfr):
-        vnfr = OpenmanoVnfr(self._log, self._loop, self._cli_api, vnfr, nsd=self.nsd)
+        vnfr = OpenmanoVnfr(self._log, self._loop, self._cli_api, self.http_api,
+                                vnfr, nsd=self.nsd, ssh_key=self._ssh_key)
         yield from vnfr.create()
         self._vnfrs.append(vnfr)
 
@@ -559,49 +584,58 @@ class OpenmanoNsr(object):
 
     @asyncio.coroutine
     def create(self):
-        self._log.debug("Creating openmano scenario")
-        name_uuid_map = yield from self._loop.run_in_executor(
-            None,
-            self._cli_api.ns_list,
-        )
+        try:
+            self._log.debug("Created openmano scenario")
+            # The self.openmano_nsd_yaml internally creates the scenario if not found.
+            # Assigning the yaml to a variable so that the api is not fired unnecessarily.
+            nsd_yaml = self.openmano_nsd_yaml
 
-        if self._nsd_msg.name in name_uuid_map:
-            self._log.debug("Found existing openmano scenario")
-            self._nsd_uuid = name_uuid_map[self._nsd_msg.name]
-            return
+            self._nsd_uuid = yaml.load(nsd_yaml)['uuid']
+            fpath = dump_openmano_descriptor(
+                "{}_nsd".format(self._nsd_msg.name),
+                nsd_yaml,
+            )
 
+            self._log.debug("Dumped Openmano NS descriptor to: %s", fpath)
 
-        # Use the nsd uuid as the scenario name to rebind to existing
-        # scenario on reload or to support muliple instances of the name
-        # nsd
-        self._nsd_uuid, _ = yield from self._loop.run_in_executor(
-            None,
-            self._cli_api.ns_create,
-            self.openmano_nsd_yaml,
-            self._nsd_msg.name
-        )
-        fpath = dump_openmano_descriptor(
-            "{}_nsd".format(self._nsd_msg.name),
-            self.openmano_nsd_yaml,
-        )
-
-        self._log.debug("Dumped Openmano NS descriptor to: %s", fpath)
-
-        self._created = True
+            self._created = True
+        except Exception as e:
+            self._log.error("Failed to create scenario on Openmano RO : %s", e)
+            raise e
 
     @asyncio.coroutine
     def scaling_scenario_create(self):
         self._log.debug("Creating scaling openmano scenario")
-        self._nsd_uuid, _ = yield from self._loop.run_in_executor(
-            None,
-            self._cli_api.ns_create,
-            self.openmano_scaling_yaml,
 
-        )
+        # The self.openmano_nsd_yaml internally creates the scenario if not found.
+        # Assigning the yaml to a variable so that the api is not fired unnecessarily.
+        nsd_yaml = self.openmano_scaling_yaml
+        
+        self._nsd_uuid = yaml.load(nsd_yaml)['uuid']
+
         fpath = dump_openmano_descriptor(
             "{}_sgd".format(self._nsd_msg.name),
             self.scaling_instance_create_yaml,
         )
+
+
+    @asyncio.coroutine
+    def get_nsr_opdata(self):
+        """ NSR opdata associated with this VNFR """
+        xpath = self._project.add_project(
+            "D,/nsr:ns-instance-opdata/nsr:nsr" \
+            "[nsr:ns-instance-config-ref={}]". \
+            format(quoted_key(self.nsr_config_msg.id)))
+
+        results = yield from self._dts.query_read(xpath, rwdts.XactFlag.MERGE)
+
+        for result in results:
+            entry = yield from result
+            nsr_op = entry.result
+            return nsr_op
+
+        return None
+
 
     @asyncio.coroutine
     def instance_monitor_task(self):
@@ -609,8 +643,11 @@ class OpenmanoNsr(object):
 
         start_time = time.time()
         active_vnfs = []
-
+        nsr = yield from self.get_nsr_opdata()
         while True:
+            active_vms = 0
+            active_nets = 0
+        
             yield from asyncio.sleep(1, loop=self._loop)
 
             try:
@@ -624,9 +661,27 @@ class OpenmanoNsr(object):
                                 instance_resp_json,
                                 self._nsr_uuid)
 
+                for vnf in instance_resp_json['vnfs']:
+                    for vm in vnf['vms']:
+                        if vm['status'] == 'ACTIVE':
+                            active_vms += 1
+                for net in instance_resp_json['nets']:
+                    if net['status'] == 'ACTIVE':
+                        active_nets += 1
+
+                nsr.orchestration_progress.vms.active = active_vms
+                nsr.orchestration_progress.networks.active = active_nets
+
+                # This is for accesibility of the status from nsm when the control goes back.
+                self._active_vms = active_vms
+                self._active_nets = active_nets
+
+                yield from self._publisher.publish_nsr_opdata(None, nsr)
+
             except openmano_client.InstanceStatusError as e:
                 self._log.error("Could not get NS instance status: %s", str(e))
                 continue
+
 
             def all_vms_active(vnf):
                 for vm in vnf["vms"]:
@@ -662,6 +717,18 @@ class OpenmanoNsr(object):
             def get_vnf_ip_address(vnf):
                 if "ip_address" in vnf:
                     return vnf["ip_address"].strip()
+
+                else:
+                    cp_info_list = get_ext_cp_info(vnf)
+                    
+                    for cp_name, ip, mac in cp_info_list:
+                        for vld in self.nsd.vlds:
+                            if not vld.mgmt_network:
+                                continue
+
+                            for vld_cp in vld.vnfd_connection_point_ref:
+                                if vld_cp.vnfd_connection_point_ref == cp_name:
+                                    return ip
                 return None
 
             def get_vnf_mac_address(vnf):
@@ -695,17 +762,17 @@ class OpenmanoNsr(object):
                 return cp_info_list
 
             def get_vnf_status(vnfr):
-                # When we create an openmano descriptor we use <name>__<idx>
+                # When we create an openmano descriptor we use <name>.<idx>
                 # to come up with openmano constituent VNF name.  Use this
                 # knowledge to map the vnfr back.
-                openmano_vnfr_suffix = "__{}".format(
+                openmano_vnfr_suffix = ".{}".format(
                     vnfr.vnfr.vnfr_msg.member_vnf_index_ref
                 )
 
                 for vnf in instance_resp_json["vnfs"]:
                     if vnf["vnf_name"].endswith(openmano_vnfr_suffix):
                         return vnf
-
+                        
                 self._log.warning("Could not find vnf status with name that ends with: %s",
                                   openmano_vnfr_suffix)
                 return None
@@ -730,7 +797,7 @@ class OpenmanoNsr(object):
 
                     # If there was a VNF that has a errored VM, then just fail the VNF and stop monitoring.
                     if any_vms_error(vnf_status):
-                        self._log.debug("VM was found to be in error state.  Marking as failed.")
+                        self._log.error("VM was found to be in error state.  Marking as failed.")
                         self._state = OpenmanoNSRecordState.FAILED
                         vnfr_msg.operational_status = "failed"
                         yield from self._publisher.publish_vnfr(None, vnfr_msg)
@@ -748,7 +815,7 @@ class OpenmanoNsr(object):
                         vnf_mac_address = get_vnf_mac_address(vnf_status)
 
                         if vnf_ip_address is None:
-                            self._log.warning("No IP address obtained "
+                            self._log.error("No IP address obtained "
                                               "for VNF: {}, will retry.".format(
                                 vnf_status['vnf_name']))
                             continue
@@ -756,14 +823,17 @@ class OpenmanoNsr(object):
                         self._log.debug("All VMs in VNF are active.  Marking as running.")
                         vnfr_msg.operational_status = "running"
 
-                        self._log.debug("Got VNF ip address: %s, mac-address: %s", vnf_ip_address, vnf_mac_address)
+                        self._log.debug("Got VNF ip address: %s, mac-address: %s",
+                                        vnf_ip_address, vnf_mac_address)
                         vnfr_msg.mgmt_interface.ip_address = vnf_ip_address
-                        vnfr_msg.vnf_configuration.config_access.mgmt_ip_address = vnf_ip_address
-
+                        vnfr_msg.mgmt_interface.ssh_key.public_key = \
+                                                    vnfr._ssh_key['public_key']
+                        vnfr_msg.mgmt_interface.ssh_key.private_key_file = \
+                                                    vnfr._ssh_key['private_key']
 
                         for vm in vnf_status["vms"]:
                             if vm["uuid"] not in self._vdur_console_handler:
-                                vdur_console_handler = VnfrConsoleOperdataDtsHandler(self._dts, self._log, self._loop,
+                                vdur_console_handler = VnfrConsoleOperdataDtsHandler(self._project, self._dts, self._log, self._loop,
                                                                                      self, vnfr_msg.id,vm["uuid"],vm["name"])
                                 yield from vdur_console_handler.register()
                                 self._vdur_console_handler[vm["uuid"]] = vdur_console_handler
@@ -793,7 +863,7 @@ class OpenmanoNsr(object):
 
             if len(active_vnfs) == len(self._vnfrs):
                 self._state = OpenmanoNSRecordState.RUNNING
-                self._log.info("All VNF's are active.  Exiting NSR monitoring task")
+                self._log.debug("All VNF's are active.  Exiting NSR monitoring task")
                 return
 
     @asyncio.coroutine
@@ -872,14 +942,14 @@ class OpenmanoNsr(object):
 
     @asyncio.coroutine
     def create_vlr(self,vlr):
-        self._log.debug("Creating openmano vim network VLR name %s, VLR DC: %s",vlr.vld_msg.name,
-                        vlr.om_datacenter_name)
+        self._log.error("Creating openmano vim network VLR name %s, VLR DC: %s",vlr.vld_msg.name,
+                        vlr.datacenter_name)
         net_create = {}
         net = {}
         net['name'] = vlr.name
         net['shared'] = True
         net['type'] = 'bridge'
-        self._log.debug("Received ip profile is %s",vlr._ip_profile)
+        self._log.error("Received ip profile is %s",vlr._ip_profile)
         if vlr._ip_profile and vlr._ip_profile.has_field("ip_profile_params"):
             ip_profile_params = vlr._ip_profile.ip_profile_params
             ip_profile = {}
@@ -904,27 +974,28 @@ class OpenmanoNsr(object):
         fpath = dump_openmano_descriptor(
             "{}_vim_net_create_{}".format(self._nsr_config_msg.name,vlr.name),
             net_create_msg)
-        self._log.debug("Dumped Openmano VIM Net create to: %s", fpath)
+        self._log.error("Dumped Openmano VIM Net create to: %s", fpath)
 
         vim_network_uuid = yield from self._loop.run_in_executor(
             None,
             self._cli_api.ns_vim_network_create,
             net_create_msg,
-            vlr.om_datacenter_name)
+            vlr.datacenter_name)
         self._vlrs.append(vlr)
 
 
 
-class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
+class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
     """
         RW Implentation of the NsmPluginBase
     """
-    def __init__(self, dts, log, loop, publisher, ro_account):
+    def __init__(self, dts, log, loop, publisher, ro_account, project):
         self._dts = dts
         self._log = log
         self._loop = loop
         self._publisher = publisher
-
+        self._project = project
+        
         self._cli_api = None
         self._http_api = None
         self._openmano_nsrs = {}
@@ -958,21 +1029,24 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                  OpenmanoNSRecordState.__members__.items() \
                  if member.value == state.value]
 
-    def create_nsr(self, nsr_config_msg, nsd_msg, key_pairs=None):
+    def create_nsr(self, nsr_config_msg, nsd_msg, key_pairs=None, ssh_key=None):
         """
         Create Network service record
         """
         openmano_nsr = OpenmanoNsr(
-            self._dts,
-            self._log,
-            self._loop,
-            self._publisher,
-            self._cli_api,
-            self._http_api,
-            nsd_msg,
-            nsr_config_msg,
-            key_pairs
-        )
+                self._project,
+                self._dts,
+                self._log,
+                self._loop,
+                self._publisher,
+                self._cli_api,
+                self._http_api,
+                nsd_msg,
+                nsr_config_msg,
+                key_pairs,
+                ssh_key,
+                )
+        self.log.debug("NSR created in openmano nsm %s", openmano_nsr)
         self._openmano_nsrs[nsr_config_msg.id] = openmano_nsr
 
     @asyncio.coroutine
@@ -997,6 +1071,7 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         openmano_nsr = self._openmano_nsrs[nsr.id]
         if scaleout:
             openmano_vnf_nsr = OpenmanoNsr(
+                self._project,
                 self._dts,
                 self._log,
                 self._loop,
@@ -1006,7 +1081,8 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                 openmano_nsr.nsd_msg,
                 openmano_nsr.nsr_config_msg,
                 openmano_nsr.key_pairs,
-                vnfr.vnfd.id
+                None,
+                rift_vnfd_id=vnfr.vnfd.id,
             )
             self._openmano_nsr_by_vnfr_id[nsr.id] = openmano_nsr
             if vnfr.id in self._openmano_nsr_by_vnfr_id:
@@ -1041,8 +1117,12 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
         vnfr_msg.operational_status = "init"
 
         self._log.debug("Attempting to publish openmano vnf: %s", vnfr_msg)
-        with self._dts.transaction() as xact:
-            yield from self._publisher.publish_vnfr(xact, vnfr_msg)
+        yield from self._publisher.publish_vnfr(None, vnfr_msg)
+
+    def update_vnfr(self, vnfr):
+        vnfr_msg = vnfr.vnfr_msg.deep_copy()
+        self._log.debug("Attempting to publish openmano vnf: %s", vnfr_msg)
+        yield from self._publisher.publish_vnfr(None, vnfr_msg)
 
     @asyncio.coroutine
     def instantiate_vl(self, nsr, vlr):
@@ -1074,10 +1154,9 @@ class OpenmanoNsPlugin(rwnsmplugin.NsmPluginBase):
                openmano_nsr,
                )
 
-        with self._dts.transaction() as xact:
-            for vnfr in openmano_nsr.vnfrs:
-                self._log.debug("Unpublishing VNFR: %s", vnfr.vnfr.vnfr_msg)
-                yield from self._publisher.unpublish_vnfr(xact, vnfr.vnfr.vnfr_msg)
+        for vnfr in openmano_nsr.vnfrs:
+            self._log.debug("Unpublishing VNFR: %s", vnfr.vnfr.vnfr_msg)
+            yield from self._publisher.unpublish_vnfr(None, vnfr.vnfr.vnfr_msg)
 
         del self._openmano_nsrs[nsr_id]
 

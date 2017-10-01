@@ -33,7 +33,7 @@ message(CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH})
 # DO NOT add any code before this and DO NOT
 # include this file anywhere else
 ##
-include(rift_submodule)
+include(rift_submodule NO_POLICY_SCOPE)
 include(rift_python)
 
 ##
@@ -43,24 +43,88 @@ include(rift_python)
 # specific it must be declared in the subdirectory.
 ##
 
+# Default package
+set(INSTALL_COMPONENT mano)
+
+option(PRODUCT "Control the details of the build" OSM)
+
+if (PRODUCT STREQUAL "RIFTWARE")
+set(INCLUDE_EXAMPLES ON)
+else()
+set(INCLUDE_EXAMPLES OFF)
+endif()
+
 ##
 # Include the subdirs
 ##
 set(subdirs
   common
-  examples
   models
   rwcal
   rwmon
   rwcm
   rwlaunchpad
+  rwprojectmano
   )
 
 if (NOT RIFT_AGENT_BUILD STREQUAL "XML_ONLY")
   list(APPEND subdirs confd_client)
 endif()
 
+if (INCLUDE_EXAMPLES)
+   message("Including examples")
+   list(APPEND subdirs examples)
+else()
+   message("NOT including examples")
+endif()
+
 rift_add_subdirs(SUBDIR_LIST ${subdirs})
+
+install(FILES BUILD.sh DESTINATION bin COMPONENT installer)
+
+##
+# Set up package details
+##
+
+rift_set_component_package_fields(
+  "mano"
+  DESCRIPTION "RIFT.ware MANO"
+  )
+
+rift_set_component_package_fields(
+  "rwcal-plugin-aws"
+  DESCRIPTION "RIFT.ware AWS plugin"
+  )
+
+rift_set_component_package_fields(
+  "rwcal-plugin-cloudsim"
+  DESCRIPTION "RIFT.ware cloudsim plugin"
+  )
+
+rift_set_component_package_fields(
+  "rwcal-plugin-cloudsimproxy"
+  DESCRIPTION "RIFT.ware cloudsimproxy plugin"
+  )
+
+rift_set_component_package_fields(
+  "rwcal-plugin-openmano-vimconnector"
+  DESCRIPTION "RIFT.ware vimconnector plugin"
+  )
+
+rift_set_component_package_fields(
+  "rwcal-plugin-openstack"
+  DESCRIPTION "RIFT.ware openstack plugin"
+  )
+
+rift_set_component_package_fields(
+  "rwcal-plugin-brocade"
+  DESCRIPTION "RIFT.ware brocade plugin"
+  )
+
+rift_set_component_package_fields(
+  "rwcal-plugin-mock"
+  DESCRIPTION "RIFT.ware mock plugin"
+  )
 
 ##
 # This macro adds targets for documentaion, unittests, code coverage and packaging
@@ -82,5 +146,3 @@ if (RIFT_SUPPORT_PYTHON2)
     ${CMAKE_CURRENT_SOURCE_DIR}/.cpack-workaround
     DESTINATION ${dir})
 endif()
-
-

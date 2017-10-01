@@ -212,6 +212,10 @@ class RwcalVspherePlugin(GObject.Object, RwCal.Cloud):
     @rwstatus(ret_on_failure=[None])
     def do_get_virtual_link(self, account, link_id):
         raise NotImplementedError()
+
+    @rwstatus(ret_on_failure=[None])
+    def do_get_virtual_link_by_name(self, account, link_name):
+        raise NotImplementedError()
     
     @rwstatus(ret_on_failure=[""])
     def do_get_virtual_link_list(self, account):
@@ -229,10 +233,12 @@ class RwcalVspherePlugin(GObject.Object, RwCal.Cloud):
     def do_delete_vdu(self, account, vdu_id):
         raise NotImplementedError()
     
-    @rwstatus(ret_on_failure=[None])
-    def do_get_vdu(self, account, vdu_id):
+    @rwcalstatus(ret_on_failure=[None])
+    def do_get_vdu(self, account, vdu_id, mgmt_network):
+        # mgmt_network - Added due to need for mgmt network.
+        # TO DO: Investigate the need for aws.
         raise NotImplementedError()
 
-    @rwstatus(ret_on_failure=[""])
+    @rwcalstatus(ret_on_failure=[None])
     def do_get_vdu_list(self, account):
         raise NotImplementedError()        

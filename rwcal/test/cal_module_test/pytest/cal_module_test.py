@@ -32,6 +32,8 @@ import hashlib
 
 import pytest
 
+import rift.auto.mano
+
 from gi import require_version
 require_version('RwCal', '1.0')
 
@@ -45,6 +47,8 @@ import rwlogger
 logger = logging.getLogger('rwcal')
 logging.basicConfig(level=logging.INFO)
 
+def short_id():
+    return uuid.uuid4().hex[:10]
 
 class CloudConfig(object):
     def __init__(self, cal, account):
@@ -142,7 +146,7 @@ class Aws(CloudConfig):
         Return:
             CloudAccount details
         """
-        account = RwcalYang.CloudAccount.from_dict({
+        account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList.from_dict({
                 "account_type": "aws",
                 "aws": {
                     "key": option.aws_user,
@@ -160,8 +164,8 @@ class Aws(CloudConfig):
         Returns:
             FlavorInfoItem
         """
-        flavor = RwcalYang.FlavorInfoItem.from_dict({
-                    "name": str(uuid.uuid4()),
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList.from_dict({
+                    "name": rift.auto.mano.resource_name(short_id()),
                     "vm_flavor": {
                         "memory_mb": 1024,
                         "vcpu_count": 1,
@@ -177,15 +181,15 @@ class Aws(CloudConfig):
         Returns:
             VDUInitParams
         """
-        vdu = RwcalYang.VDUInitParams.from_dict({
-                "name": str(uuid.uuid4()),
+        vdu = RwcalYang.YangData_RwProject_Project_VduInitParams.from_dict({
+                "name": rift.auto.mano.resource_name(short_id()),
                 "node_id": "123456789012345",
                 "image_id": self.image_id,
                 "flavor_id": "t2.micro"
             })
 
         c1 = vdu.connection_points.add()
-        c1.name = str(uuid.uuid4())
+        c1.name = rift.auto.mano.resource_name(short_id())
         c1.virtual_link_id = self.virtual_link_id
 
         return vdu
@@ -199,8 +203,8 @@ class Aws(CloudConfig):
         Returns:
             VirtualLinkReqParams
         """
-        vlink = RwcalYang.VirtualLinkReqParams.from_dict({
-                    "name": str(uuid.uuid4()),
+        vlink = RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams.from_dict({
+                    "name": rift.auto.mano.resource_name(short_id()),
                     "subnet": '172.31.64.0/20',
             })
 
@@ -273,7 +277,7 @@ class Cloudsim(CloudConfig):
         Return:
             CloudAccount details
         """
-        account = RwcalYang.CloudAccount.from_dict({
+        account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList.from_dict({
                 'name': "cloudsim",
                 'account_type':'cloudsim_proxy'})
 
@@ -285,8 +289,8 @@ class Cloudsim(CloudConfig):
         Returns:
             ImageInfoItem
         """
-        image = RwcalYang.ImageInfoItem.from_dict({
-                "name": str(uuid.uuid4()),
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList.from_dict({
+                "name": rift.auto.mano.resource_name(short_id()),
                 "location": os.path.join(os.getenv("RIFT_ROOT"), "images/rift-root-latest.qcow2"),
                 "disk_format": "qcow2",
                 "container_format": "bare",
@@ -300,8 +304,8 @@ class Cloudsim(CloudConfig):
         Returns:
             FlavorInfoItem
         """
-        flavor = RwcalYang.FlavorInfoItem.from_dict({
-                "name": str(uuid.uuid4()),
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList.from_dict({
+                "name": rift.auto.mano.resource_name(short_id()),
                 "vm_flavor": {
                         "memory_mb": 16392,
                         "vcpu_count": 4,
@@ -316,15 +320,15 @@ class Cloudsim(CloudConfig):
         Returns:
             VDUInitParams
         """
-        vdu = RwcalYang.VDUInitParams.from_dict({
-                "name": str(uuid.uuid4()),
+        vdu = RwcalYang.YangData_RwProject_Project_VduInitParams.from_dict({
+                "name": rift.auto.mano.resource_name(short_id()),
                 "node_id": "123456789012345",
                 "image_id": self.image_id,
                 "flavor_id": self.flavor_id,
             })
 
         c1 = vdu.connection_points.add()
-        c1.name = str(uuid.uuid4())
+        c1.name = rift.auto.mano.resource_name(short_id())
         c1.virtual_link_id = self.virtual_link_id
 
         return vdu
@@ -335,8 +339,8 @@ class Cloudsim(CloudConfig):
         Returns:
             VirtualLinkReqParams
         """
-        vlink = RwcalYang.VirtualLinkReqParams.from_dict({
-                    "name": str(uuid.uuid4()),
+        vlink = RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams.from_dict({
+                    "name": rift.auto.mano.resource_name(short_id()),
                     "subnet": '192.168.1.0/24',
             })
 
@@ -382,7 +386,7 @@ class Openstack(CloudConfig):
         Returns:
             CloudAccount
         """
-        acct = RwcalYang.CloudAccount.from_dict({
+        acct = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList.from_dict({
             "account_type": "openstack",
             "openstack": {
                     "key": option.os_user,
@@ -408,8 +412,8 @@ class Openstack(CloudConfig):
         Returns:
             ImageInfoItem
         """
-        image = RwcalYang.ImageInfoItem.from_dict({
-                "name": str(uuid.uuid4()),
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList.from_dict({
+                "name": rift.auto.mano.resource_name(short_id()),
                 "location": os.path.join(os.getenv("RIFT_ROOT"), "images/rift-root-latest.qcow2"),
                 "disk_format": "qcow2",
                 "container_format": "bare",
@@ -423,8 +427,8 @@ class Openstack(CloudConfig):
         Returns:
             FlavorInfoItem
         """
-        flavor = RwcalYang.FlavorInfoItem.from_dict({
-                "name": str(uuid.uuid4()),
+        flavor = RwcalYang.YangData_RwProject_Project_VimResources_FlavorinfoList.from_dict({
+                "name": rift.auto.mano.resource_name(short_id()),
                 "vm_flavor": {
                         "memory_mb": 16392,
                         "vcpu_count": 4,
@@ -441,9 +445,15 @@ class Openstack(CloudConfig):
             node = flavor.guest_epa.numa_node_policy.node.add()
             node.id = i
             if i == 0:
-                node.vcpu = [0, 1]
+                vcpu0 = node.vcpu.add()
+                vcpu0.id = 0
+                vcpu1 = node.vcpu.add()
+                vcpu1.id = 1
             elif i == 1:
-                node.vcpu = [2, 3]
+                vcpu2 = node.vcpu.add()
+                vcpu2.id = 2
+                vcpu3 = node.vcpu.add()
+                vcpu3.id = 3
             node.memory_mb = 8196
 
         dev = flavor.guest_epa.pcie_device.add()
@@ -458,15 +468,15 @@ class Openstack(CloudConfig):
         Returns:
             VDUInitParams
         """
-        vdu = RwcalYang.VDUInitParams.from_dict({
-                "name": str(uuid.uuid4()),
+        vdu = RwcalYang.YangData_RwProject_Project_VduInitParams.from_dict({
+                "name": rift.auto.mano.resource_name(short_id()),
                 "node_id": "123456789012345",
                 "image_id": self.image_id,
                 "flavor_id": self.flavor_id,
             })
 
         c1 = vdu.connection_points.add()
-        c1.name = str(uuid.uuid4())
+        c1.name = rift.auto.mano.resource_name(short_id())
         c1.virtual_link_id = self.virtual_link_id
 
         return vdu
@@ -477,8 +487,8 @@ class Openstack(CloudConfig):
         Returns:
             VirtualLinkReqParams
         """
-        vlink = RwcalYang.VirtualLinkReqParams.from_dict({
-                    "name": str(uuid.uuid4()),
+        vlink = RwcalYang.YangData_RwProject_Project_VirtualLinkReqParams.from_dict({
+                    "name": rift.auto.mano.resource_name(short_id()),
                     "subnet": '192.168.1.0/24',
             })
 
@@ -596,7 +606,7 @@ class TestCalSetup:
 
         ids = []
         for vdu in vdus.vdu_info_list:
-            status, vdu_single = cal.get_vdu(account, vdu.vdu_id)
+            status, vdu_single = cal.get_vdu(account, vdu.vdu_id, "")
             assert status == RwStatus.SUCCESS
             assert vdu_single.vdu_id == vdu.vdu_id
             ids.append(vdu.vdu_id)
@@ -607,7 +617,7 @@ class TestCalSetup:
         account = cloud_config.account
         cal = cloud_config.cal
 
-        vdu_modify = RwcalYang.VDUModifyParams()
+        vdu_modify = RwcalYang.YangData_RwProject_Project_VduModifyParams()
         vdu_modify.vdu_id = cloud_config.vdu_id
         c1 = vdu_modify.connection_points_add.add()
         c1.name = "c_modify1"

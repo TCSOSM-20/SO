@@ -57,7 +57,7 @@ class CloudsimClient(cal_utils.CloudSimCalMixin):
     def upload_image(self, location, name=None):
         """Onboard image to cloudsim server."""
 
-        image = RwcalYang.ImageInfoItem()
+        image = RwcalYang.YangData_RwProject_Project_VimResources_ImageinfoList()
         image.name = name or os.path.basename(location)
         image.location = location
         image.disk_format = "qcow2"

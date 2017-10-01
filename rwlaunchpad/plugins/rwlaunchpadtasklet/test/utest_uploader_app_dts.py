@@ -33,25 +33,33 @@ import tornado.ioloop
 import tornado.web
 import tornado.httputil
 
-import gi
+#Setting RIFT_VAR_ROOT if not already set for unit test execution
+if "RIFT_VAR_ROOT" not in os.environ:
+    os.environ['RIFT_VAR_ROOT'] = os.path.join(os.environ['RIFT_INSTALL'], 'var/rift/unittest')
+
 import requests
 from tornado.platform.asyncio import AsyncIOMainLoop
 from tornado.ioloop import IOLoop
 from concurrent.futures.thread import ThreadPoolExecutor
 from concurrent.futures.process import ProcessPoolExecutor
+
+import gi
 gi.require_version('RwDts', '1.0')
 gi.require_version('RwPkgMgmtYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 from gi.repository import (
         RwDts as rwdts,
         RwPkgMgmtYang,
-        RwVnfdYang
-
+        RwProjectVnfdYang as RwVnfdYang,
         )
 
 import rift.tasklets.rwlaunchpad.uploader as uploader
 import rift.tasklets.rwlaunchpad.message as message
 import rift.tasklets.rwlaunchpad.export as export
+from rift.mano.utils.project import ManoProject, DEFAULT_PROJECT
 import rift.test.dts
+import rift.package.store
+
 import mock
 
 TEST_STRING = "foobar"
@@ -72,18 +80,36 @@ class TestCase(rift.test.dts.AbstractDTSTest):
 
 
         mock_vnfd_catalog = mock.MagicMock()
-        self.uid, path = self.create_mock_package()
+        self.uid, path = self.create_mock_package(DEFAULT_PROJECT)
 
-        mock_vnfd = RwVnfdYang.YangData_Vnfd_VnfdCatalog_Vnfd.from_dict({
+        mock_vnfd = RwVnfdYang.YangData_RwProject_Project_VnfdCatalog_Vnfd.from_dict({
               "id": self.uid
             })
         mock_vnfd_catalog = {self.uid: mock_vnfd}
 
-        self.app = uploader.UploaderApplication(
-                self.log,
-                self.dts,
-                self.loop,
-                vnfd_catalog=mock_vnfd_catalog)
+        class MockTasklet:
+            def __init__(cls):
+                def get_vnfd_catalog(project=DEFAULT_PROJECT):
+                    return mock_vnfd_catalog
+
+                cls.log = self.log
+                cls.loop = self.loop
+                cls.dts = self.dts
+                cls.get_vnfd_catalog = get_vnfd_catalog
+                cls.get_nsd_catalog = None
+                cls.project = None
+            def _get_project(cls, project_name):
+                if cls.project is None: 
+                    cls.project = ManoProject(cls.log, project_name) 
+                return cls.project
+
+        vnfd_store = rift.package.store.VnfdPackageFilesystemStore(self.log, project=DEFAULT_PROJECT)
+        nsd_store = rift.package.store.NsdPackageFilesystemStore(self.log, project=DEFAULT_PROJECT)
+
+        self.app = uploader.UploaderApplication(MockTasklet(), vnfd_store=vnfd_store, nsd_store=nsd_store)
+        self.app.onboarder.get_updated_descriptor = mock.MagicMock(return_value={'vnfd:vnfd':{'name':'mock', 'version':'mock'}})
+        self.app.onboarder.onboard = mock.MagicMock()
+        self.app.onboarder.update = mock.MagicMock()
 
         AsyncIOMainLoop().install()
         self.server = tornado.httpserver.HTTPServer(
@@ -94,11 +120,12 @@ class TestCase(rift.test.dts.AbstractDTSTest):
     def tearDown(self):
         super().tearDown()
 
-    def create_mock_package(self):
+    def create_mock_package(self, project):
         uid = str(uuid.uuid4())
         path = os.path.join(
-                os.getenv('RIFT_ARTIFACTS'),
+                os.getenv('RIFT_VAR_ROOT'),
                 "launchpad/packages/vnfd",
+                project,
                 uid)
 
         package_path = os.path.join(path, "pong_vnfd")
@@ -122,7 +149,8 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         yield from self.app.register()
         ip = RwPkgMgmtYang.YangInput_RwPkgMgmt_PackageCreate.from_dict({
                 "package_type": "VNFD",
-                "external_url":  "http://repo.riftio.com/releases/open.riftio.com/4.2.1/VNFS/ping_vnfd.tar.gz"
+                "external_url":  "http://repo.riftio.com/releases/open.riftio.com/4.4.2/ping_vnfd.tar.gz",
+                "project_name": DEFAULT_PROJECT
                 })
 
         rpc_out = yield from self.dts.query_rpc(
@@ -147,7 +175,8 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         # Update
         ip = RwPkgMgmtYang.YangInput_RwPkgMgmt_PackageUpdate.from_dict({
                 "package_type": "VNFD",
-                "external_url":  "http://repo.riftio.com/releases/open.riftio.com/4.2.1/VNFS/ping_vnfd.tar.gz"
+                "external_url":  "http://repo.riftio.com/releases/open.riftio.com/4.4.2/ping_vnfd.tar.gz",
+                "project_name": DEFAULT_PROJECT
                 })
         rpc_out = yield from self.dts.query_rpc(
                     "I,/rw-pkg-mgmt:package-update",
@@ -166,7 +195,6 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         assert data is not None
         data = data[1]
         assert type(data) is message.DownloadSuccess
-
 
     @rift.test.dts.async_test
     def test_package_export(self):
@@ -200,7 +228,7 @@ class TestCase(rift.test.dts.AbstractDTSTest):
         data = data[-1]
         assert type(data) is export.ExportSuccess
         path = os.path.join(
-                os.getenv("RIFT_ARTIFACTS"),
+                os.getenv("RIFT_VAR_ROOT"),
                 "launchpad/exports",
                 filename)
 

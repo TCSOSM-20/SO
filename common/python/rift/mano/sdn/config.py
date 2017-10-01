@@ -26,6 +26,8 @@ from gi.repository import (
     ProtobufC,
     )
 
+from rift.mano.utils.project import get_add_delete_update_cfgs
+
 from . import accounts
 
 
@@ -35,32 +37,6 @@ class SDNAccountNotFound(Exception):
 
 class SDNAccountError(Exception):
     pass
-
-
-def get_add_delete_update_cfgs(dts_member_reg, xact, key_name):
-    # Unforunately, it is currently difficult to figure out what has exactly
-    # changed in this xact without Pbdelta support (RIFT-4916)
-    # As a workaround, we can fetch the pre and post xact elements and
-    # perform a comparison to figure out adds/deletes/updates
-    xact_cfgs = list(dts_member_reg.get_xact_elements(xact))
-    curr_cfgs = list(dts_member_reg.elements)
-
-    xact_key_map = {getattr(cfg, key_name): cfg for cfg in xact_cfgs}
-    curr_key_map = {getattr(cfg, key_name): cfg for cfg in curr_cfgs}
-
-    # Find Adds
-    added_keys = set(xact_key_map) - set(curr_key_map)
-    added_cfgs = [xact_key_map[key] for key in added_keys]
-
-    # Find Deletes
-    deleted_keys = set(curr_key_map) - set(xact_key_map)
-    deleted_cfgs = [curr_key_map[key] for key in deleted_keys]
-
-    # Find Updates
-    updated_keys = set(curr_key_map) & set(xact_key_map)
-    updated_cfgs = [xact_key_map[key] for key in updated_keys if xact_key_map[key] != curr_key_map[key]]
-
-    return added_cfgs, deleted_cfgs, updated_cfgs
 
 
 class SDNAccountConfigCallbacks(object):
@@ -102,9 +78,10 @@ class SDNAccountConfigCallbacks(object):
 class SDNAccountConfigSubscriber(object):
     XPATH = "C,/rw-sdn:sdn/rw-sdn:account"
 
-    def __init__(self, dts, log, rwlog_hdl, sdn_callbacks, acctstore):
+    def __init__(self, dts, log, project, rwlog_hdl, sdn_callbacks, acctstore):
         self._dts = dts
         self._log = log
+        self._project = project
         self._rwlog_hdl = rwlog_hdl
         self._reg = None
 
@@ -142,6 +119,11 @@ class SDNAccountConfigSubscriber(object):
 
         self.delete_account(account_msg.name)
         self.add_account(account_msg)
+
+    def deregister(self):
+        if self._reg:
+            self._reg.deregister()
+            self._reg = None
 
     def register(self):
         @asyncio.coroutine
@@ -224,8 +206,9 @@ class SDNAccountConfigSubscriber(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
+        xpath = self._project.add_project(SDNAccountConfigSubscriber.XPATH)
         self._log.debug("Registering for SDN Account config using xpath: %s",
-                        SDNAccountConfigSubscriber.XPATH,
+                        xpath,
                         )
 
         acg_handler = rift.tasklets.AppConfGroup.Handler(
@@ -234,7 +217,7 @@ class SDNAccountConfigSubscriber(object):
 
         with self._dts.appconf_group_create(acg_handler) as acg:
             self._reg = acg.register(
-                    xpath=SDNAccountConfigSubscriber.XPATH,
+                    xpath=xpath,
                     flags=rwdts.Flag.SUBSCRIBER | rwdts.Flag.DELTA_READY | rwdts.Flag.CACHE,
                     on_prepare=on_prepare,
                     )

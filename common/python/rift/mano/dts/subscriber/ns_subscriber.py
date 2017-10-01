@@ -39,7 +39,7 @@ class NsrCatalogSubscriber(core.AbstractOpdataSubscriber):
         return rwdts.Flag.SUBSCRIBER|rwdts.Flag.DELTA_READY
 
     def get_xpath(self):
-        return "D,/nsr:ns-instance-opdata/nsr:nsr"
+        return self._project.add_project("D,/nsr:ns-instance-opdata/nsr:nsr")
 
 
 class NsdCatalogSubscriber(core.AbstractConfigSubscriber):
@@ -49,7 +49,7 @@ class NsdCatalogSubscriber(core.AbstractConfigSubscriber):
         return "id"
 
     def get_xpath(self):
-        return "C,/nsd:nsd-catalog/nsd:nsd"
+        return self._project.add_project("C,/project-nsd:nsd-catalog/project-nsd:nsd")
 
 
 class NsInstanceConfigSubscriber(core.AbstractConfigSubscriber):
@@ -59,4 +59,4 @@ class NsInstanceConfigSubscriber(core.AbstractConfigSubscriber):
         return "id"
 
     def get_xpath(self):
-        return "C,/nsr:ns-instance-config/nsr:nsr"
+        return self._project.add_project("C,/nsr:ns-instance-config/nsr:nsr")

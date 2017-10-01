@@ -26,6 +26,10 @@ import tempfile
 import unittest
 import xmlrunner
 
+#Setting RIFT_VAR_ROOT if not already set for unit test execution
+if "RIFT_VAR_ROOT" not in os.environ:
+    os.environ['RIFT_VAR_ROOT'] = os.path.join(os.environ['RIFT_INSTALL'], 'var/rift/unittest')
+
 import rift.mano.examples.ping_pong_nsd as ping_pong_nsd
 
 from rift.mano.utils.compare_desc import CompareDescShell

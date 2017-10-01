@@ -64,6 +64,9 @@ class NovaDriver(object):
         
         self._sess_handle = sess_handle
 
+        self._max_api_version = None
+        self._min_api_version = None
+
         #### Attempt to use API versions in prioritized order defined in
         #### NovaDriver.supported_versions
         def select_version(version):
@@ -74,17 +77,29 @@ class NovaDriver(object):
                                         service_type = service_type,
                                         session = self._sess_handle.session,
                                         logger = self.log)
+                
+                api_version = 'v' + nvdrv.versions.api_version.get_string()
+                nova_version_list = nvdrv.versions.list()
+                max_api_version, min_api_version = None, None
+                
+                for v in nova_version_list:
+                    version_dict = v.to_dict()
+                    if api_version == version_dict["id"]:
+                        max_api_version = version_dict["version"] # Max version supported is stored in version field.
+                        min_api_version = version_dict["min_version"]
+                        break
+
             except Exception as e:
                 self.log.info(str(e))
                 raise
             else:
                 self.log.info("Nova API v%s selected", version)
-                return (version, nvdrv)
+                return (version, nvdrv, max_api_version, min_api_version)
 
         errors = []
         for v in NovaDriver.supported_versions:
             try:
-                (self._version, self._nv_drv) = select_version(v)
+                (self._version, self._nv_drv, self._max_api_version, self._min_api_version) = select_version(v)
             except Exception as e:
                 errors.append(e)
             else:
@@ -146,6 +161,8 @@ class NovaDriver(object):
         """
         try:
             extra_specs = flavor.get_keys()
+        except nvclient.exceptions.NotFound:
+            return None
         except Exception as e:
             self.log.exception("Could not get the EPA attributes for flavor with flavor_id : %s. Exception: %s",
                                flavor.id, str(e))
@@ -163,11 +180,19 @@ class NovaDriver(object):
         """
         try:
             flavor = self._nv_drv.flavors.get(flavor_id)
+        except nvclient.exceptions.NotFound:
+            return None
         except Exception as e:
             self.log.exception("Did not find flavor with flavor_id : %s. Exception: %s",flavor_id, str(e))
             raise
         response = flavor.to_dict()
-        response['extra_specs'] = self._flavor_extra_spec_get(flavor)
+        try:
+            response['extra_specs'] = self._flavor_extra_spec_get(flavor)
+        except nvclient.exceptions.NotFound:
+            pass
+        except Exception as e:
+            self.log.exception("Did not find extra_specs in flavor with flavor_id : %s. Exception: %s",flavor_id, str(e))
+            raise
         return response
         
         try:
@@ -377,7 +402,8 @@ class NovaDriver(object):
 
         if 'port_list' in kwargs:
             for port_id in kwargs['port_list']:
-                nics.append({'port-id': port_id})
+                port = { 'port-id': port_id['id'] }
+                nics.append(port)
 
         try:
             server = self._nv_drv.servers.create(
@@ -391,7 +417,7 @@ class NovaDriver(object):
                 max_count            = None,
                 userdata             = kwargs['userdata'] if 'userdata' in kwargs else None,
                 security_groups      = kwargs['security_groups'] if 'security_groups' in kwargs else None,
-                availability_zone    = kwargs['availability_zone'] if 'availability_zone' in kwargs else None,
+                availability_zone    = kwargs['availability_zone'].name if 'availability_zone' in kwargs else None,
                 block_device_mapping_v2 = kwargs['block_device_mapping_v2'] if 'block_device_mapping_v2' in kwargs else None,
                 nics                 = nics,
                 scheduler_hints      = kwargs['scheduler_hints'] if 'scheduler_hints' in kwargs else None,
@@ -535,9 +561,11 @@ class NovaDriver(object):
         try:
             console_info = self._nv_drv.servers.get_vnc_console(server_id, console_type)
         except Exception as e:
-            self.log.exception("Server Get-Console operation failed for server_id: %s. Exception: %s",
-                               server_id, str(e))
-            raise
+            # TODO: This error keeps repeating incase there is no console available
+            # So reduced level from exception to warning
+            self.log.warning("Server Get-Console operation failed for server_id: %s. Exception: %s",
+                             server_id, str(e))
+            raise e
         return console_info
 
     def server_rebuild(self, server_id, image_id):

@@ -42,7 +42,7 @@ class Message(object):
     def __repr__(self):
         return "{} {}:{}:{}".format(
                 self.timestamp,
-                logging._levelNames.get(self.level, self.level),
+                logging._levelToName.get(self.level, self.level),
                 self.name,
                 self.text,
                 )

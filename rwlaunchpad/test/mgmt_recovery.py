@@ -266,7 +266,6 @@ class Demo(rift.vcs.demo.Demo):
             ConfigManagerTasklet(),
             UIServer(),
             RedisServer(),
-            rift.vcs.RestPortForwardTasklet(),
             rift.vcs.RestconfTasklet(),
             rift.vcs.RiftCli(),
             rift.vcs.uAgentTasklet(),
@@ -275,7 +274,7 @@ class Demo(rift.vcs.demo.Demo):
 
         standby_procs = [
             RedisServer(),
-            rift.vcs.uAgentTasklet(mode_active=False),
+            rift.vcs.uAgentTasklet()
             ]
 
         restart_procs = [
@@ -358,7 +357,7 @@ def main(argv=sys.argv[1:]):
 
     # Create the prepared system from the demo
     system = rift.vcs.demo.prepared_system_from_demo_and_args(demo, args, 
-              northbound_listing="cli_launchpad_schema_listing.txt",
+              northbound_listing=["platform_schema_listing.txt", "platform_mgmt_schema_listing.txt", "cli_launchpad_schema_listing.txt"],
               netconf_trace_override=True)
 
     confd_ip = socket.gethostbyname(socket.gethostname())

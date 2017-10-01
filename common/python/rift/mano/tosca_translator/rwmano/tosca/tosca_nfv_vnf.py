@@ -26,7 +26,7 @@ try:
     import gi
     gi.require_version('RwVnfdYang', '1.0')
 
-    from gi.repository import RwVnfdYang
+    from gi.repository import RwVnfdYang as RwVnfdYang
 except ImportError:
     pass
 except ValueError:
@@ -61,7 +61,9 @@ class ToscaNfvVnf(ManoResource):
         self._policies = []
         self._cps = []
         self.vnf_type = nodetemplate.type
+        self.member_vnf_id = None
         self._reqs = {}
+        self.logo = None
 
     def map_tosca_name_to_mano(self, name):
         new_name = super().map_tosca_name_to_mano(name)
@@ -120,6 +122,7 @@ class ToscaNfvVnf(ManoResource):
             if key == 'id':
                 self._const_vnfd['member-vnf-index'] = int(value)
                 self._const_vnfd['vnfd-id-ref'] = self.id
+                self.member_vnf_id = int(value)
             elif key == 'vnf_configuration':
                 self._vnf_config = get_vnf_config(value)
             else:
@@ -145,6 +148,8 @@ class ToscaNfvVnf(ManoResource):
                                         vnf_props.pop('start_by_default')
         if 'logo' in self.metadata:
             vnf_props['logo'] = self.metadata['logo']
+            self.logo = self.metadata['logo']
+
 
         self.log.debug(_("VNF {0} with constituent vnf: {1}").
                        format(self.name, self._const_vnfd))
@@ -295,6 +300,12 @@ class ToscaNfvVnf(ManoResource):
             nsd['constituent-vnfd'] = []
         nsd['constituent-vnfd'].append(self._const_vnfd)
 
+    def generate_nsd_constiuent(self, nsd, vnf_id):
+        self._const_vnfd['vnfd-id-ref'] = vnf_id
+        props = convert_keys_to_python(self._const_vnfd)
+        nsd.constituent_vnfd.add().from_dict(props)
+
+
     def get_member_vnf_index(self):
         return self._const_vnfd['member-vnf-index']
 
@@ -310,4 +321,11 @@ class ToscaNfvVnf(ManoResource):
                 files[self.id].append({
                     'type': 'cloud_init',
                     'name': vdu.cloud_init,
+                },)
+        if self.logo is not None:
+            files[desc_id] = []
+            file_location = "../icons/{}".format(self.logo)
+            files[desc_id].append({
+                    'type': 'icons',
+                    'name': file_location,
                 },)

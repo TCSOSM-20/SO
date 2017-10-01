@@ -1,6 +1,6 @@
 
-# 
-#   Copyright 2016 RIFT.IO Inc
+#
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -51,12 +51,27 @@ class ResourceMgrConfig(object):
         self._parent = parent
 
         self._cloud_sub = None
+        self._res_sub = None
+        self._project = parent._project
 
     @asyncio.coroutine
     def register(self):
         yield from self.register_resource_pool_operational_data()
-        self.register_cloud_account_config()
+        yield from self.register_cloud_account_config()
 
+    def deregister(self):
+        self._log.debug("De-register for project {}".format(self._project.name))
+        if self._cloud_sub:
+            self._cloud_sub.deregister()
+            self._cloud_sub = None
+
+        if self._res_sub:
+            self._res_sub.delete_element(
+                self._project.add_project(ResourceMgrConfig.XPATH_POOL_OPER_DATA))
+            self._res_sub.deregister()
+            self._res_sub = None
+
+    @asyncio.coroutine
     def register_cloud_account_config(self):
         def on_add_cloud_account_apply(account):
             self._log.debug("Received on_add_cloud_account: %s", account)
@@ -78,16 +93,17 @@ class ResourceMgrConfig(object):
                 )
 
         self._cloud_sub = rift.mano.cloud.CloudAccountConfigSubscriber(
-                self._dts, self._log, self._rwlog_hdl, cloud_callbacks
-                )
-        self._cloud_sub.register()
+            self._dts, self._log, self._rwlog_hdl,
+            self._project, cloud_callbacks
+        )
+        yield from self._cloud_sub.register()
 
     @asyncio.coroutine
     def register_resource_pool_operational_data(self):
         @asyncio.coroutine
         def on_prepare(xact_info, action, ks_path, msg):
             self._log.debug("ResourceMgr providing resource-pool information")
-            msg = RwResourceMgrYang.ResourcePoolRecords()
+            msg = RwResourceMgrYang.YangData_RwProject_Project_ResourcePoolRecords()
 
             cloud_accounts = self._parent.get_cloud_account_names()
             for cloud_account_name in cloud_accounts:
@@ -102,14 +118,14 @@ class ResourceMgrConfig(object):
                     cloud_account_msg.records.append(pool_info)
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK,
-                                    ResourceMgrConfig.XPATH_POOL_OPER_DATA,
+                                    self._project.add_project(ResourceMgrConfig.XPATH_POOL_OPER_DATA),
                                     msg=msg,)
 
-        self._log.debug("Registering for Resource Mgr resource-pool-record using xpath: %s",
-                        ResourceMgrConfig.XPATH_POOL_OPER_DATA)
+        xpath = self._project.add_project(ResourceMgrConfig.XPATH_POOL_OPER_DATA)
+        self._log.debug("Registering for Resource Mgr resource-pool-record using xpath: {}".
+                        format(xpath))
 
         handler=rift.tasklets.DTS.RegistrationHandler(on_prepare=on_prepare)
-        response = yield from self._dts.register(xpath=ResourceMgrConfig.XPATH_POOL_OPER_DATA,
-                                                 handler=handler,
-                                                 flags=rwdts.Flag.PUBLISHER)
-
+        self._res_sub = yield from self._dts.register(xpath=xpath,
+                                                      handler=handler,
+                                                      flags=rwdts.Flag.PUBLISHER)

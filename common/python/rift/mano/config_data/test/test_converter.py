@@ -17,20 +17,23 @@
 
 import pytest
 import uuid
-from gi.repository import NsdYang, VnfdYang
+from gi.repository import (
+    ProjectNsdYang as NsdYang,
+    ProjectVnfdYang as VnfdYang,
+    )
 from ..config import ConfigPrimitiveConvertor
 import yaml
 
 @pytest.fixture(scope="function")
 def nsd():
-    catalog = NsdYang.YangData_Nsd_NsdCatalog()
+    catalog = NsdYang.YangData_RwProject_Project_NsdCatalog()
     nsd = catalog.nsd.add()
     nsd.id = str(uuid.uuid1())
     return nsd
 
 @pytest.fixture(scope="function")
 def vnfd():
-    catalog = VnfdYang.YangData_Vnfd_VnfdCatalog()
+    catalog = VnfdYang.YangData_RwProject_Project_VnfdCatalog()
     vnfd = catalog.vnfd.add()
     vnfd.id = str(uuid.uuid1())
     return vnfd
@@ -222,14 +225,14 @@ def test_vnfd_config_prim(vnfd, convertor):
             ],
         })
 
-    vnf_config.service_primitive.add().from_dict({
+    vnf_config.config_primitive.add().from_dict({
         "name": "PE1",
         "parameter": [
                 {"name": "Foo", "default_value": "Bar"}
         ]
         })
 
-    expected_yaml = """service_primitive:
+    expected_yaml = """config_primitive:
   PE1:
     parameter:
       Foo: Bar
@@ -267,12 +270,12 @@ def test_vnfd_merge(vnfd, convertor):
             "parameter": [{"name": "cidr"}],
         })
 
-    vnf_config.service_primitive.add().from_dict({
+    vnf_config.config_primitive.add().from_dict({
         "name": "PE1",
         "parameter": [{"name": "Foo",}]
         })
 
-    ip_yaml = """service_primitive:
+    ip_yaml = """config_primitive:
   PE1:
     parameter:
       Foo: Bar
@@ -287,7 +290,7 @@ initial_config_primitive:
       cidr: 10.10.10.2/30
 """
 
-    catalog = VnfdYang.YangData_Vnfd_VnfdCatalog()
+    catalog = VnfdYang.YangData_RwProject_Project_VnfdCatalog()
     expected_vnfd = catalog.vnfd.add()
     vnf_config = expected_vnfd.vnf_configuration
     expected_vnfd.id = vnfd.id
@@ -311,7 +314,7 @@ initial_config_primitive:
             ],
         })
 
-    vnf_config.service_primitive.add().from_dict({
+    vnf_config.config_primitive.add().from_dict({
         "name": "PE1",
         "parameter": [
                 {"name": "Foo", "default_value": "Bar"}
@@ -374,7 +377,7 @@ def test_nsd_merge(nsd, convertor):
       Vlan ID: '3000'
 """
 
-        catalog = NsdYang.YangData_Nsd_NsdCatalog()
+        catalog = NsdYang.YangData_RwProject_Project_NsdCatalog()
         expected_nsd = catalog.nsd.add()
         expected_nsd.id = nsd.id
         expected_nsd.service_primitive.add().from_dict(

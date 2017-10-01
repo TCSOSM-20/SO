@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 # 
-#   Copyright 2016 RIFT.IO Inc
+#   Copyright 2016-2017 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -39,13 +39,13 @@ gi.require_version('RwCloudYang', '1.0')
 gi.require_version('RwIwpYang', '1.0')
 gi.require_version('RwNsmYang', '1.0')
 gi.require_version('RwNsrYang', '1.0')
-gi.require_version('RwNsrYang', '1.0')
+gi.require_version('ProjectNsdYang', '1.0')
 gi.require_version('RwResourceMgrYang', '1.0')
 gi.require_version('RwConmanYang', '1.0')
-gi.require_version('RwVnfdYang', '1.0')
+gi.require_version('RwProjectVnfdYang', '1.0')
 
 from gi.repository import (
-        NsdYang,
+        ProjectNsdYang as NsdYang,
         NsrYang,
         RwBaseYang,
         RwCloudYang,
@@ -55,7 +55,7 @@ from gi.repository import (
         RwNsrYang,
         RwResourceMgrYang,
         RwConmanYang,
-        RwVnfdYang,
+        RwProjectVnfdYang as RwVnfdYang,
         VldYang,
         )
 
@@ -197,14 +197,14 @@ class DescriptorOnboardError(Exception):
     pass
 
 
-def wait_unboard_transaction_finished(logger, transaction_id, timeout_secs=600, host="127.0.0.1"):
+def wait_unboard_transaction_finished(logger, transaction_id, timeout_secs=600, host="127.0.0.1", project="default"):
     logger.info("Waiting for onboard trans_id %s to complete",
                 transaction_id)
     start_time = time.time()
     while (time.time() - start_time) < timeout_secs:
         r = requests.get(
-                'http://{host}:4567/api/upload/{t_id}/state'.format(
-                    host=host, t_id=transaction_id
+                'http://{host}:8008/api/operational/project/{proj}/create-jobs/job/{t_id}/'.format(
+                    host=host, proj=project, t_id=transaction_id
                     )
                 )
         state = r.json()
@@ -223,7 +223,7 @@ def wait_unboard_transaction_finished(logger, transaction_id, timeout_secs=600, 
         raise DescriptorOnboardError(state)
 
 def create_nsr_from_nsd_id(nsd_id):
-      nsr = NsrYang.YangData_Nsr_NsInstanceConfig_Nsr()
+      nsr = NsrYang.YangData_RwProject_Project_NsInstanceConfig_Nsr()
       nsr.id = str(uuid.uuid4())
       nsr.name = "UTM-WIMS"
       nsr.short_name = "UTM-WIMS"
@@ -261,10 +261,10 @@ class TestLaunchpadStartStop(object):
         cloud_account.openstack.tenant = 'demo'
         cloud_account.openstack.mgmt_network = 'private'
 
-        cloud_proxy.merge_config("/rw-cloud:cloud-account", cloud_account)
+        cloud_proxy.merge_config("/rw-project:project/rw-cloud:cloud-account", cloud_account)
 
     def test_configure_pools(self, resource_mgr_proxy):
-        pools = RwResourceMgrYang.ResourcePools.from_dict({
+        pools = RwResourceMgrYang.YangData_RwProject_Project_ResourceMgrConfig_ResourcePools.from_dict({
             "pools": [{ "name": "vm_pool_a",
                         "resource_type": "compute",
                         "pool_type" : "dynamic"},
@@ -272,29 +272,14 @@ class TestLaunchpadStartStop(object):
                        "resource_type": "network",
                        "pool_type" : "dynamic",}]})
 
-        resource_mgr_proxy.merge_config('/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools', pools)
+        resource_mgr_proxy.merge_config('/rw-project:project/rw-resource-mgr:resource-mgr-config/rw-resource-mgr:resource-pools', pools)
 
-    def test_configure_resource_orchestrator(self, so_proxy):
-        cfg = RwConmanYang.RoEndpoint.from_dict({'ro_ip_address': '127.0.0.1',
-                                                'ro_port'      :  2022,
-                                                'ro_username'  : 'admin',
-                                                'ro_password'  : 'admin'})
-        so_proxy.merge_config('/rw-conman:cm-config', cfg)
-
-    def test_configure_service_orchestrator(self, nsm_proxy):
-        cfg = RwNsmYang.SoEndpoint.from_dict({'cm_ip_address': '127.0.0.1',
-                                              'cm_port'      :  2022,
-                                              'cm_username'  : 'admin',
-                                              'cm_password'  : 'admin'})
-        nsm_proxy.merge_config('/rw-nsm:ro-config/rw-nsm:cm-endpoint', cfg)
-
-    
     def test_onboard_ktutm_vnfd(self, logger, vnfd_proxy, kt_utm_vnfd_package_file):
         logger.info("Onboarding kt_utm_vnfd package: %s", kt_utm_vnfd_package_file)
         trans_id = upload_descriptor(logger, kt_utm_vnfd_package_file)
         wait_unboard_transaction_finished(logger, trans_id)
 
-        catalog = vnfd_proxy.get_config('/vnfd-catalog')
+        catalog = vnfd_proxy.get_config('/rw-project:project[rw-project:name="default"]/vnfd-catalog')
         vnfds = catalog.vnfd
         assert len(vnfds) == 1, "There should only be a single vnfd"
         vnfd = vnfds[0]
@@ -305,7 +290,7 @@ class TestLaunchpadStartStop(object):
         trans_id = upload_descriptor(logger, kt_wims_vnfd_package_file)
         wait_unboard_transaction_finished(logger, trans_id)
 
-        catalog = vnfd_proxy.get_config('/vnfd-catalog')
+        catalog = vnfd_proxy.get_config('/rw-project:project[rw-project:name="default"]/vnfd-catalog')
         vnfds = catalog.vnfd
         assert len(vnfds) == 2, "There should only be two vnfd"
         assert "kt_wims_vnfd" in [vnfds[0].name, vnfds[1].name]
@@ -315,19 +300,19 @@ class TestLaunchpadStartStop(object):
         trans_id = upload_descriptor(logger, utm_wims_nsd_package_file)
         wait_unboard_transaction_finished(logger, trans_id)
   
-        catalog = nsd_proxy.get_config('/nsd-catalog')
+        catalog = nsd_proxy.get_config('/rw-project:project[rw-project:name="default"]/nsd-catalog')
         nsds = catalog.nsd
         assert len(nsds) == 1, "There should only be a single nsd"
         nsd = nsds[0]
   
     def test_instantiate_utm_wims_nsr(self, logger, nsd_proxy, nsr_proxy, rwnsr_proxy, base_proxy):
-        catalog = nsd_proxy.get_config('/nsd-catalog')
+        catalog = nsd_proxy.get_config('/rw-project:project[rw-project:name="default"]/nsd-catalog')
         nsd = catalog.nsd[0]
  
         nsr = create_nsr_from_nsd_id(nsd.id)
-        nsr_proxy.merge_config('/ns-instance-config', nsr)
+        nsr_proxy.merge_config('/rw-project:project[rw-project:name="default"]/ns-instance-config', nsr)
   
-        nsr_opdata = rwnsr_proxy.get('/ns-instance-opdata')
+        nsr_opdata = rwnsr_proxy.get('/rw-project:project[rw-project:name="default"]/ns-instance-opdata')
         nsrs = nsr_opdata.nsr
         assert len(nsrs) == 1
         assert nsrs[0].ns_instance_config_ref == nsr.id

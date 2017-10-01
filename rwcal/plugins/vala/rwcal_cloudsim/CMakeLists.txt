@@ -17,12 +17,9 @@
 
 include(rift_plugin)
 
-set(PKG_NAME rwcal-cloudsim)
-set(PKG_VERSION 1.0)
-set(PKG_RELEASE 1)
-set(PKG_LONG_NAME ${PKG_NAME}-${PKG_VERSION})
+set(INSTALL_COMPONENT rwcal-plugin-cloudsim)
 
-rift_install_python_plugin(rwcal_cloudsim rwcal_cloudsim.py)
+rift_install_gobject_python_plugin(rwcal_cloudsim rwcal_cloudsim.py COMPONENT ${INSTALL_COMPONENT})
 
 rift_python_install_tree(
   FILES
@@ -35,5 +32,5 @@ rift_python_install_tree(
     rift/rwcal/cloudsim/net.py
     rift/rwcal/cloudsim/shell.py
   PYTHON3_ONLY
-  COMPONENT ${PKG_LONG_NAME})
+  COMPONENT ${INSTALL_COMPONENT})
 

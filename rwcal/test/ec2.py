@@ -178,7 +178,7 @@ class RWEC2(object):
             kwds = {'subnet_id': __default_subnet__}
         else:
             kwds = {'network_interfaces': net_ifs}
-            print net_ifs
+            print(net_ifs)
 
         new_reservation = self._conn.run_instances(
             image_id=self._ami,
@@ -220,7 +220,7 @@ class RWEC2(object):
             addr = "%s.%s.10%d.0/25" % (subnet_addrs_split[0], subnet_addrs_split[1], i)
             try:
                 subnet = vpc_conn.create_subnet(vpc.id, addr)
-            except boto.exception.EC2ResponseError, e:
+            except boto.exception.EC2ResponseError as e:
                 if 'InvalidSubnet.Conflict' == e.error_code:
                     subnet = vpc_conn.get_all_subnets(filters=[('vpcId', vpc.id), ('cidrBlock', addr)])[0]
                 else:

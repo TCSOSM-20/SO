@@ -18,10 +18,6 @@
 include(rift_plugin)
 
 ### rwcal-mock package
-set(PKG_NAME rwcal-mock)
-set(PKG_VERSION 1.0)
-set(PKG_RELEASE 1)
-set(PKG_LONG_NAME ${PKG_NAME}-${PKG_VERSION})
+set(INSTALL_COMPONENT rwcal-plugin-mock)
 
-
-rift_install_python_plugin(rwcal_mock rwcal_mock.py)
+rift_install_gobject_python_plugin(rwcal_mock rwcal_mock.py COMPONENT ${INSTALL_COMPONENT})

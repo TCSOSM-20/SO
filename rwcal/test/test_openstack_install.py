@@ -370,9 +370,9 @@ class OpenstackTest(object):
 
     def _get_cal_account(self):
         """
-        Creates an object for class RwcalYang.CloudAccount()
+        Creates an object for class RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         """
-        account                        = RwcalYang.CloudAccount()
+        account                        = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         account.account_type           = "openstack"
         account.openstack.key          = "{}_user".format(self.test_prefix)
         account.openstack.secret       = "mypasswd"

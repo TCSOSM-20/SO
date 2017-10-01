@@ -67,7 +67,7 @@ def get_cal_account(**kwargs):
     """
     Returns AWS cal account
     """
-    account                        = RwcalYang.CloudAccount()
+    account                        = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
     account.account_type           = "aws"
     account.aws.key = kwargs['key']
     account.aws.secret = kwargs['secret']
@@ -158,7 +158,7 @@ class AWSResources(object):
         Create Mission Control VM in AWS
         """ 
         logger.info("Creating mission control VM")
-        vdu = RwcalYang.VDUInitParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VduInitParams()
         vdu.name = MISSION_CONTROL_NAME
         vdu.image_id = RIFT_IMAGE_AMI
         vdu.flavor_id = 'c3.large'
@@ -173,7 +173,7 @@ class AWSResources(object):
         inst=driver.get_instance(self._mc_id)
         inst.wait_until_running()
 
-        rc,rs =self._cal.get_vdu(self._acct,self._mc_id)
+        rc,rs =self._cal.get_vdu(self._acct,self._mc_id, "")
         assert rc == RwStatus.SUCCESS
         self._mc_public_ip = rs.public_ip
         self._mc_private_ip = rs.management_ip
@@ -206,7 +206,7 @@ class AWSResources(object):
             salt_master=self._mc_private_ip
         node_id = str(uuid.uuid4())
 
-        vdu = RwcalYang.VDUInitParams()
+        vdu = RwcalYang.YangData_RwProject_Project_VduInitParams()
         vdu.name = LAUNCHPAD_NAME
         vdu.image_id = RIFT_IMAGE_AMI
         vdu.flavor_id = 'c3.xlarge'
@@ -223,7 +223,7 @@ class AWSResources(object):
         inst=driver.get_instance(self._lp_id)
         inst.wait_until_running()
 
-        rc,rs =self._cal.get_vdu(self._acct,self._lp_id)
+        rc,rs =self._cal.get_vdu(self._acct,self._lp_id, "")
         assert rc == RwStatus.SUCCESS
 
         self._lp_public_ip = rs.public_ip

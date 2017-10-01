@@ -41,7 +41,7 @@ class TestNullDataSource(unittest.TestCase):
         plugin = rw_peas.PeasPlugin("rwmon_mock", 'RwMon-1.0')
         self.plugin = plugin.get_interface("Monitoring")
 
-        self.account = RwcalYang.CloudAccount()
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         self.vim_id = "test-vim-id"
 
     def test_null_data_source(self):
@@ -52,19 +52,19 @@ class TestNullDataSource(unittest.TestCase):
         """
         status, metrics = self.plugin.nfvi_metrics(self.account, self.vim_id)
         self.assertEqual(status, RwTypes.RwStatus.SUCCESS)
-        self.assertEqual(metrics, RwmonYang.NfviMetrics())
+        self.assertEqual(metrics, RwmonYang.YangData_RwProject_Project_NfviMetrics())
 
         status, metrics = self.plugin.nfvi_vcpu_metrics(self.account, self.vim_id)
         self.assertEqual(status, RwTypes.RwStatus.SUCCESS)
-        self.assertEqual(metrics, RwmonYang.NfviMetrics_Vcpu())
+        self.assertEqual(metrics, RwmonYang.YangData_RwProject_Project_NfviMetrics_Vcpu())
 
         status, metrics = self.plugin.nfvi_memory_metrics(self.account, self.vim_id)
         self.assertEqual(status, RwTypes.RwStatus.SUCCESS)
-        self.assertEqual(metrics, RwmonYang.NfviMetrics_Memory())
+        self.assertEqual(metrics, RwmonYang.YangData_RwProject_Project_NfviMetrics_Memory())
 
         status, metrics = self.plugin.nfvi_storage_metrics(self.account, self.vim_id)
         self.assertEqual(status, RwTypes.RwStatus.SUCCESS)
-        self.assertEqual(metrics, RwmonYang.NfviMetrics_Storage())
+        self.assertEqual(metrics, RwmonYang.YangData_RwProject_Project_NfviMetrics_Storage())
 
         status, result = self.plugin.nfvi_metrics_available(self.account)
         self.assertEqual(status, RwTypes.RwStatus.SUCCESS)
@@ -77,7 +77,7 @@ class TestMockDataSource(unittest.TestCase):
         self.plugin = plugin.get_interface("Monitoring")
         self.plugin.set_impl(MockDataSource())
 
-        self.account = RwcalYang.CloudAccount()
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
         self.vim_id = "test-vim-id"
 
     def test_mock_data_source(self):
@@ -87,7 +87,7 @@ class TestMockDataSource(unittest.TestCase):
         are indeed returned.
 
         """
-        expected_vcpu_metrics = RwmonYang.NfviMetrics_Vcpu()
+        expected_vcpu_metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Vcpu()
         expected_vcpu_metrics.utilization = 50.0
         expected_vcpu_metrics.total = 100
 
@@ -96,7 +96,7 @@ class TestMockDataSource(unittest.TestCase):
         self.assertEqual(metrics.total, expected_vcpu_metrics.total)
         self.assertEqual(metrics.utilization, expected_vcpu_metrics.utilization)
 
-        expected_memory_metrics = RwmonYang.NfviMetrics_Memory()
+        expected_memory_metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Memory()
         expected_memory_metrics.used = 90
         expected_memory_metrics.total = 100
         expected_memory_metrics.utilization = 90/100
@@ -107,7 +107,7 @@ class TestMockDataSource(unittest.TestCase):
         self.assertEqual(metrics.total, expected_memory_metrics.total)
         self.assertEqual(metrics.utilization, expected_memory_metrics.utilization)
 
-        expected_storage_metrics = RwmonYang.NfviMetrics_Storage()
+        expected_storage_metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Storage()
         expected_storage_metrics.used = 300
         expected_storage_metrics.total = 500
         expected_storage_metrics.utilization = 300/500
@@ -142,8 +142,8 @@ class TestMockAlarms(unittest.TestCase):
         self.plugin = plugin.get_interface("Monitoring")
         self.plugin.set_impl(self.mock)
 
-        self.account = RwcalYang.CloudAccount()
-        self.alarm = RwmonYang.Alarm(name='test-alarm')
+        self.account = RwcalYang.YangData_RwProject_Project_CloudAccounts_CloudAccountList()
+        self.alarm = RwmonYang.YangData_RwProject_Project_Alarm(name='test-alarm')
         self.vim_id = 'test-vim-id'
 
     def test(self):
@@ -157,8 +157,8 @@ class TestMockAlarms(unittest.TestCase):
         self.assertEqual(0, len(alarms))
 
         # Create two alarms
-        self.plugin.do_alarm_create(self.account, self.vim_id, RwmonYang.Alarm())
-        self.plugin.do_alarm_create(self.account, self.vim_id, RwmonYang.Alarm())
+        self.plugin.do_alarm_create(self.account, self.vim_id, RwmonYang.YangData_RwProject_Project_Alarm())
+        self.plugin.do_alarm_create(self.account, self.vim_id, RwmonYang.YangData_RwProject_Project_Alarm())
 
         _, alarms = self.plugin.do_alarm_list(self.account)
         self.assertEqual(2, len(alarms))
@@ -217,27 +217,27 @@ class MockDataSource(object):
     """
 
     def nfvi_metrics(self, account, vm_id):
-        metrics = RwmonYang.NfviMetrics()
+        metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics()
         metrics.vcpu = self.nfvi_vcpu_metrics(account, vm_id)
         metrics.memory = self.nfvi_memory_metrics(account, vm_id)
         metrics.storage = self.nfvi_storage_metrics(account, vm_id)
         return metrics
 
     def nfvi_vcpu_metrics(self, account, vm_id):
-        metrics = RwmonYang.NfviMetrics_Vcpu()
+        metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Vcpu()
         metrics.total = 100
         metrics.utilization = 50.0
         return metrics
 
     def nfvi_memory_metrics(self, account, vm_id):
-        metrics = RwmonYang.NfviMetrics_Memory()
+        metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Memory()
         metrics.used = 90
         metrics.total = 100
         metrics.utilization = 90/100
         return metrics
 
     def nfvi_storage_metrics(self, account, vm_id):
-        metrics = RwmonYang.NfviMetrics_Storage()
+        metrics = RwmonYang.YangData_RwProject_Project_NfviMetrics_Storage()
         metrics.used = 300
         metrics.total = 500
         metrics.utilization = 300/500

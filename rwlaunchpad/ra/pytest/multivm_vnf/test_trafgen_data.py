@@ -22,6 +22,7 @@
 @brief Scriptable load-balancer test with multi-vm VNFs
 """
 
+import gi
 import ipaddress
 import pytest
 import re
@@ -37,11 +38,13 @@ from gi.repository import (
     RwVnfBaseConfigYang,
     RwTrafgenYang
 )
+gi.require_version('RwKeyspec', '1.0')
+from gi.repository.RwKeyspec import quoted_key
 
 
 @pytest.fixture(scope='session')
 def trafgen_vnfr(request, rwvnfr_proxy, session_type):
-    vnfr = "/vnfr-catalog/vnfr"
+    vnfr = "/rw-project:project[rw-project:name='default']/vnfr-catalog/vnfr"
     vnfrs = rwvnfr_proxy.get(vnfr, list_obj=True)
     for vnfr in vnfrs.vnfr:
         if 'trafgen' in vnfr.short_name:
@@ -94,7 +97,7 @@ def confirm_config(tgcfg_proxy, vnf_name):
     Arguments:
         vnf_name - vnf name of configuration
     '''
-    xpath = "/vnf-config/vnf[name='%s'][instance='0']" % vnf_name
+    xpath = "/rw-project:project[rw-project:name='default']/vnf-config/vnf[name=%s][instance='0']" % quoted_key(vnf_name)
     for _ in range(24):
         tg_config = tgcfg_proxy.get_config(xpath)
         if tg_config is not None:
@@ -154,8 +157,8 @@ def wait_for_traffic_started(vnfdata_proxy, vnf_name, port_name, timeout=120, in
         '''
         return (int(current_sample) - int(previous_sample)) > threshold
 
-    xpath = "/vnf-opdata/vnf[name='{}'][instance='0']/port-state[portname='{}']/counters/{}"
-    vnfdata_proxy.wait_for_interval(xpath.format(vnf_name, port_name, 'input-packets'),
+    xpath = "/rw-project:project[rw-project:name='default']/vnf-opdata/vnf[name={}][instance='0']/port-state[portname={}]/counters/{}"
+    vnfdata_proxy.wait_for_interval(xpath.format(quoted_key(vnf_name), quoted_key(port_name), quoted_key('input-packets')),
                                     value_incremented, timeout=timeout, interval=interval)
 
 
@@ -178,8 +181,8 @@ def wait_for_traffic_stopped(vnfdata_proxy, vnf_name, port_name, timeout=60, int
         '''
         return (int(current_sample) - int(previous_sample)) < threshold
 
-    xpath = "/vnf-opdata/vnf[name='{}'][instance='0']/port-state[portname='{}']/counters/{}"
-    vnfdata_proxy.wait_for_interval(xpath.format(vnf_name, port_name, 'input-packets'), value_unchanged, timeout=timeout, interval=interval)
+    xpath = "/rw-project:project[rw-project:name='default']/vnf-opdata/vnf[name={}][instance='0']/port-state[portname={}]/counters/{}"
+    vnfdata_proxy.wait_for_interval(xpath.format(quoted_key(vnf_name), quoted_key(port_name), quoted_key('input-packets')), value_unchanged, timeout=timeout, interval=interval)
 
 @pytest.mark.depends('multivmvnf')
 @pytest.mark.incremental

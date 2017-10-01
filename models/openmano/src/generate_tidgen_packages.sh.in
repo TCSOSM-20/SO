@@ -1,15 +1,17 @@
 #! /bin/bash
 
 set -e
+set -x
 
 SOURCE_DIR=@CMAKE_CURRENT_SOURCE_DIR@
 BINARY_DIR=@CMAKE_CURRENT_BINARY_DIR@
 PROJECT_TOP_DIR=@PROJECT_TOP_DIR@
 
 # These paths are needed for finding the overrides and so files
-PYTHONPATH=${PYTHONPATH}:@RIFT_SUBMODULE_SOURCE_ROOT@/rwvcs/ra:@RIFT_SUBMODULE_BINARY_ROOT@/models/plugins/yang
-PYTHON3PATH=${PYTHON3PATH}:@RIFT_SUBMODULE_SOURCE_ROOT@/rwvcs/ra:@RIFT_SUBMODULE_BINARY_ROOT@/models/plugins/yang
-LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:@RIFT_SUBMODULE_BINARY_ROOT@/models/plugins/yang:@RIFT_SUBMODULE_BINARY_ROOT@/common/plugins/yang
+export PYTHONPATH=${PYTHONPATH}:@RIFT_SUBMODULE_SOURCE_ROOT@/rwvcs/ra:@RIFT_SUBMODULE_BINARY_ROOT@/models/plugins/yang
+export PYTHON3PATH=${PYTHON3PATH}:@RIFT_SUBMODULE_SOURCE_ROOT@/rwvcs/ra:@RIFT_SUBMODULE_BINARY_ROOT@/models/plugins/yang
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:@RIFT_SUBMODULE_BINARY_ROOT@/models/plugins/yang:@RIFT_SUBMODULE_BINARY_ROOT@/common/plugins/yang
+export GI_TYPELIB_PATH=${GI_TYPELIB_PATH}:@RIFT_SUBMODULE_SOURCE_ROOT@/models/plugins/yang:@RIFT_SUBMODULE_BINARY_ROOT@/common/plugins/yang
 
 # Remove any old directories
 rm -rf ${BINARY_DIR}/2tidgenMWC_4sriov

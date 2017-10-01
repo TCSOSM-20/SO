@@ -91,8 +91,8 @@ class ToscaNetwork(ManoResource):
                 ip_profile_param['ip-version'] = 'ipv' + str(specs['ip_version'])
             if 'cidr' in specs:
                 ip_profile_param['subnet-address'] = specs['cidr']
+                ip_profile_prop['ip-profile-params'] = ip_profile_param
 
-            ip_profile_prop['ip-profile-params'] = ip_profile_param
             return ip_profile_prop
         tosca_props = self.get_tosca_props()
         self._vld = get_vld_props(tosca_props)
@@ -128,7 +128,8 @@ class ToscaNetwork(ManoResource):
         ip_profile_props = convert_keys_to_python(self._ip_profile)
         try:
             nsd.vld.add().from_dict(vld_props)
-            nsd.ip_profiles.add().from_dict(ip_profile_props)
+            if len(ip_profile_props) > 1:
+                nsd.ip_profiles.add().from_dict(ip_profile_props)
         except Exception as e:
             err_msg = _("{0} Exception vld from dict {1}: {2}"). \
                       format(self, props, e)

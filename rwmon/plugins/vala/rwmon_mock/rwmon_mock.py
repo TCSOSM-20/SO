@@ -38,16 +38,16 @@ rwstatus = rw_status.rwstatus_from_exc_map({
 
 class NullImpl(object):
     def nfvi_metrics(self, account, vm_id):
-        return rwmon.NfviMetrics()
+        return rwmon.YangData_RwProject_Project_NfviMetrics()
 
     def nfvi_vcpu_metrics(self, account, vm_id):
-        return rwmon.NfviMetrics_Vcpu()
+        return rwmon.YangData_RwProject_Project_NfviMetrics_Vcpu()
 
     def nfvi_memory_metrics(self, account, vm_id):
-        return rwmon.NfviMetrics_Memory()
+        return rwmon.YangData_RwProject_Project_NfviMetrics_Memory()
 
     def nfvi_storage_metrics(self, account, vm_id):
-        return rwmon.NfviMetrics_Storage()
+        return rwmon.YangData_RwProject_Project_NfviMetrics_Storage()
 
     def nfvi_metrics_available(self, account):
         return True

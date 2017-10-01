@@ -380,6 +380,7 @@ def run_proxy(port,
               test_ssl=False,
               debug_level=0,
               io_loop=None,
+              address="",
               ):
 
     """
@@ -423,7 +424,7 @@ def run_proxy(port,
         kwargs = {"io_loop": io_loop}
 
     http_server = tornado.httpserver.HTTPServer(app, **kwargs)
-    http_server.listen(port)
+    http_server.listen(port, address)
     return http_server
 
 

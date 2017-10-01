@@ -1,5 +1,5 @@
 
-# 
+#
 #   Copyright 2016 RIFT.IO Inc
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +21,7 @@ import rw_peas
 import gi
 gi.require_version('RwDts', '1.0')
 import rift.tasklets
+from rift.mano.utils.project import get_add_delete_update_cfgs
 
 from gi.repository import (
     RwcalYang as rwcal,
@@ -34,32 +35,6 @@ class ConfigAccountNotFound(Exception):
 
 class ConfigAccountError(Exception):
     pass
-
-
-def get_add_delete_update_cfgs(dts_member_reg, xact, key_name):
-    # Unforunately, it is currently difficult to figure out what has exactly
-    # changed in this xact without Pbdelta support (RIFT-4916)
-    # As a workaround, we can fetch the pre and post xact elements and
-    # perform a comparison to figure out adds/deletes/updates
-    xact_cfgs = list(dts_member_reg.get_xact_elements(xact))
-    curr_cfgs = list(dts_member_reg.elements)
-
-    xact_key_map = {getattr(cfg, key_name): cfg for cfg in xact_cfgs}
-    curr_key_map = {getattr(cfg, key_name): cfg for cfg in curr_cfgs}
-
-    # Find Adds
-    added_keys = set(xact_key_map) - set(curr_key_map)
-    added_cfgs = [xact_key_map[key] for key in added_keys]
-
-    # Find Deletes
-    deleted_keys = set(curr_key_map) - set(xact_key_map)
-    deleted_cfgs = [curr_key_map[key] for key in deleted_keys]
-
-    # Find Updates
-    updated_keys = set(curr_key_map) & set(xact_key_map)
-    updated_cfgs = [xact_key_map[key] for key in updated_keys if xact_key_map[key] != curr_key_map[key]]
-
-    return added_cfgs, deleted_cfgs, updated_cfgs
 
 
 class ConfigAgentCallbacks(object):
@@ -101,9 +76,10 @@ class ConfigAgentCallbacks(object):
 class ConfigAgentSubscriber(object):
     XPATH = "C,/rw-config-agent:config-agent/account"
 
-    def __init__(self, dts, log, config_callbacks):
+    def __init__(self, dts, log, project, config_callbacks):
         self._dts = dts
         self._log = log
+        self._project = project
         self._reg = None
 
         self.accounts = {}
@@ -139,15 +115,27 @@ class ConfigAgentSubscriber(object):
         self.delete_account(account_msg)
         self.add_account(account_msg)
 
+    def deregister(self):
+        self._log.debug("De-register config agent handler for project {}".
+                        format(self._project.name))
+        if self._reg:
+            self._reg.deregister()
+            self._reg = None
+
     def register(self):
         def apply_config(dts, acg, xact, action, _):
             self._log.debug("Got config account apply config (xact: %s) (action: %s)", xact, action)
 
             if xact.xact is None:
-                # When RIFT first comes up, an INSTALL is called with the current config
-                # Since confd doesn't actally persist data this never has any data so
-                # skip this for now.
-                self._log.debug("No xact handle.  Skipping apply config")
+                if action == rwdts.AppconfAction.INSTALL:
+                    curr_cfg = self._reg.elements
+                    for cfg in curr_cfg:
+                        self._log.info("Config Agent Account {} being re-added after restart.".
+                                       format(cfg.name))
+                        self.add_account(cfg)
+                else:
+                    self._log.debug("No xact handle.  Skipping apply config")
+
                 return
 
             add_cfgs, delete_cfgs, update_cfgs = get_add_delete_update_cfgs(
@@ -212,17 +200,17 @@ class ConfigAgentSubscriber(object):
 
             xact_info.respond_xpath(rwdts.XactRspCode.ACK)
 
-        self._log.debug("Registering for Config Account config using xpath: %s",
-                        ConfigAgentSubscriber.XPATH,
-                        )
 
         acg_handler = rift.tasklets.AppConfGroup.Handler(
                         on_apply=apply_config,
                         )
 
         with self._dts.appconf_group_create(acg_handler) as acg:
+            xpath = self._project.add_project(ConfigAgentSubscriber.XPATH)
+            self._log.debug("Registering for Config Account config using xpath: %s",
+                            xpath)
             self._reg = acg.register(
-                    xpath=ConfigAgentSubscriber.XPATH,
+                    xpath=xpath,
                     flags=rwdts.Flag.SUBSCRIBER,
                     on_prepare=on_prepare,
                     )

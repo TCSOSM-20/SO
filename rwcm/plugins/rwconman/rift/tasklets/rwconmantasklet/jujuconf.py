@@ -587,7 +587,6 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         if not rc:
             return False
 
-        # action_ids = []
         try:
             if vnfr_msg.mgmt_interface.ip_address:
                 vnfr['tags'].update({'rw_mgmt_ip': vnfr_msg.mgmt_interface.ip_address})
@@ -630,57 +629,44 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                                 val = self.xlate(param.value,
                                                  vnfr['tags'])
                                 config.update({param.name: val})
-            except KeyError as e:
-                self._log.exception("jujuCA:(%s) Initial config error(%s): config=%s",
-                                    vnfr['vnf_juju_name'], str(e), config)
-                config = None
-                return False
-
-            if config:
-                self.juju_log('info', vnfr['vnf_juju_name'],
-                              "Applying Initial config:%s",
-                              config)
-
-                rc = yield from self.api.apply_config(
-                    config,
-                    application=service,
-                )
-                if rc is False:
-                    self.log.error("Service {} is in error state".format(service))
-                    return False
 
                         if config:
                             self.juju_log('info', vnfr['vnf_juju_name'],
                                           "Applying Initial config:%s",
                                           config)
 
-            # Apply any actions specified as part of initial config
-            for primitive in vnfr['config'].initial_config_primitive:
-                if primitive.name != 'config':
-                    self._log.debug("jujuCA:(%s) Initial config action primitive %s",
-                                    vnfr['vnf_juju_name'], primitive)
-                    action = primitive.name
-                    params = {}
-                    for param in primitive.parameter:
-                        val = self.xlate(param.value, vnfr['tags'])
-                        params.update({param.name: val})
+                            rc = yield from self.api.apply_config(
+                                config,
+                                application=service,
+                            )
+                            if rc is False:
+                                self.log.error("Service {} is in error state".format(service))
+                                return False
+                    else:
+                        # Apply any actions specified as part of initial config
+                        for primitive in vnfr['config'].initial_config_primitive:
+                            if primitive.name != 'config':
+                                self._log.debug("jujuCA:(%s) Initial config action primitive %s",
+                                                vnfr['vnf_juju_name'], primitive)
+                                action = primitive.name
+                                params = {}
+                                for param in primitive.parameter:
+                                    val = self.xlate(param.value, vnfr['tags'])
+                                    params.update({param.name: val})
 
-                    self._log.info("jujuCA:(%s) Action %s with params %s",
-                                   vnfr['vnf_juju_name'], action, params)
-                    self._log.debug("executing action")
-                    resp = yield from self.api.execute_action(
-                        service,
-                        action,
-                        **params,
-                    )
-                    self._log.debug("executed action")
-                    if 'error' in resp:
-                        self._log.error("Applying initial config on {} failed for {} with {}: {}".
-                                        format(vnfr['vnf_juju_name'], action, params, resp))
-                        return False
-
-                    # action_ids.append(resp['action']['tag'])
-                    # action_ids.append(resp)
+                                self._log.info("jujuCA:(%s) Action %s with params %s",
+                                               vnfr['vnf_juju_name'], action, params)
+                                self._log.debug("executing action")
+                                resp = yield from self.api.execute_action(
+                                    service,
+                                    action,
+                                    **params,
+                                )
+                                self._log.debug("executed action")
+                                if 'error' in resp:
+                                    self._log.error("Applying initial config on {} failed for {} with {}: {}".
+                                                    format(vnfr['vnf_juju_name'], action, params, resp))
+                                    return False
         except KeyError as e:
             self._log.info("Juju config agent(%s): VNFR %s not managed by Juju",
                            vnfr['vnf_juju_name'], agent_vnfr.id)

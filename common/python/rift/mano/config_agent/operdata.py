@@ -81,8 +81,8 @@ class JujuClient(object):
             loop.close()
 
         return RwConfigAgentYang.YangData_RwProject_Project_ConfigAgent_Account_ConnectionStatus(
-            status="unknown",
-            details="Connection status lookup not started"
+            status=status,
+            details=details,
         )
 
 

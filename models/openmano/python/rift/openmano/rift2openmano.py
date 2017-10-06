@@ -263,7 +263,7 @@ def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids, http_api, ri
                                     }
                                 }
 
-        openmano_nsd = http_api.post_nsd_v3(openmano_nsd_im_body)
+        openmano_nsd = http_api.post_nsd_v3(openmano_nsd_api_format)
         
         return openmano_nsd
 

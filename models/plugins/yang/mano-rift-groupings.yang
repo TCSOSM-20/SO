@@ -22,20 +22,8 @@
   namespace "urn:ietf:params:xml:ns:yang:nfvo:mano-rift-groupings";
   prefix "mano-rift";
 
-  import vnfd {
-    prefix "vnfd";
-  }
-
   import mano-types {
     prefix "manotypes";
-  }
-
-  import nsd {
-    prefix "nsd";
-  }
-
-  import project-vnfd {
-    prefix "project-vnfd";
   }
 
   grouping custom-meta-data {

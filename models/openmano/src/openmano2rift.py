@@ -176,7 +176,6 @@ class RiftNS(RiftManoDescriptor):
                                 ))
                             if key != 'control-net':
                                 vld.provider_network.physical_network = 'physnet_sriov'
-                                vld.provider_network.overlay_type = 'VLAN'
 
         vnf_member_index_dict = create_consituent_vnfds()
         create_connections(vnf_member_index_dict)

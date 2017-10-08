@@ -160,7 +160,10 @@ module vnfd-base
         type string;
       }
 
-      uses manotypes:vnf-configuration;
+
+      container vnf-configuration {
+        uses manotypes:vca-configuration;
+      }
 
       container mgmt-interface {
         description
@@ -356,7 +359,18 @@ module vnfd-base
         uses manotypes:vswitch-epa;
         uses manotypes:hypervisor-epa;
         uses manotypes:host-epa;
+
+        list alarm {
+          key "alarm-id";
+
+          uses manotypes:alarm;
+        }
+
         uses manotypes:image-properties;
+
+        container vdu-configuration {
+          uses manotypes:vca-configuration;
+        }
 
         choice cloud-init-input {
           description

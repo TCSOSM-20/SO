@@ -38,12 +38,4 @@ module vnfr-annotation
   tailf:annotate "/rw-project:project/vnfr:vnfr-catalog" {
     tailf:callpoint rw_callpoint;
   }
-
-  tailf:annotate "/vnfr:create-alarm" {
-    tailf:actionpoint rw_actionpoint;
-  }
-
-  tailf:annotate "/vnfr:destroy-alarm" {
-    tailf:actionpoint rw_actionpoint;
-  }
 }

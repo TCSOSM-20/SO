@@ -27,10 +27,6 @@ module nsr
     prefix "vlr";
   }
 
-  import vld {
-    prefix "vld";
-  }
-
   import nsd-base {
     prefix "nsd-base";
   }
@@ -57,10 +53,6 @@ module nsr
 
   import mano-types {
     prefix "manotypes";
-  }
-
-  import rw-sdn {
-    prefix "rw-sdn";
   }
 
   import rw-project {
@@ -393,9 +385,7 @@ module nsr
         description
             "The SDN account to use when requesting resources for
             this vnffgr";
-        type leafref {
-          path "../../../../rw-sdn:sdn/rw-sdn:account/rw-sdn:name";
-        }
+        type string;
       }
 
       leaf cloud-account {

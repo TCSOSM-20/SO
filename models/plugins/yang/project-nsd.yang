@@ -23,10 +23,6 @@ module project-nsd
   namespace "http://riftio.com/ns/riftware-1.0/project-nsd";
   prefix "project-nsd";
 
-  import ietf-yang-types {
-    prefix "yang";
-  }
-
   import mano-types {
     prefix "manotypes";
   }

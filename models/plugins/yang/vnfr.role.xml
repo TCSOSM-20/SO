@@ -5,8 +5,6 @@
     <key-set>
       <name>project-name</name>
       <path>/rw-project:project/rw-project:name</path>
-      <path>/vnfr:create-alarm/vnfr:project-name</path>
-      <path>/vnfr:destroy-alarm/vnfr:project-name</path>
     </key-set>
   </key-definition>
 
@@ -25,8 +23,6 @@
     <authorize>
       <permissions>create read update delete execute</permissions>
       <path>/rw-project:project/vnfr:vnfr-catalog</path>
-      <path>/vnfr:create-alarm</path>
-      <path>/vnfr:destroy-alarm</path>
     </authorize>
   </role-definition>
 
@@ -35,8 +31,6 @@
     <keys-role>rw-project-mano:vnfr-role</keys-role>
     <authorize>
       <permissions>create read update delete execute</permissions>
-      <path>/vnfr:create-alarm</path>
-      <path>/vnfr:destroy-alarm</path>
     </authorize>
   </role-definition>
 </config>

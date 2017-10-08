@@ -39,7 +39,6 @@ module vnfd
     reference
       "Derived from earlier versions of base YANG files";
   }
-
   container vnfd-catalog {
     description
       "Virtual Network Function Descriptor (VNFD).";

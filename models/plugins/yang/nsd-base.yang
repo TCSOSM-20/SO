@@ -23,20 +23,8 @@ module nsd-base
   namespace "http://riftio.com/ns/riftware-1.0/nsd-base";
   prefix "nsd-base";
 
-  import vld {
-    prefix "vld";
-  }
-
-  import vnfd-base {
-    prefix "vnfd-base";
-  }
-
   import ietf-inet-types {
     prefix "inet";
-  }
-
-  import ietf-yang-types {
-    prefix "yang";
   }
 
   import mano-types {

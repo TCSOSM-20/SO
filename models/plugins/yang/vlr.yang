@@ -23,24 +23,12 @@ module vlr
   namespace "urn:ietf:params:xml:ns:yang:nfvo:vlr";
   prefix "vlr";
 
-  import ietf-inet-types {
-    prefix "inet";
-  }
-
   import ietf-yang-types {
     prefix "yang";
   }
 
   import mano-types {
     prefix "manotypes";
-  }
-
-  import vld {
-    prefix "vld";
-  }
-
-  import vnfd-base {
-    prefix "vnfd-base";
   }
 
   import rw-project {

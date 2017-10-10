@@ -69,8 +69,12 @@ class JujuClient(object):
                 loop=loop,
             ))
         except Exception as e:
+            loop.close()
+
             msg = "JujuClient: Connection Failed: %s", str(e)
             self._log.error(msg)
+            status = "failure"
+            details = msg
             raise Exception(msg)
         else:
             self._log.error("Success reached.")

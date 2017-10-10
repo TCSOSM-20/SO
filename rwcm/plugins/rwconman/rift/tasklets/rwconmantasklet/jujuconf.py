@@ -25,8 +25,9 @@ import rift.mano.utils.juju_api as juju
 from . import riftcm_config_plugin
 
 
-# Charm service name accepts only a to z and -.
 def get_vnf_unique_name(nsr_name, vnfr_name, member_vnf_index):
+    """Get the unique VNF name.
+    Charm names accepts only a to z and non-consecutive - characters."""
     name = "{}-{}-{}".format(nsr_name, vnfr_name, member_vnf_index)
     new_name = ''
     for c in name:
@@ -35,7 +36,7 @@ def get_vnf_unique_name(nsr_name, vnfr_name, member_vnf_index):
         elif not c.isalpha():
             c = "-"
         new_name += c
-    return new_name.lower()
+    return re.sub('\-+', '-', new_name.lower())
 
 
 class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
@@ -185,12 +186,11 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                                 'launchpad/packages/vnfd',
                                 self._project.name,
                                 agent_vnfr.vnfr_msg.vnfd.id,
-                                'charms/trusty',
+                                'charms',
                                 charm)
             self._log.debug("jujuCA: Charm dir is {}".format(path))
             if not os.path.isdir(path):
-                self._log.error("jujuCA: Did not find the charm directory at {}".
-                                format(path))
+                self._log.error("jujuCA: Did not find the charm directory at {}".format(path))
                 path = None
         except Exception as e:
             self.log.exception(e)
@@ -559,6 +559,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
 
         try:
             vnfr = self._juju_vnfs[agent_vnfr.id].vnfr
+            service = vnfr['vnf_juju_name']
         except KeyError:
             self._log.debug("Did not find VNFR %s in Juju plugin",
                             agent_vnfr.name)
@@ -617,9 +618,6 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                               format(prim.name, vnfr_msg.name, rc, err)
                         self._log.error(msg)
                         return False
-
-                    elif rc == "pending":
-                        action_ids.append(eid)
 
                 elif primitive.name:
                     config = {}

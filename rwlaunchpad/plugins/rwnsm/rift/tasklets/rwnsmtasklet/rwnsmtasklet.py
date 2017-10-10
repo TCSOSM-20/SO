@@ -1036,7 +1036,13 @@ class VirtualNetworkFunctionRecord(object):
             vnfr.operational_status = 'init'
         else:
             # Set Operational Status as pre-init for Input Param Substitution
-            vnfr.operational_status = 'pre_init'
+            if self._state not in [VnfRecordState.ACTIVE, VnfRecordState.TERMINATE_PENDING,
+                                  VnfRecordState.TERMINATED, VnfRecordState.FAILED]:
+                # To make sure that an active VNFR is not updated with a previous state.
+                # This can happen during config state updates.
+                vnfr.operational_status = 'pre_init'
+            else:
+                vnfr.operational_status = self._state
 
         return vnfr
 
@@ -2695,9 +2701,22 @@ class NetworkServiceRecord(object):
         """ Terminate VNFRS in this network service """
         self._log.debug("Terminating VNFs in network service %s - %s", self.id, self.name)
         vnfr_ids = []
+        scaleIn = scalein
         for vnfr in list(vnfrs):
             self._log.debug("Terminating VNFs in network service %s %s", vnfr.id, self.id)
-            yield from self.nsm_plugin.terminate_vnf(self, vnfr, scalein=scalein)
+            # The below check is added for determining which of the VNFRS are scaling ones 
+            # under OPENMANO. Need to pass scalein True when terminate received to OPENAMNO
+            # Plugin.
+            if isinstance(self.nsm_plugin, openmano_nsm.OpenmanoNsPlugin):
+                for scaling_group in self._scaling_groups.values():
+                    scaling_instances = scaling_group.create_record_msg().instance
+                    for sc in scaling_instances:
+                        if vnfr.id in sc.vnfrs:
+                            scaleIn = True
+                            self._log.debug("Found a Scaling VNF for Openmano during Terminate")
+
+            yield from self.nsm_plugin.terminate_vnf(self, vnfr, scalein=scaleIn)
+            scaleIn = scalein
             vnfr_ids.append(vnfr.id)
 
         for vnfr_id in vnfr_ids:

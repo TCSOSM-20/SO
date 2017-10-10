@@ -52,6 +52,21 @@ class OpenmanoHttpAPI(object):
 
         self._session = requests.Session()
 
+    def instances(self):
+        url = "http://{host}:{port}/openmano/{tenant}/instances".format(
+                host=self._host,
+                port=self._port,
+                tenant=self._tenant,
+                )
+
+        resp = self._session.get(url)
+        try:
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            raise InstanceStatusError(e)
+
+        return resp.json()["instances"]
+
     def get_instance(self, instance_uuid):
         url = "http://{host}:{port}/openmano/{tenant}/instances/{instance}".format(
                 host=self._host,

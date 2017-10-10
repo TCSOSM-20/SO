@@ -392,130 +392,135 @@ class OpenmanoNsr(object):
 
     @property
     def openmano_instance_create_yaml(self):
-        self._log.debug("Creating instance-scenario-create input file for nsd %s with name %s", self.nsd.id, self._nsr_config_msg.name)
-        openmano_instance_create = {}
-        openmano_instance_create["name"] = self._nsr_config_msg.name
-        openmano_instance_create["description"] = self._nsr_config_msg.description
-        openmano_instance_create["scenario"] = self._nsd_uuid
+        try:
+            self._log.debug("Creating instance-scenario-create input file for nsd %s with name %s", self.nsd.id, self._nsr_config_msg.name)
+            openmano_instance_create = {}
+            openmano_instance_create["name"] = self._nsr_config_msg.name
+            openmano_instance_create["description"] = self._nsr_config_msg.description
+            openmano_instance_create["scenario"] = self._nsd_uuid
 
-        cloud_config = self.get_ssh_key_pairs()
-        if cloud_config:
-            openmano_instance_create["cloud-config"] = cloud_config
-        if self._nsr_config_msg.has_field("datacenter"):
-            openmano_instance_create["datacenter"] = self._nsr_config_msg.datacenter
-        openmano_instance_create["vnfs"] = {}
-        for vnfr in self._vnfrs:
-            if "datacenter" in vnfr.vnfr.vnfr_msg:
-                vnfr_name = vnfr.vnfr.vnfd.name + "." + str(vnfr.vnfr.vnfr_msg.member_vnf_index_ref)
-                openmano_instance_create["vnfs"][vnfr_name] = {"datacenter": vnfr.vnfr.vnfr_msg.datacenter}
-        openmano_instance_create["networks"] = {}
-        for vld_msg in self._nsd_msg.vld:
-            openmano_instance_create["networks"][vld_msg.name] = {}
-            openmano_instance_create["networks"][vld_msg.name]["sites"] = list()
-            for vlr in self._vlrs:
-                if vlr.vld_msg.name == vld_msg.name:
-                    self._log.debug("Received VLR name %s, VLR DC: %s for VLD: %s",vlr.vld_msg.name,
-                                    vlr.datacenter_name,vld_msg.name)
-                    #network["vim-network-name"] = vld_msg.name
-                    network = {}
-                    ip_profile = {}
-                    if vld_msg.vim_network_name:
-                        network["netmap-use"] = vld_msg.vim_network_name
-                    elif vlr._ip_profile and vlr._ip_profile.has_field("ip_profile_params"):
-                        ip_profile_params = vlr._ip_profile.ip_profile_params
-                        if ip_profile_params.ip_version == "ipv6":
-                            ip_profile['ip-version'] = "IPv6"
+            cloud_config = self.get_ssh_key_pairs()
+            if cloud_config:
+                openmano_instance_create["cloud-config"] = cloud_config
+            if self._nsr_config_msg.has_field("datacenter"):
+                openmano_instance_create["datacenter"] = self._nsr_config_msg.datacenter
+            openmano_instance_create["vnfs"] = {}
+            for vnfr in self._vnfrs:
+                if "datacenter" in vnfr.vnfr.vnfr_msg:
+                    vnfr_name = vnfr.vnfr.vnfd.name + "." + str(vnfr.vnfr.vnfr_msg.member_vnf_index_ref)
+                    openmano_instance_create["vnfs"][vnfr_name] = {"datacenter": vnfr.vnfr.vnfr_msg.datacenter}
+            openmano_instance_create["networks"] = {}
+            for vld_msg in self._nsd_msg.vld:
+                openmano_instance_create["networks"][vld_msg.name] = {}
+                openmano_instance_create["networks"][vld_msg.name]["sites"] = list()
+                for vlr in self._vlrs:
+                    if vlr.vld_msg.name == vld_msg.name:
+                        self._log.debug("Received VLR name %s, VLR DC: %s for VLD: %s",vlr.vld_msg.name,
+                                        vlr.datacenter_name,vld_msg.name)
+                        #network["vim-network-name"] = vld_msg.name
+                        network = {}
+                        ip_profile = {}
+                        if vld_msg.vim_network_name:
+                            network["netmap-use"] = vld_msg.vim_network_name
+                        elif vlr._ip_profile and vlr._ip_profile.has_field("ip_profile_params"):
+                            ip_profile_params = vlr._ip_profile.ip_profile_params
+                            if ip_profile_params.ip_version == "ipv6":
+                                ip_profile['ip-version'] = "IPv6"
+                            else:
+                                ip_profile['ip-version'] = "IPv4"
+                            if ip_profile_params.has_field('subnet_address'):
+                                ip_profile['subnet-address'] = ip_profile_params.subnet_address
+                            if ip_profile_params.has_field('gateway_address'):
+                                ip_profile['gateway-address'] = ip_profile_params.gateway_address
+                            if ip_profile_params.has_field('dns_server') and len(ip_profile_params.dns_server) > 0:
+                                ip_profile['dns-address'] =  ip_profile_params.dns_server[0].address
+                            if ip_profile_params.has_field('dhcp_params'):
+                                ip_profile['dhcp'] = {}
+                                ip_profile['dhcp']['enabled'] = ip_profile_params.dhcp_params.enabled
+                                ip_profile['dhcp']['start-address'] = ip_profile_params.dhcp_params.start_address
+                                ip_profile['dhcp']['count'] = ip_profile_params.dhcp_params.count
+                                if ip_profile['dhcp']['enabled'] is True and ip_profile['dhcp']['start-address'] is None:
+                                    addr_pool = list(ipaddress.ip_network(ip_profile['subnet-address']).hosts())
+                                    gateway_ip_addr = ip_profile.get('gateway-address', None) 
+                                    if gateway_ip_addr is None:
+                                        gateway_ip_addr = str(next(iter(addr_pool)))
+                                        ip_profile['gateway-address'] = gateway_ip_addr
+                                    
+                                    self._log.debug("Gateway Address {}".format(gateway_ip_addr))
+                                                                                                  
+                                    if ipaddress.ip_address(gateway_ip_addr) in addr_pool:
+                                        addr_pool.remove(ipaddress.ip_address(gateway_ip_addr))
+                                    if len(addr_pool) > 0:
+                                        ip_profile['dhcp']['start-address'] = str(next(iter(addr_pool)))
+                                        #DHCP count more than 200 is not instantiating any instances using OPENMANO RO
+                                        #So restricting it to a feasible count of 100. 
+                                        dhcp_count = ip_profile['dhcp']['count']
+                                        if dhcp_count is None or dhcp_count == 0 or dhcp_count > len(addr_pool):
+                                            ip_profile['dhcp']['count'] = min(len(addr_pool), 100)
+                                self._log.debug("DHCP start Address {} DHCP count {}".
+                                                format(ip_profile['dhcp']['start-address'], ip_profile['dhcp']['count']))
                         else:
-                            ip_profile['ip-version'] = "IPv4"
-                        if ip_profile_params.has_field('subnet_address'):
-                            ip_profile['subnet-address'] = ip_profile_params.subnet_address
-                        if ip_profile_params.has_field('gateway_address'):
-                            ip_profile['gateway-address'] = ip_profile_params.gateway_address
-                        if ip_profile_params.has_field('dns_server') and len(ip_profile_params.dns_server) > 0:
-                            ip_profile['dns-address'] =  ip_profile_params.dns_server[0].address
-                        if ip_profile_params.has_field('dhcp_params'):
-                            ip_profile['dhcp'] = {}
-                            ip_profile['dhcp']['enabled'] = ip_profile_params.dhcp_params.enabled
-                            ip_profile['dhcp']['start-address'] = ip_profile_params.dhcp_params.start_address
-                            ip_profile['dhcp']['count'] = ip_profile_params.dhcp_params.count
-                            if ip_profile['dhcp']['enabled'] is True and ip_profile['dhcp']['start-address'] is None:
-                                addr_pool = list(ipaddress.ip_network(ip_profile['subnet-address']).hosts())
-                                gateway_ip_addr = ip_profile.get('gateway-address', None) 
-                                if gateway_ip_addr is None:
-                                    gateway_ip_addr = str(next(iter(addr_pool)))
-                                    ip_profile['gateway-address'] = gateway_ip_addr
-                                
-                                self._log.debug("Gateway Address {}".format(gateway_ip_addr))
-                                                                                              
-                                if ipaddress.ip_address(gateway_ip_addr) in addr_pool:
-                                    addr_pool.remove(ipaddress.ip_address(gateway_ip_addr))
-                                if len(addr_pool) > 0:
-                                    ip_profile['dhcp']['start-address'] = str(next(iter(addr_pool)))
-                                    #DHCP count more than 200 is not instantiating any instances using OPENMANO RO
-                                    #So restricting it to a feasible count of 100. 
-                                    dhcp_count = ip_profile['dhcp']['count']
-                                    if dhcp_count is None or dhcp_count == 0 or dhcp_count > len(addr_pool):
-                                        ip_profile['dhcp']['count'] = min(len(addr_pool), 100)
-                            self._log.debug("DHCP start Address {} DHCP count {}".
-                                            format(ip_profile['dhcp']['start-address'], ip_profile['dhcp']['count']))
-                    else:
-                        network["netmap-create"] = vlr.name
-                    if vlr.datacenter_name:
-                        network["datacenter"] = vlr.datacenter_name
-                    elif vld_msg.has_field("datacenter"):
-                        network["datacenter"] = vld_msg.datacenter
-                    elif "datacenter" in openmano_instance_create:
-                        network["datacenter"] = openmano_instance_create["datacenter"]
-                    if network:
-                        openmano_instance_create["networks"][vld_msg.name]["sites"].append(network)
-                    if ip_profile:
-                        openmano_instance_create["networks"][vld_msg.name]['ip-profile'] = ip_profile
+                            network["netmap-create"] = vlr.name
+                        if vlr.datacenter_name:
+                            network["datacenter"] = vlr.datacenter_name
+                        elif vld_msg.has_field("datacenter"):
+                            network["datacenter"] = vld_msg.datacenter
+                        elif "datacenter" in openmano_instance_create:
+                            network["datacenter"] = openmano_instance_create["datacenter"]
+                        if network:
+                            openmano_instance_create["networks"][vld_msg.name]["sites"].append(network)
+                        if ip_profile:
+                            openmano_instance_create["networks"][vld_msg.name]['ip-profile'] = ip_profile
+        except Exception as e:
+            self._log.error("Error while creating openmano_instance_yaml : {}". format(str(e)))
 
         return yaml.safe_dump(openmano_instance_create, default_flow_style=False,width=1000)
 
     @property
     def scaling_instance_create_yaml(self, scaleout=False):
-        self._log.debug("Creating instance-scenario-create input file for nsd %s with name %s", self.nsd.id, self._nsr_config_msg.name+"scal1")
-        scaling_instance_create = {}
-        for group_list in self._nsd_msg.scaling_group_descriptor:
-            scaling_instance_create["name"] = self._nsr_config_msg.name + "__"+group_list.name
-            if scaleout:
-                scaling_instance_create["scenario"] = self._nsd_uuid + "__" +group_list.name
-            else:
-                scaling_instance_create["scenario"] = self._nsd_uuid
-        scaling_instance_create["description"] = self._nsr_config_msg.description
+        try:
+            self._log.debug("Creating instance-scenario-create input file for nsd %s with name %s", self.nsd.id, self._nsr_config_msg.name+"scal1")
+            scaling_instance_create = {}
+            for group_list in self._nsd_msg.scaling_group_descriptor:
+                scaling_instance_create["name"] = self._nsr_config_msg.name + "__"+group_list.name
+                if scaleout:
+                    scaling_instance_create["scenario"] = self._nsd_uuid + "__" +group_list.name
+                else:
+                    scaling_instance_create["scenario"] = self._nsd_uuid
+            scaling_instance_create["description"] = self._nsr_config_msg.description
 
-
-        if self._nsr_config_msg.has_field("datacenter"):
-            scaling_instance_create["datacenter"] = self._nsr_config_msg.datacenter
-        scaling_instance_create["vnfs"] = {}
-        for vnfr in self._vnfrs:
-            if "datacenter" in vnfr.vnfr.vnfr_msg:
-                vnfr_name = vnfr.vnfr.vnfd.name + "__" + str(vnfr.vnfr.vnfr_msg.member_vnf_index_ref)
-                scaling_instance_create["vnfs"][vnfr_name] = {"datacenter": vnfr.vnfr.vnfr_msg.datacenter}
-        scaling_instance_create["networks"] = {}
-        for vld_msg in self._nsd_msg.vld:
-            scaling_instance_create["networks"][vld_msg.name] = {}
-            scaling_instance_create["networks"][vld_msg.name]["sites"] = list()
-            for vlr in self._vlrs:
-                if vlr.vld_msg.name == vld_msg.name:
-                    self._log.debug("Received VLR name %s, VLR DC: %s for VLD: %s",vlr.vld_msg.name,
+            if self._nsr_config_msg.has_field("datacenter"):
+                scaling_instance_create["datacenter"] = self._nsr_config_msg.datacenter
+            scaling_instance_create["vnfs"] = {}
+            for vnfr in self._vnfrs:
+                if "datacenter" in vnfr.vnfr.vnfr_msg:
+                    vnfr_name = vnfr.vnfr.vnfd.name + "." + str(vnfr.vnfr.vnfr_msg.member_vnf_index_ref)
+                    scaling_instance_create["vnfs"][vnfr_name] = {"datacenter": self._nsr_config_msg.datacenter}
+            scaling_instance_create["networks"] = {}
+            for vld_msg in self._nsd_msg.vld:
+                scaling_instance_create["networks"][vld_msg.name] = {}
+                scaling_instance_create["networks"][vld_msg.name]["sites"] = list()
+                for vlr in self._vlrs:
+                    if vlr.vld_msg.name == vld_msg.name:
+                        self._log.debug("Received VLR name %s, VLR DC: %s for VLD: %s",vlr.vld_msg.name,
                                     vlr.datacenter_name,vld_msg.name)
-                    #network["vim-network-name"] = vld_msg.name
-                    network = {}
-                    ip_profile = {}
-                    if vld_msg.vim_network_name:
-                        network["netmap-use"] = vld_msg.vim_network_name
-                    #else:
-                    #    network["netmap-create"] = vlr.name
-                    if vlr.datacenter_name:
-                        network["datacenter"] = vlr.datacenter_name
-                    elif vld_msg.has_field("datacenter"):
-                        network["datacenter"] = vld_msg.datacenter
-                    elif "datacenter" in scaling_instance_create:
-                        network["datacenter"] = scaling_instance_create["datacenter"]
-                    if network:
-                        scaling_instance_create["networks"][vld_msg.name]["sites"].append(network)
+                        #network["vim-network-name"] = vld_msg.name
+                        network = {}
+                        ip_profile = {}
+                        if vld_msg.vim_network_name:
+                            network["netmap-use"] = vld_msg.vim_network_name
+                        #else:
+                        #    network["netmap-create"] = vlr.name
+                        if vlr.datacenter_name:
+                            network["datacenter"] = vlr.datacenter_name
+                        elif vld_msg.has_field("datacenter"):
+                            network["datacenter"] = vld_msg.datacenter
+                        elif "datacenter" in scaling_instance_create:
+                            network["datacenter"] = scaling_instance_create["datacenter"]
+                        if network:
+                            scaling_instance_create["networks"][vld_msg.name]["sites"].append(network)
+        except Exception as e:
+            self._log.error("Error while creating scaling_instance_yaml : {}". format(str(e)))
 
         return yaml.safe_dump(scaling_instance_create, default_flow_style=False, width=1000)
 
@@ -534,12 +539,22 @@ class OpenmanoNsr(object):
 
     @asyncio.coroutine
     def remove_vnf(self,vnf):
-        if vnf in self._vnfrs:
-            self._vnfrs.remove(vnf)
-            yield from self._publisher.unpublish_vnfr(
-                None,
-                vnfr_msg
-              )
+        self._log.debug("Unpublishing VNFR - {}".format(vnf))
+
+        delete_vnfr = None
+        for vnfr in self._vnfrs:
+            # Find the vnfr by id
+            if vnfr.vnfr.id == vnf.id:
+                self._log.debug("Found vnfr for delete !")
+                delete_vnfr = vnfr
+                break
+
+        if delete_vnfr:
+            self._log.debug("Removing VNFR : {}".format(delete_vnfr.vnfr.id))
+            self._vnfrs.remove(vnfr)
+            yield from self._publisher.unpublish_vnfr(None, delete_vnfr.vnfr.vnfr_msg)
+            self._log.debug("Removed VNFR : {}".format(delete_vnfr.vnfr.id))
+
         yield from asyncio.sleep(1, loop=self._loop)
 
     @asyncio.coroutine
@@ -572,15 +587,37 @@ class OpenmanoNsr(object):
             return
 
         self._log.debug("Deleting openmano nsr")
-        self._cli_api.ns_delete(self._nsd_uuid)
+        # Here we need to check for existing instances using this scenario.
+        # This would exist when we use Scaling Descriptors.
+        # Deleting a scenario before deleting instances results in a orphaned state
+        # TODO: The RO should implement the check done here.
 
-        self._log.debug("Deleting openmano vnfrs")
-        deleted_vnf_id_list = []
-        for vnfr in self._vnfrs:
-            if vnfr.vnfr.vnfd.id not in deleted_vnf_id_list:
-                vnfr.delete()
-                deleted_vnf_id_list.append(vnfr.vnfr.vnfd.id)
+        self._log.debug("Fetching Instance Scenario List before Deleting Scenario")
 
+        instances = self.http_api.instances()
+
+        scenarios_instances = False
+
+        self._log.debug("Fetched Instances List. Checking if scenario is used")
+        for instance in instances:
+            if instance["scenario_id"] == self._nsd_uuid:
+                scenarios_instances = True
+                break
+
+        self._log.debug("Scenario Instances Dependency Exists : %s", scenarios_instances)
+
+        if not scenarios_instances:
+            try:
+                self._cli_api.ns_delete(self._nsd_uuid)
+            except Exception as e:
+                self._log.error(e)
+
+            self._log.debug("Deleting openmano vnfrs(non scaling vnfs)")
+            deleted_vnf_id_list = []
+            for vnfr in self._vnfrs:
+                if vnfr.vnfr.vnfd.id not in deleted_vnf_id_list:
+                    vnfr.delete()
+                    deleted_vnf_id_list.append(vnfr.vnfr.vnfd.id)
 
     @asyncio.coroutine
     def create(self):
@@ -617,6 +654,7 @@ class OpenmanoNsr(object):
             "{}_sgd".format(self._nsd_msg.name),
             self.scaling_instance_create_yaml,
         )
+        self._created = True
 
 
     @asyncio.coroutine
@@ -708,11 +746,11 @@ class OpenmanoNsr(object):
                     vm_status = vm["status"]
                     vm_vim_info = vm["vim_info"]
                     vm_uuid = vm["uuid"]
-                    if vm_status == "ERROR":
+                    if "ERROR" in vm_status:
                         self._log.error("VM Error: %s (vim_info: %s)", vm_uuid, vm_vim_info)
-                        return True
+                        return True, vm['error_msg']
 
-                return False
+                return False, ''
 
             def get_vnf_ip_address(vnf):
                 if "ip_address" in vnf:
@@ -796,10 +834,12 @@ class OpenmanoNsr(object):
                         return
 
                     # If there was a VNF that has a errored VM, then just fail the VNF and stop monitoring.
-                    if any_vms_error(vnf_status):
+                    vm_error, vm_err_msg = any_vms_error(vnf_status)
+                    if vm_error:
                         self._log.error("VM was found to be in error state.  Marking as failed.")
                         self._state = OpenmanoNSRecordState.FAILED
                         vnfr_msg.operational_status = "failed"
+                        vnfr_msg.operational_status_details = vm_err_msg
                         yield from self._publisher.publish_vnfr(None, vnfr_msg)
                         return
 
@@ -826,9 +866,11 @@ class OpenmanoNsr(object):
                         self._log.debug("Got VNF ip address: %s, mac-address: %s",
                                         vnf_ip_address, vnf_mac_address)
                         vnfr_msg.mgmt_interface.ip_address = vnf_ip_address
-                        vnfr_msg.mgmt_interface.ssh_key.public_key = \
+                        
+                        if vnfr._ssh_key:
+                            vnfr_msg.mgmt_interface.ssh_key.public_key = \
                                                     vnfr._ssh_key['public_key']
-                        vnfr_msg.mgmt_interface.ssh_key.private_key_file = \
+                            vnfr_msg.mgmt_interface.ssh_key.private_key_file = \
                                                     vnfr._ssh_key['private_key']
 
                         for vm in vnf_status["vms"]:
@@ -1070,6 +1112,7 @@ class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
         """
         openmano_nsr = self._openmano_nsrs[nsr.id]
         if scaleout:
+            self._log.debug("Scaleout set as True. Creating Scaling VNFR : {}".format(vnfr))
             openmano_vnf_nsr = OpenmanoNsr(
                 self._project,
                 self._dts,
@@ -1089,7 +1132,7 @@ class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
                 raise VNFExistError("VNF %s already exist", vnfr.id)
             self._openmano_nsr_by_vnfr_id[vnfr.id] = openmano_vnf_nsr
             self._log.debug("VNFRID %s %s %s", type(self._openmano_nsr_by_vnfr_id), type(openmano_vnf_nsr), type(self._openmano_nsr_by_vnfr_id[vnfr.id]))
-
+            self._log.debug("Inserting VNFR - {}, in NSR - {}".format(vnfr.id, self._openmano_nsr_by_vnfr_id))
             for vlr in openmano_nsr.vlrs:
                 yield from openmano_vnf_nsr.add_vlr(vlr)
             try:
@@ -1109,6 +1152,7 @@ class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
             except Exception as e:
                 self.log.exception(str(e))
         else:
+            self._log.debug("Creating constituent VNFR - {}; for NSR - {}".format(vnfr, nsr))
             yield from openmano_nsr.add_vnfr(vnfr)
 
         # Mark the VNFR as running
@@ -1142,6 +1186,7 @@ class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
         """
         Terminate the network service
         """
+        self._log.debug("Terminate Received for Openamno NSR - {}".format(nsr))
         nsr_id = nsr.id
         openmano_nsr = self._openmano_nsrs[nsr_id]
 
@@ -1155,7 +1200,7 @@ class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
                )
 
         for vnfr in openmano_nsr.vnfrs:
-            self._log.debug("Unpublishing VNFR: %s", vnfr.vnfr.vnfr_msg)
+            self._log.debug("Unpublishing Constituent VNFR: %s", vnfr.vnfr.vnfr_msg)
             yield from self._publisher.unpublish_vnfr(None, vnfr.vnfr.vnfr_msg)
 
         del self._openmano_nsrs[nsr_id]
@@ -1170,6 +1215,7 @@ class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
         Terminate the network service
         """
         if scalein:
+            self._log.debug("Terminating Scaling VNFR - {}".format(vnfr))
             openmano_vnf_nsr = self._openmano_nsr_by_vnfr_id[vnfr.id]
             openmano_vnf_nsr.terminate()
             openmano_vnf_nsr.delete()

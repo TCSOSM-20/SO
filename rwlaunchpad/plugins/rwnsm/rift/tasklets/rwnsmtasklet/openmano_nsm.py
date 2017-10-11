@@ -226,9 +226,11 @@ class OpenmanoVnfr(object):
         if self._vnf_id is None:
             self._log.warning("Openmano vnf id not set.  Cannot delete.")
             return
-
-        self._cli_api.vnf_delete(self._vnf_id)
-
+        try:
+            self._cli_api.vnf_delete(self._vnf_id)
+        except Exception as e:
+            self._log.error(e)
+            raise e
 
 class OpenmanoNSRecordState(Enum):
     """ Network Service Record State """
@@ -616,7 +618,14 @@ class OpenmanoNsr(object):
             deleted_vnf_id_list = []
             for vnfr in self._vnfrs:
                 if vnfr.vnfr.vnfd.id not in deleted_vnf_id_list:
-                    vnfr.delete()
+                    try:
+                        vnfr.delete()
+                    except Exception as e:
+                        self._log.error("Failed to delete the vnf at the RO")
+                        if "Resource is not free" in str(e):
+                            self._log.error("Resource is not free, hence forego the vnf-delete")
+                        else:
+                            raise e
                     deleted_vnf_id_list.append(vnfr.vnfr.vnfd.id)
 
     @asyncio.coroutine
@@ -1206,8 +1215,12 @@ class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
         del self._openmano_nsrs[nsr_id]
 
     def terminate(self, openmano_nsr):
-        openmano_nsr.terminate()
-        openmano_nsr.delete()
+        try:
+            openmano_nsr.terminate()
+            openmano_nsr.delete()
+        except Exception as e:
+            self._log.error("The NSR terminate failed for {}".format(openmano_nsr))
+            raise e
 
     @asyncio.coroutine
     def terminate_vnf(self, nsr, vnfr, scalein=False):
@@ -1217,8 +1230,13 @@ class OpenmanoNsPlugin(nsmpluginbase.NsmPluginBase):
         if scalein:
             self._log.debug("Terminating Scaling VNFR - {}".format(vnfr))
             openmano_vnf_nsr = self._openmano_nsr_by_vnfr_id[vnfr.id]
-            openmano_vnf_nsr.terminate()
-            openmano_vnf_nsr.delete()
+            try:
+                openmano_vnf_nsr.terminate()
+                openmano_vnf_nsr.delete()
+            except Exception as e:
+                self._log.error("The NSR terminate failed for {}".format(openmano_nsr))
+                raise e
+
             yield from openmano_vnf_nsr.remove_vnf(vnfr)
 
     @asyncio.coroutine

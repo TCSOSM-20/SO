@@ -161,7 +161,8 @@ class VnfrConsoleOperdataDtsHandler(object):
 
 
 class OpenmanoVnfr(object):
-    def __init__(self, log, loop, cli_api, http_api, vnfr, nsd, ssh_key=None):
+    def __init__(self, project, log, loop, cli_api, http_api, vnfr, nsd, ssh_key=None):
+        self._project = project
         self._log = log
         self._loop = loop
         self._cli_api = cli_api
@@ -195,7 +196,7 @@ class OpenmanoVnfr(object):
     @property
     def openmano_vnfd(self):
         self._log.debug("Converting vnfd %s from rift to openmano", self.vnfd.id)
-        openmano_vnfd = rift2openmano.rift2openmano_vnfd(self.vnfd, self.nsd, self._http_api)
+        openmano_vnfd = rift2openmano.rift2openmano_vnfd(self.vnfd, self.nsd, self._http_api, self._project)
         return openmano_vnfd
 
     @property
@@ -572,7 +573,7 @@ class OpenmanoNsr(object):
 
     @asyncio.coroutine
     def add_vnfr(self, vnfr):
-        vnfr = OpenmanoVnfr(self._log, self._loop, self._cli_api, self.http_api,
+        vnfr = OpenmanoVnfr(self._project, self._log, self._loop, self._cli_api, self.http_api,
                                 vnfr, nsd=self.nsd, ssh_key=self._ssh_key)
         yield from vnfr.create()
         self._vnfrs.append(vnfr)

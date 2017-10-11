@@ -273,19 +273,19 @@ def rift2openmano_vnfd_nsd(rift_nsd, rift_vnfds, openmano_vnfd_ids, http_api, ri
 
 
 def cloud_init(rift_vnfd_id, vdu, project_name='default'):
-    """ Populate cloud_init with script from
+    """ Populate cloud-init with script from
          either the inline contents or from the file provided
     """
     vnfd_package_store = rift.package.store.VnfdPackageFilesystemStore(logger, project=project_name)
 
     cloud_init_msg = None
-    if 'cloud_init' in vdu:
-        logger.debug("cloud_init script provided inline %s", vdu['cloud_init'])
-        cloud_init_msg = vdu['cloud_init']
-    elif 'cloud_init_file' in vdu:
+    if 'cloud-init' in vdu:
+        logger.debug("cloud-init script provided inline %s", vdu['cloud-init'])
+        cloud_init_msg = vdu['cloud-init']
+    elif 'cloud-init-file' in vdu:
     # Get cloud-init script contents from the file provided in the cloud_init_file param
-        logger.debug("cloud_init script provided in file %s", vdu['cloud_init_file'])
-        filename = vdu['cloud_init_file']
+        logger.debug("cloud-init script provided in file %s", vdu['cloud-init-file'])
+        filename = vdu['cloud-init-file']
         vnfd_package_store.refresh()
         stored_package = vnfd_package_store.get_package(rift_vnfd_id)
         cloud_init_extractor = rift.package.cloud_init.PackageCloudInitExtractor(logger)
@@ -319,37 +319,35 @@ def config_file_init(rift_vnfd_id, vdu, cfg_file, project_name='default'):
     logger.debug("Current config file msg is {}".format(cfg_file_msg))
     return cfg_file_msg
 
-def rift2openmano_vnfd(rift_vnfd, rift_nsd, http_api):
+def rift2openmano_vnfd(rift_vnfd, rift_nsd, http_api, project):
     try:
         openmano_vnfd_im_body = json.loads(rift_vnfd.from_dict())
         
         # All type_yang leafs renamed to type
         
-
         vnfd_dict = openmano_vnfd_im_body['vnfd-catalog']['vnfd'][0]
         
         if 'vdu' in vnfd_dict:
             for vdu in vnfd_dict['vdu']:
-                if 'cloud_init_file' in vdu:
+                if 'cloud-init-file' in vdu:
                     # Replacing the leaf with the actual contents of the file.
                     # The RO does not have the ability to read files yet.
-                    vdu['cloud_init_file'] = cloud_init(openmano_vnfd_im_body.id, vdu)
-                elif 'cloud_init' in vdu:
-                    vdu['cloud_init'] = cloud_init(openmano_vnfd_im_body.id, vdu)
+                    vdu['cloud-init-file'] = cloud_init(vnfd_dict['id'], vdu, project)
+                elif 'cloud-init' in vdu:
+                    vdu['cloud-init'] = cloud_init(vnfd_dict['id'], vdu, project)
 
-                if 'supplemental_boot_data' in vdu:
-                    if 'config_file' in vdu['supplemental_boot_data']:
-                        for config_file in vdu['supplemental_boot_data']['config_file']:
+                if 'supplemental-boot-data' in vdu:
+                    if 'config-file' in vdu['supplemental-boot-data']:
+                        for config_file in vdu['supplemental-boot-data']['config-file']:
                             # Replacing the leaf with the actual contents of the file.
                             # The RO does not have the ability to read files yet.
-                            config_file['source'] = config_file_init(openmano_vnfd_im_body.id, vdu, config_file['source'])
+                            config_file['source'] = config_file_init(vnfd_dict['id'], vdu, config_file['source'], project)
         
         openmano_vnfd_api_format = {
                                     "vnfd:vnfd-catalog": {
                                         "vnfd": [vnfd_dict]
                                     }
                                 }
-
         openmano_vnfd = http_api.post_vnfd_v3(openmano_vnfd_api_format)
         
         return openmano_vnfd

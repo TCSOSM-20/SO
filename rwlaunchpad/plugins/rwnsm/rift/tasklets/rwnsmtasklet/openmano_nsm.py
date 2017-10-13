@@ -196,7 +196,7 @@ class OpenmanoVnfr(object):
     @property
     def openmano_vnfd(self):
         self._log.debug("Converting vnfd %s from rift to openmano", self.vnfd.id)
-        openmano_vnfd = rift2openmano.rift2openmano_vnfd(self.vnfd, self.nsd, self._http_api, self._project)
+        openmano_vnfd = rift2openmano.rift2openmano_vnfd(self.vnfd, self.nsd, self._http_api, self._project.name)
         return openmano_vnfd
 
     @property

@@ -206,8 +206,10 @@ class JujuApi(object):
             await self.login()
 
         app = None
-        if application in self.model.applications:
-            app = self.model.applications[application]
+        if self.model:
+            if self.model.applications:
+                if application in self.model.applications:
+                    app = self.model.applications[application]
         return app
 
     async def get_application_status(self, application, status=None):

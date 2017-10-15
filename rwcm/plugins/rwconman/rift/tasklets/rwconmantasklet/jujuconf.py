@@ -251,7 +251,6 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             if service in self._tasks:
                 tasks = []
                 for action in self._tasks[service].keys():
-                    #if self.check_task_status(service, action):
                     tasks.append(action)
                 del tasks
         except KeyError as e:
@@ -268,35 +267,6 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         """
         Notification of Terminate the virtual link
         """
-        return True
-
-    def check_task_status(self, service, action):
-        #self.log.debug("jujuCA: check task status for %s, %s" % (service, action))
-        try:
-            task = self._tasks[service][action]
-            if task.done():
-                self.log.debug("jujuCA: Task for %s, %s done" % (service, action))
-                e = task.exception()
-                if e:
-                    self.log.error("jujuCA: Error in task for {} and {} : {}".
-                                   format(service, action, e))
-                    raise Exception(e)
-                r= task.result()
-                if r:
-                    self.log.debug("jujuCA: Task for {} and {}, returned {}".
-                                   format(service, action,r))
-                return True
-            else:
-                self.log.debug("jujuCA: task {}, {} not done".
-                               format(service, action))
-                return False
-        except KeyError as e:
-            self.log.error("jujuCA: KeyError for task for {} and {}: {}".
-                           format(service, action, e))
-        except Exception as e:
-            self.log.error("jujuCA: Error for task for {} and {}: {}".
-                           format(service, action, e))
-            raise
         return True
 
     @asyncio.coroutine
@@ -732,12 +702,13 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
 
         rc = 'configuring'
 
-        if not self.check_task_status(service, 'deploy'):
-            return rc
-
         try:
-            resp = yield from self.api.get_service_status(application=service)
-            self._log.debug("jujuCA: Get service %s status? %s", service, resp)
+            # Get the status of the application
+            resp = yield from self.api.get_application_status(service)
+
+            # No status means the application is still pending deployment
+            if resp is None:
+                return rc
 
             if resp == 'error':
                 return 'error'

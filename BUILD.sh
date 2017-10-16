@@ -79,8 +79,8 @@ set -x             # Print commands before executing them
 ###############################################################################
 # Set up repo and version
 
-PLATFORM_REPOSITORY=${1:-osm-rbac}
-PLATFORM_VERSION=${2:-5.1.3.9999.70283}
+PLATFORM_REPOSITORY=${1:-OSM3}
+PLATFORM_VERSION=${2:-5.2.0.1.71454}
 
 ###############################################################################
 # Main block

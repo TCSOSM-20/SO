@@ -106,10 +106,18 @@ else
 
     # Install environment to build module
     sudo -H /usr/rift/container_tools/mkcontainer --modes $MODULE-dev --repo ${PLATFORM_REPOSITORY} --rw-version ${PLATFORM_VERSION}
+    sudo -H pip3 install --upgrade pip
+    sudo -H pip3 install setuptools 
+    sudo -H pip3 install juju 
+    sudo mkdir -p /usr/rift/etc/default
+    sudo chmod 777 /usr/rift/etc/default
+    echo LAUNCHPAD_OPTIONS="--use-xml-mode" >> /usr/rift/etc/default/launchpad
+    sudo systemctl daemon-reload
 
     # Build  and install module
     make -j16 
     sudo make install
+    sudo -H dhclient & 
 
 fi
 

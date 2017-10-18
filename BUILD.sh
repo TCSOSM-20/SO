@@ -80,7 +80,7 @@ set -x             # Print commands before executing them
 # Set up repo and version
 
 PLATFORM_REPOSITORY=${1:-OSM3}
-PLATFORM_VERSION=${2:-5.2.0.1.71454}
+PLATFORM_VERSION=${2:-5.2.0.2.72174}
 
 ###############################################################################
 # Main block
@@ -117,7 +117,6 @@ else
     # Build  and install module
     make -j16 
     sudo make install
-    sudo -H dhclient & 
 
 fi
 

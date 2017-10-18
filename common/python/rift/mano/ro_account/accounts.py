@@ -103,13 +103,14 @@ class ROAccount(object):
                 details="RO account connection status check in progress"
                 )
         try:
-            self._datacenters = []
+            datacenter_copy = []
             for uuid, name in self._ro_plugin._cli_api.datacenter_list():
-                self._datacenters.append({
+                datacenter_copy.append({
                             'uuid':uuid,
                             'name':name
                             }
                         )
+            self._datacenters = datacenter_copy
             self._status = RwRoAccountYang.YangData_RwProject_Project_RoAccountState_Account_ConnectionStatus(
                 status="success",
                 details="RO account connection status success"

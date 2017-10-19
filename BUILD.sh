@@ -80,7 +80,7 @@ set -x             # Print commands before executing them
 # Set up repo and version
 
 PLATFORM_REPOSITORY=${1:-OSM3}
-PLATFORM_VERSION=${2:-5.2.0.2.72174}
+PLATFORM_VERSION=${2:-5.2.0.2.72254}
 
 ###############################################################################
 # Main block

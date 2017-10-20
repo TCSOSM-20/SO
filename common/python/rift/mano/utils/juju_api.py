@@ -150,7 +150,10 @@ class JujuApi(object):
         else:
             self.log = logging.getLogger(__name__)
 
-        self.log.debug('JujuApi instantiated')
+        # Quiet websocket traffic
+        logging.getLogger('websockets.protocol').setLevel(logging.INFO)
+
+        self.log.debug('JujuApi: instantiated')
 
         self.server = server
         self.port = port
@@ -174,6 +177,9 @@ class JujuApi(object):
 
     async def apply_config(self, config, application):
         """Apply a configuration to the application."""
+        self.log.debug("JujuApi: Applying configuration to {}.".format(
+            application
+        ))
         return await self.set_config(application=application, config=config)
 
     async def deploy_application(self, charm, name="", path=""):
@@ -184,6 +190,11 @@ class JujuApi(object):
         app = await self.get_application(name)
         if app is None:
             # TODO: Handle the error if the charm isn't found.
+            self.log.debug("JujuApi: Deploying charm {} ({}) from {}".format(
+                charm,
+                name,
+                path,
+            ))
             app = await self.model.deploy(
                 path,
                 application_name=name,
@@ -197,6 +208,7 @@ class JujuApi(object):
         if not self.authenticated:
             await self.login()
 
+        self.log.debug("JujuApi: Waiting for status of action uuid {}".format(uuid))
         action = await self.model.wait_for_action(uuid)
         return action.status
 
@@ -205,6 +217,7 @@ class JujuApi(object):
         if not self.authenticated:
             await self.login()
 
+        self.log.debug("JujuApi: Getting application {}".format(application))
         app = None
         if self.model:
             if self.model.applications:
@@ -212,7 +225,7 @@ class JujuApi(object):
                     app = self.model.applications[application]
         return app
 
-    async def get_application_status(self, application, status=None):
+    async def get_application_status(self, application):
         """Get the status of an application."""
         if not self.authenticated:
             await self.login()
@@ -222,6 +235,10 @@ class JujuApi(object):
         if app:
             status = app.status
 
+        self.log.debug("JujuApi: Status of application {} is {}".format(
+            application,
+            str(status),
+        ))
         return status
     get_service_status = get_application_status
 
@@ -234,6 +251,11 @@ class JujuApi(object):
         app = await self.get_application(application)
         if app:
             config = await app.get_config()
+
+        self.log.debug("JujuApi: Config of application {} is {}".format(
+            application,
+            str(config),
+        ))
 
         return config
 
@@ -248,6 +270,11 @@ class JujuApi(object):
         model = Model()
 
         uuid = await self.get_model_uuid(name)
+
+        self.log.debug("JujuApi: Connecting to model {} ({})".format(
+            model,
+            uuid,
+        ))
 
         await model.connect(
             self.endpoint,
@@ -270,6 +297,11 @@ class JujuApi(object):
         uuid = None
 
         models = await self.controller.get_models()
+
+        self.log.debug("JujuApi: Looking through {} models for model {}".format(
+            len(models.user_models),
+            name,
+        ))
         for model in models.user_models:
             if model.model.name == name:
                 uuid = model.model.uuid
@@ -290,6 +322,7 @@ class JujuApi(object):
             machines = {}
             relations = {}
 
+        self.log.debug("JujuApi: Getting model status")
         status = model_state()
         status.applications = self.model.applications
         status.machines = self.model.machines
@@ -305,6 +338,12 @@ class JujuApi(object):
         status = await self.get_application_status(application)
         if status and status in ['active']:
             state = True
+
+        self.log.debug("JujuApi: Application {} is {} active".format(
+            application,
+            "" if status else "not",
+        ))
+
         return state
     is_service_active = is_application_active
 
@@ -317,6 +356,12 @@ class JujuApi(object):
         status = await self.get_application_status(application)
         if status and status in ['blocked']:
             state = True
+
+        self.log.debug("JujuApi: Application {} is {} blocked".format(
+            application,
+            "" if status else "not",
+        ))
+
         return state
     is_service_blocked = is_application_blocked
 
@@ -329,6 +374,11 @@ class JujuApi(object):
         status = await self.get_application_status(application)
         if status and status in ['active']:
             state = True
+        self.log.debug("JujuApi: Application {} is {} deployed".format(
+            application,
+            "" if status else "not",
+        ))
+
         return state
     is_service_deployed = is_application_deployed
 
@@ -341,6 +391,11 @@ class JujuApi(object):
         status = await self.get_application_status(application)
         if status and status in ['error']:
             state = True
+        self.log.debug("JujuApi: Application {} is {} errored".format(
+            application,
+            "" if status else "not",
+        ))
+
         return state
     is_service_error = is_application_error
 
@@ -353,6 +408,11 @@ class JujuApi(object):
         status = await self.get_application_status(application)
         if status and status in ['maintenance']:
             state = True
+        self.log.debug("JujuApi: Application {} is {} in maintenence".format(
+            application,
+            "" if status else "not",
+        ))
+
         return state
     is_service_maint = is_application_maint
 
@@ -365,6 +425,10 @@ class JujuApi(object):
         status = await self.get_application_status(application)
         if status and status in ['active', 'blocked']:
             state = True
+        self.log.debug("JujuApi: Application {} is {} up".format(
+            application,
+            "" if status else "not",
+        ))
         return state
     is_service_up = is_application_up
 
@@ -374,6 +438,8 @@ class JujuApi(object):
             return
         cacert = None
         self.controller = Controller()
+
+        self.log.debug("JujuApi: Logging into controller")
 
         if self.secret:
             await self.controller.connect(
@@ -409,15 +475,23 @@ class JujuApi(object):
 
         app = await self.get_application(name)
         if app:
+            self.log.debug("JujuApi: Destroying application {}".format(
+                name,
+            ))
+
             await app.destroy()
 
-    async def resolve_error(self, application=None, status=None):
+    async def resolve_error(self, application=None):
         """Resolve units in error state."""
         if not self.authenticated:
             await self.login()
 
         app = await self.get_application(application)
         if app:
+            self.log.debug("JujuApi: Resolving errors for application {}".format(
+                application,
+            ))
+
             for unit in app.units:
                 app.resolved(retry=True)
 
@@ -438,6 +512,11 @@ class JujuApi(object):
             # so use the first unit available.
             unit = app.units[0]
 
+            self.log.debug("JujuApi: Running Action {} against Application {}".format(
+                action_name,
+                application,
+            ))
+
             action = await unit.run_action(action_name, **params)
 
             # Wait for the action to complete
@@ -457,13 +536,28 @@ class JujuApi(object):
 
         app = await self.get_application(application)
         if app:
+            self.log.debug("JujuApi: Setting config for Application {}".format(
+                application,
+            ))
             await app.set_config(config)
+
+            # Verify the config is set
+            newconf = await app.get_config()
+            for key in config:
+                if config[key] != newconf[key]:
+                    self.log.debug("JujuApi: Config not set! Key {} Value {} doesn't match {}".format(key, config[key], newconf[key]))
+                    
 
     async def set_parameter(self, parameter, value, application=None):
         """Set a config parameter for a service."""
         if not self.authenticated:
             await self.login()
 
+        self.log.debug("JujuApi: Setting {}={} for Application {}".format(
+            parameter,
+            value,
+            application,
+        ))
         return await self.apply_config(
             {parameter: value},
             application=application,
@@ -476,6 +570,11 @@ class JujuApi(object):
 
         app = await self.get_application(name)
         if app:
+            self.log.debug("JujuApi: Waiting {} seconds for Application {}".format(
+                timeout,
+                name,
+            ))
+
             await self.model.block_until(
                 lambda: all(
                     unit.agent_status == 'idle'

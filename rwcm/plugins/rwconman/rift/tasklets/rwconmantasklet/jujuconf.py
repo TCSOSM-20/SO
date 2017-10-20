@@ -199,12 +199,13 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         if vnf_unique_name not in self._tasks:
             self._tasks[vnf_unique_name] = {}
 
-        self._tasks[vnf_unique_name]['deploy'] = self.loop.create_task(
-            self.api.deploy_application(charm, vnf_unique_name, path=path))
-
         self._log.debug("jujuCA: Deploying service %s",
                         vnf_unique_name)
-
+        yield from self.api.deploy_application(
+            charm,
+            vnf_unique_name,
+            path=path,
+        )
         return True
 
     @asyncio.coroutine
@@ -239,15 +240,15 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             vnfr = agent_vnfr.vnfr
             service = vnfr['vnf_juju_name']
 
-            self._log.debug ("jujuCA: Terminating VNFr %s, %s",
-                             agent_vnfr.name, service)
-            self._tasks[service]['destroy'] = self.loop.create_task(
-                    self.api.remove_application(service)
-                )
+            self._log.debug("jujuCA: Terminating VNFr {}, {}".format(
+                agent_vnfr.name,
+                service,
+            ))
+            yield from self.api.remove_application(service)
 
             del self._juju_vnfs[agent_vnfr.id]
-            self._log.debug ("jujuCA: current vnfrs={}".
-                             format(self._juju_vnfs))
+            self._log.debug("jujuCA: current vnfrs={}".
+                            format(self._juju_vnfs))
             if service in self._tasks:
                 tasks = []
                 for action in self._tasks[service].keys():

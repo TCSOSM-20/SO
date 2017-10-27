@@ -190,8 +190,11 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
                                 charm)
             self._log.debug("jujuCA: Charm dir is {}".format(path))
             if not os.path.isdir(path):
-                self._log.error("jujuCA: Did not find the charm directory at {}".format(path))
+                msg = "jujuCA: Did not find the charm directory at {}".format(path)
+                self._log.error(msg)
                 path = None
+                # Return from here instead of forwarding the config request to juju_api
+                raise Exception(msg)
         except Exception as e:
             self.log.exception(e)
             return False

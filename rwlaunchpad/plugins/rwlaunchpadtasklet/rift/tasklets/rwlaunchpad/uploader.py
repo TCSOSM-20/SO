@@ -457,8 +457,11 @@ class OnboardPackage(downloader.DownloaderProtocol):
             with pkg as temp_package:
                 package_checksums = self.validate_package(temp_package)
                 stored_package = self.store_package(temp_package)
-                self.validate_descriptor_fields(temp_package)
-
+                try:
+                    self.validate_descriptor_fields(temp_package)
+                except Exception as e:
+                    self.log.exception("Descriptor validation Failed")
+                    raise
                 try:
                     self.extract_icons(temp_package)
                     self.onboard_descriptors(temp_package)
@@ -588,8 +591,11 @@ class OnboardPackage(downloader.DownloaderProtocol):
     def validate_descriptor_fields(self, package):
         # We can add more VNFD/NSD validations here. 
         if package.descriptor_msg is not None:
-            self.validate_cloud_init_file(package)
-            self.validate_vld_mgmt_network(package)
+            try:
+                self.validate_cloud_init_file(package)
+                self.validate_vld_mgmt_network(package)
+            except Exception as e:
+                raise
 
     def validate_vld_mgmt_network(self, package):
         """ This is validation at onboarding of NSD for atleast one of the VL's to have mgmt network true
@@ -602,6 +608,7 @@ class OnboardPackage(downloader.DownloaderProtocol):
             else:
                 self.log.error(("AtLeast One of the VL's should have Management Network as True "
                                  "and have minimum one connection point"))
+                raise Exception("Management Network not defined.")
 
     def validate_cloud_init_file(self, package):
         """ This validation is for VNFDs with associated VDUs. """

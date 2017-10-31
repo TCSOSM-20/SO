@@ -461,6 +461,7 @@ class OnboardPackage(downloader.DownloaderProtocol):
                     self.validate_descriptor_fields(temp_package)
                 except Exception as e:
                     self.log.exception("Descriptor validation Failed")
+                    self.delete_stored_package(stored_package)
                     raise
                 try:
                     self.extract_icons(temp_package)
@@ -489,6 +490,7 @@ class OnboardPackage(downloader.DownloaderProtocol):
             if str(e):
                 self.log.message(OnboardError(str(e)))
             self.log.message(OnboardFailure())
+            raise OnboardException(OnboardFailure())
 
     def on_download_succeeded(self, job):
         self.log.message(DownloadSuccess("Package downloaded."))

@@ -187,6 +187,10 @@ class JujuApi(object):
         if not self.authenticated:
             await self.login()
 
+        # Check that the charm is valid and exists.
+        if charm is None:
+            return None
+
         app = await self.get_application(name)
         if app is None:
             # TODO: Handle the error if the charm isn't found.
@@ -219,7 +223,7 @@ class JujuApi(object):
 
         self.log.debug("JujuApi: Getting application {}".format(application))
         app = None
-        if self.model:
+        if application and self.model:
             if self.model.applications:
                 if application in self.model.applications:
                     app = self.model.applications[application]
@@ -234,11 +238,10 @@ class JujuApi(object):
         app = await self.get_application(application)
         if app:
             status = app.status
-
-        self.log.debug("JujuApi: Status of application {} is {}".format(
-            application,
-            str(status),
-        ))
+            self.log.debug("JujuApi: Status of application {} is {}".format(
+                application,
+                str(status),
+            ))
         return status
     get_service_status = get_application_status
 
@@ -546,7 +549,7 @@ class JujuApi(object):
             for key in config:
                 if config[key] != newconf[key]:
                     self.log.debug("JujuApi: Config not set! Key {} Value {} doesn't match {}".format(key, config[key], newconf[key]))
-                    
+
 
     async def set_parameter(self, parameter, value, application=None):
         """Set a config parameter for a service."""

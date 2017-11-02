@@ -291,6 +291,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
         self._log.debug("VNF config= %s", vnf_config.as_dict())
 
         try:
+            vnfr = self._juju_vnfs[vnfr_id].vnfr
             service = vnfr['vnf_juju_name']
             self._log.debug("VNF config %s", vnf_config)
             configs = vnf_config.config_primitive
@@ -419,7 +420,7 @@ class JujuConfigPlugin(riftcm_config_plugin.RiftCMConfigPluginBase):
             primitive)
 
         self._log.debug("VNFR {} primitive {} exec status: {}".
-                        format(vnfr.name, primitive.name, rc))
+                        format(vnfr_id, primitive.name, rc))
         output.execution_status = rc
         output.execution_id = exec_id
         output.execution_error_details = err

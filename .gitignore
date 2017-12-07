@@ -43,3 +43,20 @@ node_modules/
 *.log
 
 .cache
+
+models/plugins/yang/ietf-l2-topology.yang
+models/plugins/yang/ietf-network-topology.yang
+models/plugins/yang/ietf-network.yang
+models/plugins/yang/mano-rift-groupings.yang
+models/plugins/yang/mano-types.yang
+models/plugins/yang/nsd-base.yang
+models/plugins/yang/nsd.yang
+models/plugins/yang/nsr.yang
+models/plugins/yang/odl-network-topology.yang
+models/plugins/yang/project-nsd.yang
+models/plugins/yang/project-vnfd.yang
+models/plugins/yang/vlr.yang
+models/plugins/yang/vnfd-base.yang
+models/plugins/yang/vnfd.yang
+models/plugins/yang/vnffgd.yang
+models/plugins/yang/vnfr.yang

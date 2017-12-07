@@ -112,7 +112,36 @@ else
     sudo mkdir -p /usr/rift/etc/default
     sudo chmod 777 /usr/rift/etc/default
     echo LAUNCHPAD_OPTIONS="--use-xml-mode" >> /usr/rift/etc/default/launchpad
-    sudo systemctl daemon-reload
+    sudo systemctl daemon-reload || true
+
+    IM_FILES="
+ietf-l2-topology.yang
+ietf-network-topology.yang
+ietf-network.yang
+mano-rift-groupings.yang
+mano-types.yang
+nsd-base.yang
+nsd.yang
+nsr.yang
+odl-network-topology.yang
+project-nsd.yang
+project-vnfd.yang
+vlr.yang
+vnfd-base.yang
+vnfd.yang
+vnffgd.yang
+vnfr.yang
+"
+    echo "installing IM files"
+    if [ ! -d ../IM ]; then
+        echo cloning IM
+        # note that this cannot be inside the SO or else CMAKE will find it 
+        git clone $(dirname $(git remote get-url origin))/IM.git ../IM
+    fi
+    for file in $IM_FILES; do 
+        rm -f models/plugins/yang/$file
+        cp ../IM/models/yang/$file models/plugins/yang
+    done
 
     # Build  and install module
     make -j16 

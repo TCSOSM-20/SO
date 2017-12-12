@@ -1,0 +1,3 @@
+Package: *
+Pin: origin repos.riftio.com
+Pin-Priority: 600

@@ -56,7 +56,7 @@ while true; do
 	    echo
 	    echo "SYNOPSIS:"
 	    echo "  $0 -h|--help"
-	    echo "  $0 [--install] [PLATFORM_REPOSITORY] [PLATFORM_VERSION]"
+	    echo "  $0 [--install] [PLATFORM_VERSION]"
 	    echo
 	    echo "DESCRIPTION:"
 	    echo "  Prepare current system to run $MODULE.  By default, the system"
@@ -78,8 +78,7 @@ set -x             # Print commands before executing them
 ###############################################################################
 # Set up repo and version
 
-PLATFORM_REPOSITORY=${1:-OSM3}
-PLATFORM_VERSION=${2:-5.2.0.2.72254}
+PLATFORM_VERSION=${1:-5.2.0.3.73627}
 
 ###############################################################################
 # Main block

@@ -175,23 +175,6 @@ class JujuApi(object):
         """Close any open connections."""
         yield self.logout()
 
-    async def add_relation(self, a, b, via=None):
-        """
-        Add a relation between two application endpoints.
-
-        :param a An application endpoint
-        :param b An application endpoint
-        :param via The egress subnet(s) for outbound traffic, e.g., (192.168.0.0/16,10.0.0.0/8)
-        """
-        if not self.authenticated:
-            await self.login()
-
-        m = await self.get_model()
-        try:
-            m.add_relation(a, b, via)
-        finally:
-            await m.disconnect()
-
     async def apply_config(self, config, application):
         """Apply a configuration to the application."""
         self.log.debug("JujuApi: Applying configuration to {}.".format(
@@ -199,22 +182,8 @@ class JujuApi(object):
         ))
         return await self.set_config(application=application, config=config)
 
-    async def deploy_application(self, charm, name="", path="", specs={}):
-        """
-        Deploy an application.
-
-        Deploy an application to a container or a machine already provisioned
-        by the OSM Resource Orchestrator (requires the Juju public ssh key
-        installed on the new machine via cloud-init).
-
-        :param str charm: The name of the charm
-        :param str name: The name of the application, if different than the charm
-        :param str path: The path to the charm
-        :param dict machine: A dictionary identifying the machine to manage via Juju
-            Examples::
-
-                deploy_application(..., specs={'host': '10.0.0.4', 'user': 'ubuntu'})
-        """
+    async def deploy_application(self, charm, name="", path=""):
+        """Deploy an application."""
         if not self.authenticated:
             await self.login()
 
@@ -224,22 +193,11 @@ class JujuApi(object):
 
         app = await self.get_application(name)
         if app is None:
-
-            # Check for specific machine placement
-            to = None
-            if all(k in specs for k in ['hostname', 'username']):
-                machine = await self.model.add_machine(spec='ssh:%@%'.format(
-                    specs['host'],
-                    specs['user'],
-                ))
-                to = machine.id
-
             # TODO: Handle the error if the charm isn't found.
             self.log.debug("JujuApi: Deploying charm {} ({}) from {}".format(
                 charm,
                 name,
                 path,
-                to=to,
             ))
             app = await self.model.deploy(
                 path,
@@ -526,22 +484,6 @@ class JujuApi(object):
 
             await app.destroy()
 
-    async def remove_relation(self, a, b):
-        """
-        Remove a relation between two application endpoints
-
-        :param a An application endpoint
-        :param b An application endpoint
-        """
-        if not self.authenticated:
-            await self.login()
-
-        m = await self.get_model()
-        try:
-            m.remove_relation(a, b)
-        finally:
-            await m.disconnect()
-
     async def resolve_error(self, application=None):
         """Resolve units in error state."""
         if not self.authenticated:
@@ -647,15 +589,11 @@ class JujuApi(object):
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description='Test Driver for Juju API')
-
-    ###################
-    # Authentication  #
-    ###################
+    parser = argparse.ArgumentParser(description='Test Juju')
     parser.add_argument(
         "-s", "--server",
         default='10.0.202.49',
-        help="Juju controller",
+        help="Juju controller"
     )
     parser.add_argument(
         "-u", "--user",
@@ -673,15 +611,6 @@ def get_argparser():
         help="Port number, default 17070"
     )
     parser.add_argument(
-        "-m", "--model",
-        default='default',
-        help="The model to connect to."
-    )
-
-    ##########
-    # Charm  #
-    ##########
-    parser.add_argument(
         "-d", "--directory",
         help="Local directory for the charm"
     )
@@ -689,39 +618,19 @@ def get_argparser():
         "--application",
         help="Charm name"
     )
-
-    #############
-    # Placement #
-    #############
-
-    """
-    To deploy to a non-Juju machine, provide the host and
-    credentials for Juju to manually provision (host, username, (password or key?))
-
-    """
     parser.add_argument(
-        "--proxy",
-        action='store_true',
-        help="Deploy as a proxy charm.",
+        "--vnf-ip",
+        help="IP of the VNF to configure"
     )
     parser.add_argument(
-        "--no-proxy",
-        action='store_false',
-        dest='proxy',
-        help="Deploy as a full charm.",
+        "-m", "--model",
+        default='default',
+        help="The model to connect to."
     )
-    parser.set_defaults(proxy=True)
-
-    # Test options?
-    # unit test?
-    #######
-    # VNF #
-    #######
-
     return parser.parse_args()
 
 
-async def deploy_charm_and_wait():
+if __name__ == "__main__":
     args = get_argparser()
 
     # Set logging level to debug so we can see verbose output from the
@@ -733,76 +642,58 @@ async def deploy_charm_and_wait():
     ws_logger = logging.getLogger('websockets.protocol')
     ws_logger.setLevel(logging.INFO)
 
-    """Here's an example of a coroutine that will deploy a charm and wait until
-    it's ready to be used."""
+    endpoint = '%s:%d' % (args.server, int(args.port))
+
+    loop = asyncio.get_event_loop()
+
     api = JujuApi(server=args.server,
                   port=args.port,
                   user=args.user,
                   secret=args.password,
-                  # loop=loop,
+                  loop=loop,
                   log=ws_logger,
                   model_name=args.model
                   )
-    print("Logging in...")
-    await api.login()
 
-    if api.authenticated:
-        status = await api.get_status()
-        print('Applications:', list(status.applications.keys()))
-        print('Machines:', list(status.machines.keys()))
+    juju.loop.run(api.login())
+
+    status = juju.loop.run(api.get_status())
+
+    print('Applications:', list(status.applications.keys()))
+    print('Machines:', list(status.machines.keys()))
 
     if args.directory and args.application:
-
         # Deploy the charm
-        charm = os.path.basename(
-            os.path.expanduser(
-                os.path.dirname(args.directory)
-            )
+        charm = os.path.basename(args.directory)
+        juju.loop.run(
+            api.deploy_application(charm,
+                                   name=args.application,
+                                   path=args.directory,
+                                   )
         )
-        await api.deploy_application(charm,
-                                     name=args.application,
-                                     path=args.directory,
-                                     )
 
-        # Wait for the application to fully deploy. This will block until the
-        # agent is in an idle state, and the charm's workload is either
-        # 'active' or 'unknown', meaning it's ready but the author did not
-        # explicitly set a workload state.
-        print("Waiting for application '{}' to deploy...".format(charm))
-        while (True):
-            # Deploy the charm and wait, periodically checking its status
-            await api.wait_for_application(charm, 30)
+        juju.loop.run(api.wait_for_application(charm))
 
-            error = await api.is_application_error(charm)
-            if error:
-                print("This application is in an error state.")
-                break
-
-            blocked = await api.is_application_blocked(charm)
-            if blocked:
-                print("This application is blocked.")
-                break
-
-            # An extra check to see if the charm is ready
-            up = await api.is_application_up(charm)
-            print("Application is {}".format("up" if up else "down"))
+        # Wait for the service to come up
+        up = juju.loop.run(api.is_application_up(charm))
+        print("Application is {}".format("up" if up else "down"))
 
         print("Service {} is deployed".format(args.application))
 
-        ###################################
-        # Execute config on a proxy charm #
-        ###################################
-        config = await api.get_config(args.application)
+        ###########################
+        # Execute config on charm #
+        ###########################
+        config = juju.loop.run(api.get_config(args.application))
         hostname = config['ssh-username']['value']
         rhostname = hostname[::-1]
 
         # Apply the configuration
-        await api.apply_config(
+        juju.loop.run(api.apply_config(
             {'ssh-username': rhostname}, application=args.application
-        )
+        ))
 
         # Get the configuration
-        config = await api.get_config(args.application)
+        config = juju.loop.run(api.get_config(args.application))
 
         # Verify the configuration has been updated
         assert(config['ssh-username']['value'] == rhostname)
@@ -810,13 +701,13 @@ async def deploy_charm_and_wait():
         ####################################
         # Get the status of an application #
         ####################################
-        status = await api.get_application_status(charm)
+        status = juju.loop.run(api.get_application_status(charm))
         print("Application Status: {}".format(status))
 
         ###########################
         # Execute a simple action #
         ###########################
-        result = await api.run_action(charm, 'get-ssh-public-key')
+        result = juju.loop.run(api.run_action(charm, 'get-ssh-public-key'))
         print("Action {} status is {} and returned {}".format(
             result['status'],
             result['action']['tag'],
@@ -826,28 +717,50 @@ async def deploy_charm_and_wait():
         #####################################
         # Execute an action with parameters #
         #####################################
-        result = await api.run_action(charm, 'run', command='hostname')
-
+        result = juju.loop.run(
+            api.run_action(charm, 'run', command='hostname')
+        )
         print("Action {} status is {} and returned {}".format(
             result['status'],
             result['action']['tag'],
             result['action']['results']
         ))
 
-    print("Logging out...")
-    await api.logout()
-    api = None
+    juju.loop.run(api.logout())
 
-# get public key in juju controller? that can be pulled without need of a charm deployed and installed to vm via cloud-init
+    loop.close()
 
-if __name__ == "__main__":
-    # Create a single event loop for running code asyncronously.
-    loop = asyncio.get_event_loop()
-
-    # An initial set of tasks to run
-    tasks = [
-        deploy_charm_and_wait(),
-    ]
-
-    # TODO: optionally run forever and use a Watcher to monitor what's happening
-    loop.run_until_complete(asyncio.wait(tasks))
+    #     if args.vnf_ip and \
+    #        ('clearwater-aio' in args.directory):
+    #         # Execute config on charm
+    #         api._apply_config({'proxied_ip': args.vnf_ip})
+    #
+    #         while not api._is_service_active():
+    #             time.sleep(10)
+    #
+    #         print ("Service {} is in status {}".
+    #                format(args.service, api._get_service_status()))
+    #
+    #         res = api._execute_action('create-update-user', {'number': '125252352525',
+    #                                                          'password': 'asfsaf'})
+    #
+    #         print ("Action 'creat-update-user response: {}".format(res))
+    #
+    #         status = res['status']
+    #         while status not in [ 'completed', 'failed' ]:
+    #             time.sleep(2)
+    #             status = api._get_action_status(res['action']['tag'])['status']
+    #
+    #             print("Action status: {}".format(status))
+    #
+    #         # This action will fail as the number is non-numeric
+    #         res = api._execute_action('delete-user', {'number': '125252352525asf'})
+    #
+    #         print ("Action 'delete-user response: {}".format(res))
+    #
+    #         status = res['status']
+    #         while status not in [ 'completed', 'failed' ]:
+    #             time.sleep(2)
+    #             status = api._get_action_status(res['action']['tag'])['status']
+    #
+    #             print("Action status: {}".format(status))
